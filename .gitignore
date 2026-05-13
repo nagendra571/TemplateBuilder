@@ -16,3 +16,6 @@ packages/
 
 # dotnet
 .dotnet/
+
+# wwwroot vendor libraries
+wwwroot/lib/
