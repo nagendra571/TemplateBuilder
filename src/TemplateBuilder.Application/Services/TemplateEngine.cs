@@ -80,16 +80,26 @@ public class TemplateEngine : ITemplateEngine
         }
 
         var cacheKey = $"tb_{templateId}";
+
+        // Check cache first — if version matches, return immediately
         if (_cache.TryGetValue(cacheKey, out CacheEntry? cached) && cached!.VersionId == currentVersionId)
             return cached.Body;
 
-        var body = await _repository.GetVersionBodyAsync(currentVersionId, ct)
-                   ?? throw new TemplateNotFoundException(templateId);
+        // Version changed — evict stale entry so GetOrCreateAsync factory runs
+        if (cached is not null)
+            _cache.Remove(cacheKey);
 
-        _cache.Set(cacheKey, new CacheEntry(currentVersionId, body),
-            TimeSpan.FromMinutes(_options.CacheDurationMinutes));
+        // Cache miss (or stale entry evicted) — fetch body and update cache
+        // GetOrCreateAsync prevents stampede: concurrent misses for same key share one fetch
+        var entry = await _cache.GetOrCreateAsync(cacheKey, async cacheEntry =>
+        {
+            cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(_options.CacheDurationMinutes);
+            var body = await _repository.GetVersionBodyAsync(currentVersionId, ct)
+                       ?? throw new TemplateNotFoundException(templateId);
+            return new CacheEntry(currentVersionId, body);
+        }) ?? throw new TemplateNotFoundException(templateId);
 
-        return body;
+        return entry.Body;
     }
 
     /// <summary>
@@ -107,10 +117,7 @@ public class TemplateEngine : ITemplateEngine
             foreach (var key in Keys)
             {
                 if (string.Equals(key, member, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (base.TryGetValue(context, span, key, out value))
-                        return true;
-                }
+                    return base.TryGetValue(context, span, key, out value);
             }
 
             value = null;

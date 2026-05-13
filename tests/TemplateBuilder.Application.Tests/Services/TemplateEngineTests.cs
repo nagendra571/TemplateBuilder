@@ -63,7 +63,7 @@ public class TemplateEngineTests
     public async Task RenderAsync_UnknownTemplateId_ThrowsTemplateNotFoundException()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(999, default)).ReturnsAsync((int?)null);
+        repo.Setup(r => r.GetCurrentVersionIdAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((int?)null);
         var engine = CreateEngine(repo.Object);
 
         var act = async () => await engine.RenderAsync(999, new { });
@@ -75,8 +75,8 @@ public class TemplateEngineTests
     public async Task RenderAsync_ValidTemplate_FetchesBodyAndRenders()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, default)).ReturnsAsync(10);
-        repo.Setup(r => r.GetVersionBodyAsync(10, default)).ReturnsAsync("<p>{{ model.Title }}</p>");
+        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+        repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>{{ model.Title }}</p>");
         var engine = CreateEngine(repo.Object);
 
         var html = await engine.RenderAsync(1, new { Title = "Hello World" });
@@ -88,14 +88,14 @@ public class TemplateEngineTests
     public async Task RenderAsync_CalledTwice_SecondCallUsesCache_NoSecondBodyFetch()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, default)).ReturnsAsync(10);
-        repo.Setup(r => r.GetVersionBodyAsync(10, default)).ReturnsAsync("<p>{{ model.X }}</p>");
+        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+        repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>{{ model.X }}</p>");
         var engine = CreateEngine(repo.Object);
 
         await engine.RenderAsync(1, new { X = "first" });
         await engine.RenderAsync(1, new { X = "second" });
 
-        repo.Verify(r => r.GetVersionBodyAsync(10, default), Times.Once);
+        repo.Verify(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -103,10 +103,10 @@ public class TemplateEngineTests
     {
         var repo = new Mock<ITemplateRepository>();
         var versionIdSequence = new Queue<int?>(new int?[] { 10, 11 });
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, default))
+        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => versionIdSequence.Dequeue());
-        repo.Setup(r => r.GetVersionBodyAsync(10, default)).ReturnsAsync("<p>v1</p>");
-        repo.Setup(r => r.GetVersionBodyAsync(11, default)).ReturnsAsync("<p>v2</p>");
+        repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>v1</p>");
+        repo.Setup(r => r.GetVersionBodyAsync(11, It.IsAny<CancellationToken>())).ReturnsAsync("<p>v2</p>");
         var engine = CreateEngine(repo.Object);
 
         var html1 = await engine.RenderAsync(1, new { });
@@ -114,14 +114,14 @@ public class TemplateEngineTests
 
         html1.Should().Be("<p>v1</p>");
         html2.Should().Be("<p>v2</p>");
-        repo.Verify(r => r.GetVersionBodyAsync(It.IsAny<int>(), default), Times.Exactly(2));
+        repo.Verify(r => r.GetVersionBodyAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
     public async Task RenderByNameAsync_ResolvesTemplateByName()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetByNameAsync("WelcomeEmail", default))
+        repo.Setup(r => r.GetByNameAsync("WelcomeEmail", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Domain.Entities.Template
             {
                 Id = 5,
@@ -130,8 +130,8 @@ public class TemplateEngineTests
                 IsActive = true,
                 CurrentVersionId = 20
             });
-        repo.Setup(r => r.GetCurrentVersionIdAsync(5, default)).ReturnsAsync(20);
-        repo.Setup(r => r.GetVersionBodyAsync(20, default)).ReturnsAsync("<p>Welcome</p>");
+        repo.Setup(r => r.GetCurrentVersionIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(20);
+        repo.Setup(r => r.GetVersionBodyAsync(20, It.IsAny<CancellationToken>())).ReturnsAsync("<p>Welcome</p>");
         var engine = CreateEngine(repo.Object);
 
         var html = await engine.RenderByNameAsync("WelcomeEmail", new { });
@@ -145,7 +145,7 @@ public class TemplateEngineTests
     {
         var repo = new Mock<ITemplateRepository>();
         // GetCurrentVersionIdAsync returns null for inactive templates (filtered by IsActive in repo)
-        repo.Setup(r => r.GetCurrentVersionIdAsync(42, default)).ReturnsAsync((int?)null);
+        repo.Setup(r => r.GetCurrentVersionIdAsync(42, It.IsAny<CancellationToken>())).ReturnsAsync((int?)null);
         var engine = CreateEngine(repo.Object);
 
         var act = async () => await engine.RenderAsync(42, new { });
@@ -195,5 +195,45 @@ public class TemplateEngineTests
         var html = await engine.RenderBodyAsync("<p>{{ model.Val }}</p>", new { Val = "<script>alert(1)</script>" });
 
         html.Should().Contain("<script>alert(1)</script>");
+    }
+
+    [Fact]
+    public async Task RenderByNameAsync_InactiveTemplate_ThrowsTemplateNotFoundException()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByNameAsync("Inactive", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.Template
+            {
+                Id = 7,
+                Name = "Inactive",
+                TemplateType = "Email",
+                IsActive = false
+            });
+        var engine = CreateEngine(repo.Object);
+
+        var act = async () => await engine.RenderByNameAsync("Inactive", new { });
+
+        await act.Should().ThrowAsync<TemplateNotFoundException>();
+    }
+
+    private static TemplateEngine CreateEngineNoCaching(ITemplateRepository repo)
+    {
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var options = Microsoft.Extensions.Options.Options.Create(new TemplateBuilderOptions { EnableCaching = false });
+        return new TemplateEngine(repo, cache, options);
+    }
+
+    [Fact]
+    public async Task RenderAsync_CachingDisabled_FetchesBodyOnEveryCall()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+        repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>hi</p>");
+        var engine = CreateEngineNoCaching(repo.Object);
+
+        await engine.RenderAsync(1, new { });
+        await engine.RenderAsync(1, new { });
+
+        repo.Verify(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Infrastructure.Data;
 using TemplateBuilder.Infrastructure.Repositories;
@@ -20,6 +21,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
             errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
+builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
 var app = builder.Build();
 

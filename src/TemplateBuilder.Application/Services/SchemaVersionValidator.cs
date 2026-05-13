@@ -12,8 +12,20 @@ public class SchemaVersionValidator
         await using var cmd = new SqlCommand(
             "SELECT COUNT(1) FROM __EFMigrationsHistory WHERE MigrationId = @id", conn);
         cmd.Parameters.AddWithValue("@id", requiredMigrationId);
-        var count = (int)(await cmd.ExecuteScalarAsync(ct))!;
-        if (count == 0)
+        try
+        {
+            var result = await cmd.ExecuteScalarAsync(ct);
+            var count = result is null ? 0 : (int)result;
+            if (count == 0)
+                throw new SchemaVersionMismatchException(requiredMigrationId);
+        }
+        catch (SchemaVersionMismatchException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
             throw new SchemaVersionMismatchException(requiredMigrationId);
+        }
     }
 }

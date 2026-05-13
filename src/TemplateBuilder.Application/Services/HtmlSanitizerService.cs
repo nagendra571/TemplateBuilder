@@ -4,6 +4,10 @@ namespace TemplateBuilder.Application.Services;
 
 public class HtmlSanitizerService : IHtmlSanitizerService
 {
+    private static readonly System.Text.RegularExpressions.Regex AllowedDataUri = new(
+        @"^data:image/(png|jpeg|gif|webp);base64,",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private readonly HtmlSanitizer _sanitizer;
 
     public HtmlSanitizerService()
@@ -25,13 +29,10 @@ public class HtmlSanitizerService : IHtmlSanitizerService
         _sanitizer.AllowedSchemes.Add("https");
         _sanitizer.AllowedSchemes.Add("http");
 
-        var allowedDataUri = new System.Text.RegularExpressions.Regex(
-            @"^data:image/(png|jpeg|gif|webp);base64,",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         _sanitizer.FilterUrl += (sender, args) =>
         {
             if (args.OriginalUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase) &&
-                !allowedDataUri.IsMatch(args.OriginalUrl))
+                !AllowedDataUri.IsMatch(args.OriginalUrl))
             {
                 args.SanitizedUrl = null;
             }
