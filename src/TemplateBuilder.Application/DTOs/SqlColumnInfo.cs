@@ -1,3 +1,3 @@
-namespace TemplateBuilder.Domain.DTOs;
+namespace TemplateBuilder.Application.DTOs;
 
 public record SqlColumnInfo(string Name, string DataType);
