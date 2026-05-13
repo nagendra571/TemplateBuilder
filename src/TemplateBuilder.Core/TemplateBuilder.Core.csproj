@@ -9,6 +9,12 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>TemplateBuilder.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>TemplateBuilder</Authors>
+    <Description>Render TemplateBuilder templates to HTML strings. Call services.AddTemplateBuilder(...) then inject ITemplateEngine and call RenderAsync(templateId, model).</Description>
+    <PackageTags>template;scriban;html;rendering</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>
