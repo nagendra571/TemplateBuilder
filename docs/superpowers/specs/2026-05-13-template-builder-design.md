@@ -136,9 +136,9 @@ The designer places a Grid Block. The editor auto-generates `<thead>`. The body 
 | Missing property | Renders as empty string — no exception |
 | `Dictionary<string, object>` model | Keys treated as property names — case-insensitive lookup |
 | Collection name | Loop variable must match collection property name (case-insensitive): `{{ for item in model.OrderItems }}` requires `OrderItems` |
-| Nesting depth | Scriban natively traverses full object graphs. v1 is tested with one level (`model.Collection[i].Property`). Deeper nesting works via Scriban's native reflection but is not covered by the test suite — it is the caller's responsibility. |
+| Nesting depth | Scriban natively traverses object graphs to any depth. v1 test coverage is one level (`model.Collection[i].Property`); deeper nesting follows Scriban's native reflection and is the caller's responsibility. |
 
-These behaviors derive from Scriban's native reflection-based binding. The engine applies no additional constraints on top of Scriban's defaults.
+These behaviors derive from Scriban's native reflection-based binding. The engine applies no additional constraints on top of Scriban's defaults. There is no save-path validation for token depth.
 
 ---
 
@@ -178,7 +178,7 @@ public interface ITemplateEngine
 | `TemplateRenderException` | Scriban syntax error in the template body |
 | `SchemaVersionMismatchException` | DB schema is behind the required migration (when ValidateSchemaOnStartup = true or on first render) |
 
-`IsActive` controls two behaviors: (1) editor visibility — inactive templates are hidden from the designer list, and (2) runtime access — both `RenderAsync` and `RenderByNameAsync` throw `TemplateNotFoundException` when `IsActive = false`. The inactive status is not leaked to callers (same response as not found).
+**Requirement:** Inactive templates (`IsActive = false`) are hidden in designer lists AND must return HTTP 404 `TEMPLATE_NOT_FOUND` for both `RenderAsync` and `RenderByNameAsync`. The inactive status is not leaked to callers — the response is identical to a template that does not exist.
 
 ### Output Trust Model
 Template bodies are authored exclusively by internal trusted users. Scriban outputs model property values as-is — no HTML encoding is applied by the engine.
@@ -283,7 +283,7 @@ var pdf = pdfService.FromHtml(html);
 ### Page 4: Live Preview (modal)
 - JSON editor pre-populated with auto-generated sample data from the selected SQL view schema
 - User can edit the JSON to test edge cases
-- "Render" button calls `TemplateEngine.RenderBodyAsync` with the current editor body — the body is not required to be saved first
+- **Requirement:** Preview endpoint renders the unsaved editor body using `RenderBodyAsync(body, model)`. It must not call `RenderAsync` and must not require a persisted template version. The body in the editor at click time is rendered as-is.
 - Output displayed in an iframe below the JSON editor
 
 **Preview constraints:**
@@ -321,11 +321,12 @@ var pdf = pdfService.FromHtml(html);
 
 These are design targets, not enforced SLAs.
 
-**Load test baseline** (to validate p95 targets):
-- Dataset: 100 templates, ~50 KB body each, all active
-- Concurrency: 50 simultaneous `RenderAsync` calls
-- Warm cache: template rendered at least once since process start; `CurrentVersionId` is already in the in-process cache
-- Cold cache: first render after process restart, or after a new version is published (cache miss — one `SELECT CurrentVersionId` + one body fetch)
+**Performance test definition:**
+- Run 1,000 `RenderAsync` calls at concurrency 50
+- Fixed dataset: 100 templates, ~50 KB body each, all active, single matching model per template
+- Pass criteria: cached p95 < 150 ms, cache-miss p95 < 400 ms
+- Warm cache: template rendered at least once since process start (`CurrentVersionId` already cached)
+- Cold cache: first render after process restart, or immediately after a new version is published
 
 ### Concurrency Policy
 `Templates.RowVersion` (SQL `ROWVERSION`) is mapped as an EF Core `[Timestamp]` concurrency token. On concurrent saves or restores:
@@ -346,7 +347,7 @@ Default allowlist:
 - **Tags:** `p, div, span, strong, em, b, i, u, h1–h6, ul, ol, li, br, hr, table, thead, tbody, tr, th, td, a, img`
 - **Attributes:** `href, src, class` — `style` is **excluded** (CSS injection vector for data exfiltration and clickjacking)
 - **URL schemes for `href`:** `https`, `http`
-- **URL schemes for `src`:** `https` and `data:image/` only — the `data:` scheme is restricted to image MIME types via a custom URI validator; `data:text/html` and other executable `data:` types are blocked
+- **URL schemes for `src`:** `https` and `data:image/(png|jpeg|gif|webp);base64,...` only — the `data:` scheme is restricted to specific image MIME types with base64 encoding via a custom URI validator. `data:text/html`, `data:application/javascript`, and all non-image `data:` types are blocked.
 
 Library: `Ganss.Xss` (HtmlSanitizer). Added to `TemplateBuilder.Application`.
 
@@ -380,10 +381,11 @@ Library: `Ganss.Xss` (HtmlSanitizer). Added to `TemplateBuilder.Application`.
 10. Set `ValidateSchemaOnStartup = true` with a rolled-back migration — verify `SchemaVersionMismatchException` thrown on startup with the actionable migration command in the message
 
 ### Error Contracts (API)
-1. Submit a Preview request with JSON > 64 KB — verify 400 `PREVIEW_JSON_TOO_LARGE`
-2. Submit a Preview request with malformed JSON — verify 400 `PREVIEW_JSON_INVALID`
-3. Submit a Preview request with a template that causes a long render (large loop) — verify 408 `PREVIEW_TIMEOUT` after 5 seconds
-4. Save a template with a name that already exists — verify 400 `VALIDATION_ERROR` with message containing the duplicate name
-5. Simulate two concurrent SaveVersion requests for the same template — verify the second returns 409 `CONFLICT` with retry guidance
-6. Call RestoreVersion under the same concurrent condition — verify 409 `CONFLICT`
-7. Verify that `TemplateRenderException` details (Scriban internals) are logged server-side but the API response message is sanitized to "Template rendering failed. Check template syntax."
+1. **PREVIEW_JSON_INVALID** — POST to `/templates/{id}/preview` with body `{ "body": "...", "modelJson": "{invalid" }` — verify HTTP 400, response body `{ "code": "PREVIEW_JSON_INVALID", "message": "Invalid JSON: ..." }`, no stack trace in message
+2. **PREVIEW_JSON_TOO_LARGE** — POST to `/templates/{id}/preview` with `modelJson` field > 64 KB — verify HTTP 400, `{ "code": "PREVIEW_JSON_TOO_LARGE", "message": "Preview JSON payload exceeds the 64 KB limit." }`
+3. **PREVIEW_TIMEOUT** — POST to `/templates/{id}/preview` with a body containing a loop over a very large collection (> 100 000 items) — verify HTTP 408, `{ "code": "PREVIEW_TIMEOUT", "message": "Preview timed out..." }` after ≤ 5 seconds
+4. **CONFLICT (SaveVersion)** — Fetch a template, save a new version from one session, then attempt to save from the stale first session — verify HTTP 409, `{ "code": "CONFLICT", "message": "...refresh and try again." }`
+5. **CONFLICT (RestoreVersion)** — Same stale-session pattern on the Restore endpoint — verify HTTP 409 `CONFLICT`
+6. **Schema mismatch** — Set `ValidateSchemaOnStartup = true`, roll back one migration — verify `SchemaVersionMismatchException` is thrown on startup with message containing the required migration ID and `dotnet ef database update` command
+7. **Inactive template (IsActive = false)** — Deactivate a template then call `RenderAsync` and `RenderByNameAsync` — verify both throw `TemplateNotFoundException`; confirm HTTP 404 `TEMPLATE_NOT_FOUND` at the web layer; confirm inactive status is not present in the error message
+8. **Render error masking** — Introduce a Scriban syntax error, call `RenderAsync` — verify the API returns `{ "code": "TEMPLATE_RENDER_ERROR", "message": "Template rendering failed. Check template syntax." }` with no Scriban internals in the response; verify full error is in server logs

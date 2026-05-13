@@ -1368,13 +1368,16 @@ public class HtmlSanitizerService : IHtmlSanitizerService
         // data: scheme restricted to image MIME types only via URI validator below
 
         _sanitizer.AllowedAtRules.Clear();
+        // Allow only data:image/(png|jpeg|gif|webp);base64,... — block all other data: URIs
+        var allowedDataUri = new System.Text.RegularExpressions.Regex(
+            @"^data:image/(png|jpeg|gif|webp);base64,",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         _sanitizer.FilterUrl += (sender, args) =>
         {
-            // Allow data:image/* for embedded images; block all other data: URIs
             if (args.OriginalUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase) &&
-                !args.OriginalUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+                !allowedDataUri.IsMatch(args.OriginalUrl))
             {
-                args.SanitizedUrl = null; // strip the attribute
+                args.SanitizedUrl = null; // strip disallowed data: URI
             }
         };
     }
