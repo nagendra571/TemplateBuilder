@@ -39,14 +39,15 @@ public class TemplateEngine : ITemplateEngine
         if (template is null || !template.IsActive)
             throw new TemplateNotFoundException(templateName);
 
-        var currentVersionId = template.CurrentVersionId
+        // Lightweight version check for cache invalidation (per spec caching contract)
+        var currentVersionId = await _repository.GetCurrentVersionIdAsync(template.Id, ct)
             ?? throw new TemplateNotFoundException(templateName);
 
         var body = await GetBodyAsync(template.Id, currentVersionId, ct);
         return await RenderBodyAsync(body, model, ct);
     }
 
-    public Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = default)
+    public async Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = default)
     {
         var parsed = Template.Parse(body);
         if (parsed.HasErrors)
@@ -62,7 +63,7 @@ public class TemplateEngine : ITemplateEngine
 
         try
         {
-            return parsed.RenderAsync(context).AsTask();
+            return await parsed.RenderAsync(context);
         }
         catch (Exception ex)
         {

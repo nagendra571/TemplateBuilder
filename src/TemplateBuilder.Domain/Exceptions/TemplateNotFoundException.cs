@@ -3,8 +3,8 @@ namespace TemplateBuilder.Domain.Exceptions;
 public class TemplateNotFoundException : Exception
 {
     public TemplateNotFoundException(int templateId)
-        : base($"Template with ID {templateId} was not found or is inactive.") { }
+        : base($"Template with ID {templateId} was not found.") { }
 
     public TemplateNotFoundException(string templateName)
-        : base($"Template '{templateName}' was not found or is inactive.") { }
+        : base($"Template '{templateName}' was not found.") { }
 }
