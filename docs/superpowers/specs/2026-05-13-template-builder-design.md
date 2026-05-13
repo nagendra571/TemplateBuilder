@@ -136,9 +136,9 @@ The designer places a Grid Block. The editor auto-generates `<thead>`. The body 
 | Missing property | Renders as empty string — no exception |
 | `Dictionary<string, object>` model | Keys treated as property names — case-insensitive lookup |
 | Collection name | Loop variable must match collection property name (case-insensitive): `{{ for item in model.OrderItems }}` requires `OrderItems` |
-| Nesting depth | One level: `model.Collection[i].Property`. Deeper nesting is unsupported in v1. |
+| Nesting depth | Scriban natively traverses full object graphs. v1 is tested with one level (`model.Collection[i].Property`). Deeper nesting works via Scriban's native reflection but is not covered by the test suite — it is the caller's responsibility. |
 
-These behaviors are Scriban's native reflection-based binding and are not configurable.
+These behaviors derive from Scriban's native reflection-based binding. The engine applies no additional constraints on top of Scriban's defaults.
 
 ---
 
@@ -178,7 +178,7 @@ public interface ITemplateEngine
 | `TemplateRenderException` | Scriban syntax error in the template body |
 | `SchemaVersionMismatchException` | DB schema is behind the required migration (when ValidateSchemaOnStartup = true or on first render) |
 
-`IsActive` governs editor visibility only. Both `RenderAsync` and `RenderByNameAsync` throw `TemplateNotFoundException` when `IsActive = false` — the inactive status is not leaked to callers (same response as not found).
+`IsActive` controls two behaviors: (1) editor visibility — inactive templates are hidden from the designer list, and (2) runtime access — both `RenderAsync` and `RenderByNameAsync` throw `TemplateNotFoundException` when `IsActive = false`. The inactive status is not leaked to callers (same response as not found).
 
 ### Output Trust Model
 Template bodies are authored exclusively by internal trusted users. Scriban outputs model property values as-is — no HTML encoding is applied by the engine.
@@ -281,7 +281,7 @@ var pdf = pdfService.FromHtml(html);
 ### Page 4: Live Preview (modal)
 - JSON editor pre-populated with auto-generated sample data from the selected SQL view schema
 - User can edit the JSON to test edge cases
-- "Render" button calls the same `TemplateEngine.RenderAsync` internally
+- "Render" button calls `TemplateEngine.RenderBodyAsync` with the current editor body — the body is not required to be saved first
 - Output displayed in an iframe below the JSON editor
 
 **Preview constraints:**
