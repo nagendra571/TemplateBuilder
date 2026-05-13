@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Infrastructure.Data;
+using TemplateBuilder.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +18,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(10),
             errorNumbersToAdd: null)));
+
+builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 
 var app = builder.Build();
 
