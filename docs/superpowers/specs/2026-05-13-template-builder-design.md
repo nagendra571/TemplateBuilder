@@ -193,7 +193,9 @@ v1 assumes model data comes from trusted internal databases. Multi-tenant use re
 If the migration is absent, it throws `SchemaVersionMismatchException`:
 > "TemplateBuilder.Core requires DB migration '{MigrationId}' which has not been applied. Run: dotnet ef database update --project TemplateBuilder.Infrastructure"
 
-Default: `ValidateSchemaOnStartup = false` (lazy check on first render).
+**Operational guidance:**
+- **Development / CI:** `ValidateSchemaOnStartup = false` (default) — lazy check avoids startup overhead when iterating migrations
+- **Production / staging:** `ValidateSchemaOnStartup = true` — fail fast at deploy time rather than surfacing `SchemaVersionMismatchException` on the first real request; this makes deployment pipelines catch schema drift before traffic hits
 
 ### Caching
 On each `RenderAsync` call the NuGet executes one lightweight query: `SELECT CurrentVersionId FROM Templates WHERE Id = @id`. If the result matches the cached version key, the cached body is returned with no further DB access. If it differs (designer saved a new version), the full body is re-fetched and the cache is updated. This guarantees callers always see the latest published version immediately after a designer save, with minimal DB overhead.
@@ -319,6 +321,12 @@ var pdf = pdfService.FromHtml(html);
 
 These are design targets, not enforced SLAs.
 
+**Load test baseline** (to validate p95 targets):
+- Dataset: 100 templates, ~50 KB body each, all active
+- Concurrency: 50 simultaneous `RenderAsync` calls
+- Warm cache: template rendered at least once since process start; `CurrentVersionId` is already in the in-process cache
+- Cold cache: first render after process restart, or after a new version is published (cache miss — one `SELECT CurrentVersionId` + one body fetch)
+
 ### Concurrency Policy
 `Templates.RowVersion` (SQL `ROWVERSION`) is mapped as an EF Core `[Timestamp]` concurrency token. On concurrent saves or restores:
 
@@ -334,7 +342,11 @@ Template bodies are treated as untrusted content at two enforcement points:
 1. **On save (always):** The template body is passed through an allowlist HTML sanitizer before being persisted to `TemplateVersions.Body`. Disallowed tags and attributes are stripped silently.
 2. **On render output (strict mode):** If `options.StrictMode = true`, the rendered HTML string is sanitized before being returned to the caller. Default: `false`.
 
-Default allowlist: `p, div, span, strong, em, b, i, u, h1–h6, ul, ol, li, br, hr, table, thead, tbody, tr, th, td, a [href: https/http only], img [src: https/data:image/* only]`.
+Default allowlist:
+- **Tags:** `p, div, span, strong, em, b, i, u, h1–h6, ul, ol, li, br, hr, table, thead, tbody, tr, th, td, a, img`
+- **Attributes:** `href, src, class` — `style` is **excluded** (CSS injection vector for data exfiltration and clickjacking)
+- **URL schemes for `href`:** `https`, `http`
+- **URL schemes for `src`:** `https` and `data:image/` only — the `data:` scheme is restricted to image MIME types via a custom URI validator; `data:text/html` and other executable `data:` types are blocked
 
 Library: `Ganss.Xss` (HtmlSanitizer). Added to `TemplateBuilder.Application`.
 
@@ -360,7 +372,18 @@ Library: `Ganss.Xss` (HtmlSanitizer). Added to `TemplateBuilder.Application`.
 2. Register with `AddTemplateBuilder` pointing at the TemplateBuilder SQL database
 3. Call `RenderAsync` with a templateId and a matching model — verify correct HTML string returned
 4. Call `RenderByNameAsync` with a template name — verify same result
-5. Pass a wrong templateId — verify `TemplateNotFoundException` thrown
-6. Introduce a Scriban syntax error in a template body via the designer — verify `TemplateRenderException` thrown on next render call
-7. Call `RenderAsync` twice for the same template — verify second call is served from cache (no DB query)
-8. Save a new version in the designer — verify next `RenderAsync` call returns updated content (cache invalidated)
+5. Pass a wrong templateId — verify `TemplateNotFoundException` thrown with code `TEMPLATE_NOT_FOUND`
+6. Deactivate a template (`IsActive = false`) — verify `RenderAsync` and `RenderByNameAsync` both throw `TemplateNotFoundException` (same as not found — inactive status not leaked)
+7. Introduce a Scriban syntax error in a template body via the designer — verify `TemplateRenderException` thrown on next render call
+8. Call `RenderAsync` twice for the same template — verify second call is served from cache (no DB query)
+9. Save a new version in the designer — verify next `RenderAsync` call returns updated content (cache invalidated)
+10. Set `ValidateSchemaOnStartup = true` with a rolled-back migration — verify `SchemaVersionMismatchException` thrown on startup with the actionable migration command in the message
+
+### Error Contracts (API)
+1. Submit a Preview request with JSON > 64 KB — verify 400 `PREVIEW_JSON_TOO_LARGE`
+2. Submit a Preview request with malformed JSON — verify 400 `PREVIEW_JSON_INVALID`
+3. Submit a Preview request with a template that causes a long render (large loop) — verify 408 `PREVIEW_TIMEOUT` after 5 seconds
+4. Save a template with a name that already exists — verify 400 `VALIDATION_ERROR` with message containing the duplicate name
+5. Simulate two concurrent SaveVersion requests for the same template — verify the second returns 409 `CONFLICT` with retry guidance
+6. Call RestoreVersion under the same concurrent condition — verify 409 `CONFLICT`
+7. Verify that `TemplateRenderException` details (Scriban internals) are logged server-side but the API response message is sanitized to "Template rendering failed. Check template syntax."

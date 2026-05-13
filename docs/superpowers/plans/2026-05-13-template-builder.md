@@ -1360,12 +1360,23 @@ public class HtmlSanitizerService : IHtmlSanitizerService
         _sanitizer.AllowedAttributes.Add("href");
         _sanitizer.AllowedAttributes.Add("src");
         _sanitizer.AllowedAttributes.Add("class");
-        _sanitizer.AllowedAttributes.Add("style");
+        // style excluded: CSS injection vector (data exfiltration, clickjacking)
 
         _sanitizer.AllowedSchemes.Clear();
         _sanitizer.AllowedSchemes.Add("https");
         _sanitizer.AllowedSchemes.Add("http");
-        _sanitizer.AllowedSchemes.Add("data");
+        // data: scheme restricted to image MIME types only via URI validator below
+
+        _sanitizer.AllowedAtRules.Clear();
+        _sanitizer.FilterUrl += (sender, args) =>
+        {
+            // Allow data:image/* for embedded images; block all other data: URIs
+            if (args.OriginalUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase) &&
+                !args.OriginalUrl.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+            {
+                args.SanitizedUrl = null; // strip the attribute
+            }
+        };
     }
 
     public string Sanitize(string html) => _sanitizer.Sanitize(html);
