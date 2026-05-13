@@ -1,0 +1,151 @@
+<h2>Web App — Page Flows</h2>
+<p class="subtitle">Four screens that make up the Template Designer</p>
+
+<div style="display:flex;flex-direction:column;gap:1.25rem;margin-top:1.5rem;">
+
+  <!-- Page 1: Template List -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="background:var(--accent);color:white;padding:.6rem 1rem;font-size:.85rem;font-weight:600;">Page 1 — Template List &nbsp;<span style="opacity:.7;font-weight:400;font-size:.78rem;">/ templates</span></div>
+    <div style="padding:1rem;display:grid;grid-template-columns:1fr 320px;gap:1rem;">
+      <div>
+        <div style="display:flex;gap:.6rem;margin-bottom:.8rem;align-items:center;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.35rem .7rem;font-size:.75rem;flex:1;">🔍 Search templates…</div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.35rem .7rem;font-size:.75rem;">▼ All Types</div>
+          <div style="background:var(--accent);color:white;border-radius:6px;padding:.35rem .8rem;font-size:.75rem;">+ New Template</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;font-size:.78rem;">
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:.6rem;">
+            <div><strong>Order Confirmation</strong> <span style="background:#3a3aff22;color:var(--accent);border-radius:4px;padding:.1rem .4rem;font-size:.68rem;">Email</span></div>
+            <div style="opacity:.5;font-size:.72rem;">v4 · 2 days ago</div>
+            <div style="opacity:.5;font-size:.72rem;">Active</div>
+            <div style="display:flex;gap:.4rem;"><span style="opacity:.6;cursor:pointer;">✏️</span><span style="opacity:.6;cursor:pointer;">🗂</span><span style="opacity:.6;cursor:pointer;">⚙️</span></div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:.6rem;">
+            <div><strong>Monthly Sales Report</strong> <span style="background:#22c55e22;color:#22c55e;border-radius:4px;padding:.1rem .4rem;font-size:.68rem;">Report</span></div>
+            <div style="opacity:.5;font-size:.72rem;">v2 · 1 week ago</div>
+            <div style="opacity:.5;font-size:.72rem;">Active</div>
+            <div style="display:flex;gap:.4rem;"><span style="opacity:.6;cursor:pointer;">✏️</span><span style="opacity:.6;cursor:pointer;">🗂</span><span style="opacity:.6;cursor:pointer;">⚙️</span></div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.55rem .9rem;display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:.6rem;">
+            <div><strong>Payment Overdue Notice</strong> <span style="background:#f59e0b22;color:#f59e0b;border-radius:4px;padding:.1rem .4rem;font-size:.68rem;">Notice</span></div>
+            <div style="opacity:.5;font-size:.72rem;">v1 · 3 weeks ago</div>
+            <div style="opacity:.4;font-size:.72rem;">Inactive</div>
+            <div style="display:flex;gap:.4rem;"><span style="opacity:.6;cursor:pointer;">✏️</span><span style="opacity:.6;cursor:pointer;">🗂</span><span style="opacity:.6;cursor:pointer;">⚙️</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;font-size:.78rem;">
+        <div class="label" style="margin-bottom:.6rem;">Quick Stats</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;">
+          <div style="display:flex;justify-content:space-between;"><span style="opacity:.7;">Total templates</span><strong>12</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="opacity:.7;">Email</span><strong>5</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="opacity:.7;">Report</span><strong>4</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="opacity:.7;">Notice</span><strong>2</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="opacity:.7;">Custom</span><strong>1</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 2: Template Editor -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+    <div style="background:#7c3aed;color:white;padding:.6rem 1rem;font-size:.85rem;font-weight:600;">Page 2 — Template Editor &nbsp;<span style="opacity:.7;font-weight:400;font-size:.78rem;">/ templates/{id}/edit</span></div>
+    <div style="padding:.8rem;display:grid;grid-template-columns:200px 1fr 180px;min-height:200px;gap:.6rem;">
+      <!-- Palette -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.75rem;">
+        <div style="opacity:.5;font-size:.68rem;letter-spacing:.06em;margin-bottom:.4rem;">SQL VIEW</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:.3rem .5rem;margin-bottom:.6rem;">▼ vw_OrderDetail</div>
+        <div style="opacity:.5;font-size:.68rem;letter-spacing:.06em;margin-bottom:.35rem;">SCALAR FIELDS</div>
+        <div style="display:flex;flex-direction:column;gap:.25rem;margin-bottom:.6rem;">
+          <div style="background:var(--accent);opacity:.85;color:white;border-radius:4px;padding:.2rem .5rem;cursor:grab;">⠿ CustomerName</div>
+          <div style="background:var(--accent);opacity:.85;color:white;border-radius:4px;padding:.2rem .5rem;cursor:grab;">⠿ OrderDate</div>
+          <div style="background:var(--accent);opacity:.85;color:white;border-radius:4px;padding:.2rem .5rem;cursor:grab;">⠿ TotalAmount</div>
+        </div>
+        <div style="opacity:.5;font-size:.68rem;letter-spacing:.06em;margin-bottom:.35rem;">BLOCKS</div>
+        <div style="border:1px dashed var(--border);border-radius:4px;padding:.2rem .5rem;margin-bottom:.25rem;cursor:grab;">⟳ Loop Block</div>
+        <div style="border:1px dashed var(--border);border-radius:4px;padding:.2rem .5rem;cursor:grab;">▦ Grid Block</div>
+      </div>
+      <!-- Canvas -->
+      <div style="background:white;border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.75rem;color:#111;line-height:1.8;">
+        <div style="border-bottom:1px solid #eee;padding-bottom:.4rem;margin-bottom:.5rem;display:flex;gap:.4rem;opacity:.5;font-size:.68rem;">B &nbsp;I &nbsp;U &nbsp;| &nbsp;H1 H2 &nbsp;| &nbsp;≡ &nbsp;— &nbsp;| &nbsp;🔗 📷</div>
+        <p>Dear <span style="background:#dbeafe;color:#2563eb;border-radius:3px;padding:0 3px;">{{CustomerName}}</span>,</p>
+        <p style="opacity:.5;">Thank you for your order placed on <span style="background:#dbeafe;color:#2563eb;border-radius:3px;padding:0 3px;">{{OrderDate}}</span>.</p>
+        <div style="border:2px dashed #f59e0b;border-radius:6px;padding:.4rem .6rem;background:#fffbeb;margin:.4rem 0;">
+          <div style="font-size:.65rem;color:#f59e0b;margin-bottom:.3rem;">⟳ LOOP — OrderItems</div>
+          <span style="background:#fef3c7;color:#b45309;border-radius:3px;padding:0 3px;">{{ProductName}}</span> ·
+          <span style="background:#fef3c7;color:#b45309;border-radius:3px;padding:0 3px;">{{Qty}}</span> ×
+          <span style="background:#fef3c7;color:#b45309;border-radius:3px;padding:0 3px;">{{UnitPrice}}</span>
+        </div>
+        <p><strong>Total: <span style="background:#dbeafe;color:#2563eb;border-radius:3px;padding:0 3px;">{{TotalAmount}}</span></strong></p>
+      </div>
+      <!-- Properties -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem;font-size:.75rem;display:flex;flex-direction:column;gap:.5rem;">
+        <div><div style="opacity:.5;font-size:.68rem;margin-bottom:.2rem;">NAME</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.25rem .4rem;">Order Confirmation</div></div>
+        <div><div style="opacity:.5;font-size:.68rem;margin-bottom:.2rem;">TYPE</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.25rem .4rem;">▼ Email</div></div>
+        <div><div style="opacity:.5;font-size:.68rem;margin-bottom:.2rem;">VERSION</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.25rem .4rem;">v4 &nbsp;<span style="color:var(--accent);cursor:pointer;">History</span></div></div>
+        <div><div style="opacity:.5;font-size:.68rem;margin-bottom:.2rem;">SAVE NOTE</div><div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.25rem .4rem;opacity:.5;">Optional…</div></div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:.4rem;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:.3rem;text-align:center;cursor:pointer;">👁 Preview</div>
+          <div style="background:var(--accent);color:white;border-radius:5px;padding:.3rem;text-align:center;cursor:pointer;">💾 Save Version</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pages 3 & 4 side by side -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+
+    <!-- Version History -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <div style="background:#0891b2;color:white;padding:.6rem 1rem;font-size:.85rem;font-weight:600;">Page 3 — Version History &nbsp;<span style="opacity:.7;font-weight:400;font-size:.78rem;">modal / drawer</span></div>
+      <div style="padding:.9rem;font-size:.78rem;">
+        <div style="display:flex;flex-direction:column;gap:.5rem;">
+          <div style="background:var(--bg);border:2px solid var(--accent);border-radius:8px;padding:.55rem .8rem;display:grid;grid-template-columns:1fr auto;align-items:center;">
+            <div><strong>v4</strong> — "Fixed loop spacing" <span style="background:var(--accent);color:white;border-radius:4px;padding:.1rem .4rem;font-size:.68rem;">Current</span></div>
+            <div style="opacity:.5;font-size:.72rem;">2 days ago</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.5rem;">
+            <div><strong>v3</strong> — "Added total row"</div>
+            <div style="opacity:.5;font-size:.72rem;">5 days ago</div>
+            <div style="color:var(--accent);font-size:.72rem;cursor:pointer;">Restore</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.5rem;">
+            <div><strong>v2</strong> — "Updated greeting"</div>
+            <div style="opacity:.5;font-size:.72rem;">2 weeks ago</div>
+            <div style="color:var(--accent);font-size:.72rem;cursor:pointer;">Restore</div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.5rem;">
+            <div><strong>v1</strong> — "Initial version"</div>
+            <div style="opacity:.5;font-size:.72rem;">1 month ago</div>
+            <div style="color:var(--accent);font-size:.72rem;cursor:pointer;">Restore</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <div style="background:#059669;color:white;padding:.6rem 1rem;font-size:.85rem;font-weight:600;">Page 4 — Live Preview &nbsp;<span style="opacity:.7;font-weight:400;font-size:.78rem;">modal overlay</span></div>
+      <div style="padding:.9rem;font-size:.78rem;">
+        <div style="opacity:.6;font-size:.72rem;margin-bottom:.5rem;">Paste sample JSON or auto-generate from view schema:</div>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.6rem;font-family:monospace;font-size:.7rem;margin-bottom:.6rem;line-height:1.7;">
+          {<br>
+          &nbsp;&nbsp;"CustomerName": <span style="color:#22c55e;">"John Smith"</span>,<br>
+          &nbsp;&nbsp;"OrderDate": <span style="color:#22c55e;">"2026-05-13"</span>,<br>
+          &nbsp;&nbsp;"OrderItems": [<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;{ "ProductName": <span style="color:#22c55e;">"Widget A"</span>, "Qty": <span style="color:#f59e0b;">2</span> }<br>
+          &nbsp;&nbsp;]<br>
+          }
+        </div>
+        <div style="background:white;border:1px solid #ddd;border-radius:6px;padding:.6rem;color:#111;font-size:.75rem;line-height:1.7;">
+          <p>Dear <strong>John Smith</strong>,</p>
+          <p>Thank you for your order placed on <strong>2026-05-13</strong>.</p>
+          <table style="border-collapse:collapse;width:100%;font-size:.72rem;">
+            <tr style="background:#f3f4f6;"><td style="padding:.2rem .4rem;border:1px solid #ddd;">Widget A</td><td style="padding:.2rem .4rem;border:1px solid #ddd;">2</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,84 @@
+<h2>Template Syntax — Scriban</h2>
+<p class="subtitle">What gets stored in <code>TemplateVersions.Body</code> and how the engine processes it</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;">
+
+  <!-- Scalar Fields -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:var(--accent);">Simple Field Binding</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Drag a column from the palette → inserts a token. At runtime the engine replaces it with the model value.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      <div><span style="opacity:.4;">Template body:</span></div>
+      &lt;p&gt;Dear <span style="background:#3a3aff33;color:var(--accent);border-radius:3px;padding:1px 4px;">{{ model.CustomerName }}</span>,&lt;/p&gt;<br>
+      &lt;p&gt;Order placed on <span style="background:#3a3aff33;color:var(--accent);border-radius:3px;padding:1px 4px;">{{ model.OrderDate }}</span>&lt;/p&gt;<br>
+      &lt;p&gt;Total: <span style="background:#3a3aff33;color:var(--accent);border-radius:3px;padding:1px 4px;">{{ model.TotalAmount }}</span>&lt;/p&gt;
+      <div style="margin-top:.8rem;border-top:1px solid var(--border);padding-top:.7rem;opacity:.6;">Model passed at runtime:</div>
+      <div style="opacity:.8;">new { CustomerName = <span style="color:#22c55e;">"John Smith"</span>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OrderDate = <span style="color:#22c55e;">"2026-05-13"</span>,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TotalAmount = <span style="color:#22c55e;">"£149.00"</span> }</div>
+    </div>
+  </div>
+
+  <!-- Loop Block -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:#f59e0b;">Loop Block (Repeating Rows)</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Drop a "Loop Block" onto canvas → select which collection → drag inner fields. Repeats for each item in the list.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      <span style="color:#f59e0b;">{{ for item in model.OrderItems }}</span><br>
+      &nbsp;&lt;tr&gt;<br>
+      &nbsp;&nbsp;&lt;td&gt;<span style="background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;">{{ item.ProductName }}</span>&lt;/td&gt;<br>
+      &nbsp;&nbsp;&lt;td&gt;<span style="background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;">{{ item.Quantity }}</span>&lt;/td&gt;<br>
+      &nbsp;&nbsp;&lt;td&gt;<span style="background:#f59e0b22;color:#f59e0b;border-radius:3px;padding:1px 4px;">{{ item.UnitPrice }}</span>&lt;/td&gt;<br>
+      &nbsp;&lt;/tr&gt;<br>
+      <span style="color:#f59e0b;">{{ end }}</span>
+      <div style="margin-top:.7rem;border-top:1px solid var(--border);padding-top:.6rem;opacity:.6;">Model:</div>
+      <div style="opacity:.8;">OrderItems = new List { ... }<br><span style="opacity:.5;">// collection property, any name</span></div>
+    </div>
+  </div>
+
+  <!-- Grid Block -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:#22c55e;">Grid Block (Table with Header)</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Like a Loop Block but the editor auto-generates the &lt;thead&gt; row. Columns are configured in the Properties panel.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      &lt;table&gt;<br>
+      &nbsp;&lt;thead&gt;&lt;tr&gt;<br>
+      &nbsp;&nbsp;&lt;th&gt;Product&lt;/th&gt;<br>
+      &nbsp;&nbsp;&lt;th&gt;Qty&lt;/th&gt;&lt;th&gt;Price&lt;/th&gt;<br>
+      &nbsp;&lt;/tr&gt;&lt;/thead&gt;<br>
+      &nbsp;&lt;tbody&gt;<br>
+      &nbsp;<span style="color:#22c55e;">{{ for item in model.OrderItems }}</span><br>
+      &nbsp;&nbsp;&lt;tr&gt;&lt;td&gt;<span style="background:#22c55e22;color:#22c55e;border-radius:3px;padding:1px 4px;">{{item.Product}}</span>&lt;/td&gt;…&lt;/tr&gt;<br>
+      &nbsp;<span style="color:#22c55e;">{{ end }}</span><br>
+      &nbsp;&lt;/tbody&gt;&lt;/table&gt;
+    </div>
+  </div>
+
+  <!-- Conditional + Filters -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:#a78bfa;">Conditionals &amp; Filters</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Scriban supports if/else and built-in filters. Developers can use these directly; BAs use the Loop/Grid blocks.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      <span style="opacity:.5;">// Conditional section</span><br>
+      <span style="color:#a78bfa;">{{ if model.IsPremium }}</span><br>
+      &nbsp;&lt;b&gt;Premium Member&lt;/b&gt;<br>
+      <span style="color:#a78bfa;">{{ end }}</span><br><br>
+      <span style="opacity:.5;">// Date formatting filter</span><br>
+      <span style="color:#a78bfa;">{{ model.OrderDate | date.to_string "%d/%m/%Y" }}</span><br><br>
+      <span style="opacity:.5;">// String filter</span><br>
+      <span style="color:#a78bfa;">{{ model.CustomerName | string.upcase }}</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Preview flow -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;margin-top:1.25rem;">
+  <div class="label">Live Preview in Designer</div>
+  <div style="display:flex;align-items:center;gap:.75rem;margin-top:.75rem;flex-wrap:wrap;font-size:.82rem;">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .9rem;">Designer pastes sample JSON<br><span style="font-size:.72rem;opacity:.6;">or auto-generates from view schema</span></div>
+    <div style="opacity:.4;font-size:1.3rem;">→</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .9rem;">Clicks "Preview"<br><span style="font-size:.72rem;opacity:.6;">calls the same RenderAsync engine</span></div>
+    <div style="opacity:.4;font-size:1.3rem;">→</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .9rem;">Rendered HTML shown<br><span style="font-size:.72rem;opacity:.6;">in an iframe or modal</span></div>
+  </div>
+  <p style="font-size:.78rem;opacity:.6;margin-top:.75rem;">The preview reuses the exact same <code>TemplateEngine.RenderAsync</code> logic — what you see in preview is exactly what callers get.</p>
+</div>

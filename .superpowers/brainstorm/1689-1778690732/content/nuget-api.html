@@ -1,0 +1,105 @@
+<h2>NuGet Package — Public API</h2>
+<p class="subtitle"><code>TemplateBuilder.Core</code> — what consuming developers install and call</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;">
+
+  <!-- Registration -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:var(--accent);">1. Register in Program.cs</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">One line setup. Registers <code>ITemplateEngine</code> as a scoped service via DI.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      <span style="opacity:.5;">// Program.cs</span><br>
+      builder.Services.<span style="color:var(--accent);">AddTemplateBuilder</span>(options =&gt;<br>
+      {<br>
+      &nbsp;&nbsp;options.ConnectionString =<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;builder.Configuration<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;.GetConnectionString(<span style="color:#22c55e;">"TemplateDb"</span>);<br><br>
+      &nbsp;&nbsp;<span style="opacity:.5;">// optional</span><br>
+      &nbsp;&nbsp;options.EnableCaching = <span style="color:#f59e0b;">true</span>;<br>
+      &nbsp;&nbsp;options.CacheDurationMinutes = <span style="color:#f59e0b;">30</span>;<br>
+      });
+    </div>
+  </div>
+
+  <!-- Core Interface -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:#22c55e);">2. Inject &amp; Call</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Inject <code>ITemplateEngine</code> anywhere — controllers, services, background jobs.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      <span style="opacity:.5;">// Any controller or service</span><br>
+      public class OrderController(<br>
+      &nbsp;&nbsp;<span style="color:var(--accent);">ITemplateEngine</span> engine) : Controller<br>
+      {<br>
+      &nbsp;&nbsp;public async Task&lt;IActionResult&gt; Email()<br>
+      &nbsp;&nbsp;{<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;var html = await engine.<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--accent);">RenderAsync</span>(<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;templateId: <span style="color:#f59e0b;">42</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;model: new {<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CustomerName = <span style="color:#22c55e;">"John"</span>,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OrderItems = items<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;});<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span style="opacity:.5;">// html = rendered string</span><br>
+      &nbsp;&nbsp;}<br>
+      }
+    </div>
+  </div>
+
+  <!-- Interface Definition -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:#a78bfa;">ITemplateEngine Interface</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Minimal public surface. Easy to mock in unit tests.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      public interface <span style="color:#a78bfa;">ITemplateEngine</span><br>
+      {<br>
+      &nbsp;&nbsp;<span style="opacity:.5;">// Main render method</span><br>
+      &nbsp;&nbsp;Task&lt;string&gt; <span style="color:var(--accent);">RenderAsync</span>(<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;int templateId,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;object model,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;CancellationToken ct = default);<br><br>
+      &nbsp;&nbsp;<span style="opacity:.5;">// Render by name instead of ID</span><br>
+      &nbsp;&nbsp;Task&lt;string&gt; <span style="color:var(--accent);">RenderByNameAsync</span>(<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;string templateName,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;object model,<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;CancellationToken ct = default);<br>
+      }
+    </div>
+  </div>
+
+  <!-- Error Handling -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;">
+    <div class="label" style="color:#f59e0b;">Error Handling</div>
+    <p style="font-size:.82rem;opacity:.8;margin:.4rem 0 .8rem;">Typed exceptions so callers can handle cases cleanly.</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.9rem;font-family:monospace;font-size:.78rem;line-height:1.9;">
+      <span style="opacity:.5;">// Typed exceptions</span><br>
+      <span style="color:#f59e0b;">TemplateNotFoundException</span><br>
+      &nbsp;<span style="opacity:.5;">// templateId not found or inactive</span><br><br>
+      <span style="color:#f59e0b;">TemplateRenderException</span><br>
+      &nbsp;<span style="opacity:.5;">// Scriban syntax error in body</span><br><br>
+      <span style="opacity:.5;">// Caching behaviour</span><br>
+      <span style="opacity:.7;">Template body cached after first load.</span><br>
+      <span style="opacity:.7;">Cache invalidated when CurrentVersionId</span><br>
+      <span style="opacity:.7;">changes (on save in designer).</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Usage scenarios -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;margin-top:1.25rem;">
+  <div class="label">Common Usage Scenarios</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-top:.75rem;font-size:.8rem;">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;">
+      <strong>📧 Email Body</strong><br>
+      <span style="opacity:.7;font-size:.75rem;">var html = await engine.RenderAsync(id, model);<br>await emailService.SendAsync(to, subject, html);</span>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;">
+      <strong>🖥 Razor View Embed</strong><br>
+      <span style="opacity:.7;font-size:.75rem;">ViewBag.TemplateHtml = await engine.RenderAsync(id, model);<br>// @Html.Raw(ViewBag.TemplateHtml)</span>
+    </div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;">
+      <strong>📄 PDF Generation</strong><br>
+      <span style="opacity:.7;font-size:.75rem;">var html = await engine.RenderAsync(id, model);<br>var pdf = pdfService.FromHtml(html);</span>
+    </div>
+  </div>
+</div>

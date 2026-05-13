@@ -1,0 +1,71 @@
+<h2>System Architecture</h2>
+<p class="subtitle">Two deployable artifacts sharing one SQL Server database</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;">
+
+  <!-- Left: Web App -->
+  <div style="background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:1.25rem;">
+    <div class="label" style="color:var(--accent);">Artifact 1</div>
+    <h3 style="margin:.4rem 0;">TemplateBuilder Web App</h3>
+    <p style="font-size:.85rem;opacity:.8;">ASP.NET MVC on .NET 10 — the visual designer for Developers &amp; BAs</p>
+    <div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.8rem;font-size:.8rem;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">📋 Template List — browse, search, create</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">✏️ Template Editor — 3-panel WYSIWYG</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">🗂 Version History — view &amp; restore</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">👁 Live Preview — render with sample JSON</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">🔍 SQL View Browser — auto-discovered palette</div>
+    </div>
+  </div>
+
+  <!-- Right: NuGet -->
+  <div style="background:var(--surface);border:2px solid #22c55e;border-radius:12px;padding:1.25rem;">
+    <div class="label" style="color:#22c55e;">Artifact 2</div>
+    <h3 style="margin:.4rem 0;">TemplateBuilder.Core (NuGet)</h3>
+    <p style="font-size:.85rem;opacity:.8;">Class library — any .NET app installs this to render templates</p>
+    <div style="display:flex;flex-direction:column;gap:.4rem;margin-top:.8rem;font-size:.8rem;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;font-family:monospace;">services.AddTemplateBuilder(connStr);</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;font-family:monospace;">await engine.RenderAsync(id, model);</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">⚡ Template caching (memory cache)</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">🔁 Scriban rendering engine</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;">🛡 Safe — no arbitrary code execution</div>
+    </div>
+  </div>
+</div>
+
+<!-- Solution Structure -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem;">
+  <div class="label">Solution Structure (.NET 10)</div>
+  <div style="margin-top:.75rem;font-family:monospace;font-size:.8rem;line-height:2;display:grid;grid-template-columns:1fr 1fr;gap:.5rem 2rem;">
+    <div>
+      <div style="opacity:.5;">TemplateBuilder.sln</div>
+      <div>├─ <span style="color:#a78bfa;">Domain</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← entities, interfaces</div>
+      <div>├─ <span style="color:#60a5fa;">Application</span> &nbsp;← services, Scriban engine</div>
+      <div>├─ <span style="color:#f59e0b;">Infrastructure</span> ← EF Core, SQL repos</div>
+      <div>├─ <span style="color:#34d399;">Web</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← ASP.NET MVC, Razor</div>
+      <div>└─ <span style="color:#22c55e;">Core</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;← NuGet package wrapper</div>
+    </div>
+    <div>
+      <div style="opacity:.5;margin-bottom:.5rem;">Shared SQL Server DB</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;">
+        <div style="opacity:.6;font-size:.75rem;">Templates</div>
+        <div style="opacity:.6;font-size:.75rem;">TemplateVersions</div>
+        <div style="opacity:.3;font-size:.7rem;margin-top:.3rem;">← Web app writes, NuGet reads</div>
+      </div>
+      <div style="margin-top:.6rem;font-size:.75rem;opacity:.5;">Web app and NuGet share the same<br>Infrastructure project (same EF context)</div>
+    </div>
+  </div>
+</div>
+
+<!-- Data Flow -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem;">
+  <div class="label">Runtime Data Flow</div>
+  <div style="display:flex;align-items:center;gap:.6rem;margin-top:.75rem;flex-wrap:wrap;font-size:.82rem;">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;text-align:center;">Consumer App<br><span style="font-size:.72rem;opacity:.6;">calls RenderAsync</span></div>
+    <div style="opacity:.4;font-size:1.3rem;">→</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;text-align:center;">NuGet Core<br><span style="font-size:.72rem;opacity:.6;">fetch template from DB</span></div>
+    <div style="opacity:.4;font-size:1.3rem;">→</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;text-align:center;">Scriban Engine<br><span style="font-size:.72rem;opacity:.6;">merge model + template</span></div>
+    <div style="opacity:.4;font-size:1.3rem;">→</div>
+    <div style="background:#22c55e22;border:1px solid #22c55e;border-radius:8px;padding:.5rem .8rem;text-align:center;">HTML String<br><span style="font-size:.72rem;opacity:.7;">returned to caller</span></div>
+  </div>
+</div>

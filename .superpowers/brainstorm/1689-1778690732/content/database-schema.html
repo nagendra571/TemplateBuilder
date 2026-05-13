@@ -1,0 +1,150 @@
+<h2>Database Schema</h2>
+<p class="subtitle">Two core tables — Templates (metadata) and TemplateVersions (body history)</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem;">
+
+  <!-- Templates Table -->
+  <div style="background:var(--surface);border:2px solid var(--accent);border-radius:12px;overflow:hidden;">
+    <div style="background:var(--accent);color:white;padding:.6rem 1rem;font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:.5rem;">
+      <span>📋</span> Templates
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+      <thead>
+        <tr style="background:var(--bg);opacity:.7;">
+          <th style="padding:.4rem .8rem;text-align:left;border-bottom:1px solid var(--border);">Column</th>
+          <th style="padding:.4rem .8rem;text-align:left;border-bottom:1px solid var(--border);">Type</th>
+          <th style="padding:.4rem .8rem;text-align:left;border-bottom:1px solid var(--border);">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;color:var(--accent);">Id</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">INT</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">PK, identity</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">Name</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">NVARCHAR(200)</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">required, unique</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">TemplateType</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">NVARCHAR(50)</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">Email, Report, Notice, Custom</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">Description</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">NVARCHAR(500)</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">nullable</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">CurrentVersionId</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">INT</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">FK → TemplateVersions</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">IsActive</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">BIT</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">soft delete / disable</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">CreatedAt</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">DATETIME2</td>
+          <td style="padding:.45rem .8rem;opacity:.6;"></td>
+        </tr>
+        <tr>
+          <td style="padding:.45rem .8rem;font-family:monospace;">UpdatedAt</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">DATETIME2</td>
+          <td style="padding:.45rem .8rem;opacity:.6;"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TemplateVersions Table -->
+  <div style="background:var(--surface);border:2px solid #60a5fa;border-radius:12px;overflow:hidden;">
+    <div style="background:#60a5fa;color:white;padding:.6rem 1rem;font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:.5rem;">
+      <span>🗂</span> TemplateVersions
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+      <thead>
+        <tr style="background:var(--bg);opacity:.7;">
+          <th style="padding:.4rem .8rem;text-align:left;border-bottom:1px solid var(--border);">Column</th>
+          <th style="padding:.4rem .8rem;text-align:left;border-bottom:1px solid var(--border);">Type</th>
+          <th style="padding:.4rem .8rem;text-align:left;border-bottom:1px solid var(--border);">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;color:#60a5fa;">Id</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">INT</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">PK, identity</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">TemplateId</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">INT</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">FK → Templates.Id</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">VersionNumber</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">INT</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">1, 2, 3… per template</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">Body</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">NVARCHAR(MAX)</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">HTML + Scriban syntax</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">ChangeComment</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">NVARCHAR(500)</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">optional save note</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.45rem .8rem;font-family:monospace;">CreatedAt</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">DATETIME2</td>
+          <td style="padding:.45rem .8rem;opacity:.6;"></td>
+        </tr>
+        <tr>
+          <td style="padding:.45rem .8rem;font-family:monospace;">CreatedBy</td>
+          <td style="padding:.45rem .8rem;opacity:.7;">NVARCHAR(100)</td>
+          <td style="padding:.45rem .8rem;opacity:.6;">nullable for v1 (no auth)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Relationship diagram -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-top:1.25rem;">
+  <div class="label">Relationship &amp; Key Design Decisions</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:.75rem;font-size:.82rem;">
+    <div>
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem;">
+        <div style="background:var(--accent);color:white;border-radius:6px;padding:.3rem .7rem;font-family:monospace;font-size:.75rem;">Templates</div>
+        <div style="opacity:.5;">1 ──── N</div>
+        <div style="background:#60a5fa;color:white;border-radius:6px;padding:.3rem .7rem;font-family:monospace;font-size:.75rem;">TemplateVersions</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem;">
+        <div style="background:var(--accent);color:white;border-radius:6px;padding:.3rem .7rem;font-family:monospace;font-size:.75rem;">Templates</div>
+        <div style="opacity:.5;">N ──── 1</div>
+        <div style="background:#60a5fa;color:white;border-radius:6px;padding:.3rem .7rem;font-family:monospace;font-size:.75rem;">CurrentVersion</div>
+      </div>
+      <p style="margin-top:.75rem;opacity:.7;font-size:.78rem;">The <code>CurrentVersionId</code> pointer means the NuGet only needs one fast lookup — no MAX(VersionNumber) query at runtime.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.5rem;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;">
+        <strong>No SQL View metadata stored</strong><br>
+        <span style="font-size:.78rem;opacity:.7;">Views are auto-discovered live from the DB at design time. Nothing to keep in sync.</span>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;">
+        <strong>Soft delete via IsActive</strong><br>
+        <span style="font-size:.78rem;opacity:.7;">Deactivated templates are hidden from the designer list but still renderable by ID (existing callers don't break).</span>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .8rem;">
+        <strong>EF Core migrations</strong><br>
+        <span style="font-size:.78rem;opacity:.7;">Schema managed via code-first EF Core. One migration to set up, easy to extend.</span>
+      </div>
+    </div>
+  </div>
+</div>
