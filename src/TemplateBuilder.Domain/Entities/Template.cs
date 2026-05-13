@@ -11,7 +11,6 @@ public class Template
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
-    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public ICollection<TemplateVersion> Versions { get; set; } = new List<TemplateVersion>();

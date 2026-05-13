@@ -20,7 +20,7 @@ public class TemplateConfiguration : IEntityTypeConfiguration<Template>
         builder.HasMany(t => t.Versions)
                .WithOne(v => v.Template)
                .HasForeignKey(v => v.TemplateId)
-               .OnDelete(DeleteBehavior.Restrict);
+               .OnDelete(DeleteBehavior.NoAction); // DB constraint enforces; delete Versions before Template
 
         builder.HasOne(t => t.CurrentVersion)
                .WithMany()

@@ -9,6 +9,7 @@ public class TemplateVersionConfiguration : IEntityTypeConfiguration<TemplateVer
     public void Configure(EntityTypeBuilder<TemplateVersion> builder)
     {
         builder.HasKey(v => v.Id);
+        builder.HasIndex(v => new { v.TemplateId, v.VersionNumber }).IsUnique();
         builder.Property(v => v.Body).IsRequired().HasColumnType("nvarchar(max)");
         builder.Property(v => v.ChangeComment).HasMaxLength(500);
         builder.Property(v => v.CreatedAt).HasColumnType("datetime2");
