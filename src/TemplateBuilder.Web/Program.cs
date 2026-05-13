@@ -3,11 +3,19 @@ using TemplateBuilder.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("TemplateDb")));
-
-// Add services to the container.
 builder.Services.AddControllersWithViews();
+
+var connectionString = builder.Configuration.GetConnectionString("TemplateDb")
+    ?? throw new InvalidOperationException(
+        "Connection string 'TemplateDb' not found. " +
+        "Verify appsettings.json or the CONNECTIONSTRINGS__TEMPLATEDB environment variable.");
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(connectionString, sqlOptions =>
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null)));
 
 var app = builder.Build();
 
