@@ -251,6 +251,9 @@ public class Template
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
+    [System.ComponentModel.DataAnnotations.Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
     public ICollection<TemplateVersion> Versions { get; set; } = new List<TemplateVersion>();
     public TemplateVersion? CurrentVersion { get; set; }
 }
@@ -298,6 +301,7 @@ git commit -m "feat: add Template and TemplateVersion domain entities"
 **Files:**
 - Create: `src/TemplateBuilder.Domain/Exceptions/TemplateNotFoundException.cs`
 - Create: `src/TemplateBuilder.Domain/Exceptions/TemplateRenderException.cs`
+- Create: `src/TemplateBuilder.Domain/Exceptions/SchemaVersionMismatchException.cs`
 - Create: `src/TemplateBuilder.Domain/Interfaces/ITemplateRepository.cs`
 - Create: `src/TemplateBuilder.Domain/Interfaces/ITemplateEngine.cs`
 - Create: `src/TemplateBuilder.Domain/DTOs/SqlColumnInfo.cs`
@@ -331,6 +335,18 @@ public class TemplateRenderException : Exception
 }
 ```
 
+Create `src/TemplateBuilder.Domain/Exceptions/SchemaVersionMismatchException.cs`:
+
+```csharp
+namespace TemplateBuilder.Domain.Exceptions;
+
+public class SchemaVersionMismatchException : Exception
+{
+    public SchemaVersionMismatchException(string requiredMigrationId)
+        : base($"TemplateBuilder.Core requires DB migration '{requiredMigrationId}' which has not been applied. Run: dotnet ef database update --project TemplateBuilder.Infrastructure") { }
+}
+```
+
 - [ ] **Step 2: Create ITemplateRepository interface**
 
 Create `src/TemplateBuilder.Domain/Interfaces/ITemplateRepository.cs`:
@@ -351,8 +367,7 @@ public interface ITemplateRepository
     Task<int> GetNextVersionNumberAsync(int templateId, CancellationToken ct = default);
     Task<Template> CreateAsync(Template template, CancellationToken ct = default);
     Task UpdateTemplateAsync(Template template, CancellationToken ct = default);
-    Task<TemplateVersion> SaveVersionAsync(TemplateVersion version, CancellationToken ct = default);
-    Task UpdateCurrentVersionAsync(int templateId, int versionId, CancellationToken ct = default);
+    Task<TemplateVersion> PublishVersionAsync(int templateId, TemplateVersion version, CancellationToken ct = default);
 }
 ```
 
@@ -476,6 +491,25 @@ public class AppDbContextTests
         version.Should().NotBeNull();
         version!.Body.Should().Be("<p>Hello</p>");
     }
+
+    [Fact]
+    public async Task Template_RowVersion_IsPopulatedAfterSave()
+    {
+        await using var context = CreateInMemoryContext();
+
+        var template = new Template
+        {
+            Name = "RV Template",
+            TemplateType = "Email",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        context.Templates.Add(template);
+        await context.SaveChangesAsync();
+
+        template.RowVersion.Should().NotBeNullOrEmpty();
+    }
 }
 ```
 
@@ -532,6 +566,7 @@ public class TemplateConfiguration : IEntityTypeConfiguration<Template>
         builder.Property(t => t.Description).HasMaxLength(500);
         builder.Property(t => t.CreatedAt).HasColumnType("datetime2");
         builder.Property(t => t.UpdatedAt).HasColumnType("datetime2");
+        builder.Property(t => t.RowVersion).IsRowVersion();
 
         builder.HasMany(t => t.Versions)
                .WithOne(v => v.Template)
@@ -745,19 +780,18 @@ public class TemplateRepositoryTests
     }
 
     [Fact]
-    public async Task SaveVersionAsync_ThenUpdateCurrentVersion_ReflectsInCurrentVersionId()
+    public async Task PublishVersionAsync_UpdatesCurrentVersionIdAtomically()
     {
         await using var context = CreateContext();
         var repo = new TemplateRepository(context);
         var template = await repo.CreateAsync(new Template { Name = "B", TemplateType = "Notice" });
 
-        var version = await repo.SaveVersionAsync(new TemplateVersion
+        var version = await repo.PublishVersionAsync(template.Id, new TemplateVersion
         {
             TemplateId = template.Id,
             VersionNumber = 1,
             Body = "<p>Hello</p>"
         });
-        await repo.UpdateCurrentVersionAsync(template.Id, version.Id);
 
         var versionId = await repo.GetCurrentVersionIdAsync(template.Id);
         versionId.Should().Be(version.Id);
@@ -769,7 +803,7 @@ public class TemplateRepositoryTests
         await using var context = CreateContext();
         var repo = new TemplateRepository(context);
         var template = await repo.CreateAsync(new Template { Name = "C", TemplateType = "Email" });
-        var version = await repo.SaveVersionAsync(new TemplateVersion
+        var version = await repo.PublishVersionAsync(template.Id, new TemplateVersion
         {
             TemplateId = template.Id,
             VersionNumber = 1,
@@ -799,8 +833,8 @@ public class TemplateRepositoryTests
         await using var context = CreateContext();
         var repo = new TemplateRepository(context);
         var template = await repo.CreateAsync(new Template { Name = "E", TemplateType = "Report" });
-        await repo.SaveVersionAsync(new TemplateVersion { TemplateId = template.Id, VersionNumber = 1, Body = "v1" });
-        await repo.SaveVersionAsync(new TemplateVersion { TemplateId = template.Id, VersionNumber = 2, Body = "v2" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 1, Body = "v1" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 2, Body = "v2" });
 
         var next = await repo.GetNextVersionNumberAsync(template.Id);
 
@@ -891,21 +925,20 @@ public class TemplateRepository : ITemplateRepository
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task<TemplateVersion> SaveVersionAsync(TemplateVersion version, CancellationToken ct = default)
+    public async Task<TemplateVersion> PublishVersionAsync(int templateId, TemplateVersion version, CancellationToken ct = default)
     {
+        using var transaction = await _context.Database.BeginTransactionAsync(ct);
         version.CreatedAt = DateTime.UtcNow;
         _context.TemplateVersions.Add(version);
         await _context.SaveChangesAsync(ct);
-        return version;
-    }
 
-    public async Task UpdateCurrentVersionAsync(int templateId, int versionId, CancellationToken ct = default)
-    {
-        await _context.Templates
-            .Where(t => t.Id == templateId)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.CurrentVersionId, versionId)
-                .SetProperty(t => t.UpdatedAt, DateTime.UtcNow), ct);
+        var template = await _context.Templates.FindAsync(new object[] { templateId }, ct);
+        template!.CurrentVersionId = version.Id;
+        template.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(ct);
+
+        await transaction.CommitAsync(ct);
+        return version;
     }
 }
 ```
@@ -1086,6 +1119,7 @@ public class TemplateEngineTests
                 Id = 5,
                 Name = "WelcomeEmail",
                 TemplateType = "Email",
+                IsActive = true,
                 CurrentVersionId = 20
             });
         repo.Setup(r => r.GetCurrentVersionIdAsync(5, default)).ReturnsAsync(20);
@@ -1095,6 +1129,63 @@ public class TemplateEngineTests
         var html = await engine.RenderByNameAsync("WelcomeEmail", new { });
 
         html.Should().Be("<p>Welcome</p>");
+    }
+
+    [Fact]
+    public async Task RenderAsync_InactiveTemplate_ThrowsTemplateNotFoundException()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdWithActiveCheckAsync(42, default))
+            .ReturnsAsync((Domain.Entities.Template?)null);
+        var engine = CreateEngine(repo.Object);
+
+        var act = async () => await engine.RenderAsync(42, new { });
+
+        await act.Should().ThrowAsync<TemplateNotFoundException>();
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_NullProperty_RendersEmptyString()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object);
+
+        var html = await engine.RenderBodyAsync("<p>{{ model.Name }}</p>", new { Name = (string?)null });
+
+        html.Should().Be("<p></p>");
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_MissingProperty_RendersEmptyString()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object);
+
+        var html = await engine.RenderBodyAsync("<p>{{ model.Missing }}</p>", new { });
+
+        html.Should().Be("<p></p>");
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_CaseInsensitivePropertyName_Renders()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object);
+
+        var html = await engine.RenderBodyAsync("<p>{{ model.CUSTOMERNAME }}</p>", new { CustomerName = "Alice" });
+
+        html.Should().Be("<p>Alice</p>");
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_ScriptTagInModel_EmittedVerbatim()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object);
+
+        var html = await engine.RenderBodyAsync("<p>{{ model.Val }}</p>", new { Val = "<script>alert(1)</script>" });
+
+        html.Should().Contain("<script>alert(1)</script>");
     }
 }
 ```
@@ -1118,6 +1209,10 @@ public class TemplateBuilderOptions
     public string ConnectionString { get; set; } = string.Empty;
     public bool EnableCaching { get; set; } = true;
     public int CacheDurationMinutes { get; set; } = 30;
+    public string ViewPrefix { get; set; } = "TemplateBuilder_";
+    public IEnumerable<string>? ViewAllowlist { get; set; } = null;
+    public bool StrictMode { get; set; } = false;
+    public bool ValidateSchemaOnStartup { get; set; } = false;
 }
 ```
 
@@ -1153,11 +1248,14 @@ public class TemplateEngine : ITemplateEngine
 
     public async Task<string> RenderAsync(int templateId, object model, CancellationToken ct = default)
     {
-        var currentVersionId = await _repository.GetCurrentVersionIdAsync(templateId, ct);
-        if (currentVersionId is null)
+        var template = await _repository.GetByIdAsync(templateId, ct);
+        if (template is null || !template.IsActive)
             throw new TemplateNotFoundException(templateId);
 
-        var body = await GetBodyAsync(templateId, currentVersionId.Value, ct);
+        var currentVersionId = template.CurrentVersionId
+            ?? throw new TemplateNotFoundException(templateId);
+
+        var body = await GetBodyAsync(templateId, currentVersionId, ct);
         return await RenderBodyAsync(body, model, ct);
     }
 
@@ -1167,7 +1265,11 @@ public class TemplateEngine : ITemplateEngine
         if (template is null || !template.IsActive)
             throw new TemplateNotFoundException(templateName);
 
-        return await RenderAsync(template.Id, model, ct);
+        var currentVersionId = template.CurrentVersionId
+            ?? throw new TemplateNotFoundException(templateName);
+
+        var body = await GetBodyAsync(template.Id, currentVersionId, ct);
+        return await RenderBodyAsync(body, model, ct);
     }
 
     public Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = default)
@@ -1217,18 +1319,97 @@ public class TemplateEngine : ITemplateEngine
 }
 ```
 
-- [ ] **Step 5: Run tests to confirm they pass**
+- [ ] **Step 5: Add HtmlSanitizer package and create IHtmlSanitizerService**
+
+```bash
+dotnet add src/TemplateBuilder.Application/TemplateBuilder.Application.csproj package HtmlSanitizer
+```
+
+Create `src/TemplateBuilder.Application/Services/IHtmlSanitizerService.cs`:
+
+```csharp
+namespace TemplateBuilder.Application.Services;
+
+public interface IHtmlSanitizerService
+{
+    string Sanitize(string html);
+}
+```
+
+Create `src/TemplateBuilder.Application/Services/HtmlSanitizerService.cs`:
+
+```csharp
+using Ganss.Xss;
+
+namespace TemplateBuilder.Application.Services;
+
+public class HtmlSanitizerService : IHtmlSanitizerService
+{
+    private readonly HtmlSanitizer _sanitizer;
+
+    public HtmlSanitizerService()
+    {
+        _sanitizer = new HtmlSanitizer();
+        _sanitizer.AllowedTags.Clear();
+        foreach (var tag in new[] { "p", "div", "span", "strong", "em", "b", "i", "u",
+            "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "br", "hr",
+            "table", "thead", "tbody", "tr", "th", "td", "a", "img" })
+            _sanitizer.AllowedTags.Add(tag);
+
+        _sanitizer.AllowedAttributes.Clear();
+        _sanitizer.AllowedAttributes.Add("href");
+        _sanitizer.AllowedAttributes.Add("src");
+        _sanitizer.AllowedAttributes.Add("class");
+        _sanitizer.AllowedAttributes.Add("style");
+
+        _sanitizer.AllowedSchemes.Clear();
+        _sanitizer.AllowedSchemes.Add("https");
+        _sanitizer.AllowedSchemes.Add("http");
+        _sanitizer.AllowedSchemes.Add("data");
+    }
+
+    public string Sanitize(string html) => _sanitizer.Sanitize(html);
+}
+```
+
+- [ ] **Step 6: Create SchemaVersionValidator**
+
+Create `src/TemplateBuilder.Application/Services/SchemaVersionValidator.cs`:
+
+```csharp
+using Microsoft.Data.SqlClient;
+using TemplateBuilder.Domain.Exceptions;
+
+namespace TemplateBuilder.Application.Services;
+
+public class SchemaVersionValidator
+{
+    public static async Task ValidateAsync(string connectionString, string requiredMigrationId, CancellationToken ct = default)
+    {
+        await using var conn = new SqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(
+            "SELECT COUNT(1) FROM __EFMigrationsHistory WHERE MigrationId = @id", conn);
+        cmd.Parameters.AddWithValue("@id", requiredMigrationId);
+        var count = (int)await cmd.ExecuteScalarAsync(ct)!;
+        if (count == 0)
+            throw new SchemaVersionMismatchException(requiredMigrationId);
+    }
+}
+```
+
+- [ ] **Step 7: Run tests to confirm they pass**
 
 ```bash
 dotnet test tests/TemplateBuilder.Application.Tests/TemplateBuilder.Application.Tests.csproj
 ```
-Expected: `Passed! - Failed: 0, Passed: 8`
+Expected: `Passed! - Failed: 0, Passed: 13`
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/TemplateBuilder.Application/ tests/TemplateBuilder.Application.Tests/
-git commit -m "feat: implement Scriban-based TemplateEngine with memory caching"
+git commit -m "feat: implement Scriban-based TemplateEngine with memory caching, HTML sanitizer, and schema validator"
 ```
 
 ---
@@ -1329,6 +1510,8 @@ Create `src/TemplateBuilder.Application/Services/SqlViewDiscoveryService.cs`:
 
 ```csharp
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
+using TemplateBuilder.Application.Options;
 using TemplateBuilder.Domain.DTOs;
 
 namespace TemplateBuilder.Application.Services;
@@ -1336,16 +1519,30 @@ namespace TemplateBuilder.Application.Services;
 public class SqlViewDiscoveryService
 {
     private readonly string _connectionString;
+    private readonly TemplateBuilderOptions _options;
 
-    public SqlViewDiscoveryService(string connectionString) =>
+    private static readonly IReadOnlySet<string> ExcludedSchemas =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sys", "INFORMATION_SCHEMA", "guest" };
+
+    public SqlViewDiscoveryService(string connectionString, IOptions<TemplateBuilderOptions> options)
+    {
         _connectionString = connectionString;
+        _options = options.Value;
+    }
 
     public async Task<IReadOnlyList<string>> GetViewNamesAsync(CancellationToken ct = default)
     {
+        if (_options.ViewAllowlist is not null)
+            return _options.ViewAllowlist.ToList().AsReadOnly();
+
         await using var conn = new SqlConnection(_connectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(
-            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS ORDER BY TABLE_NAME", conn);
+            @"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS
+              WHERE TABLE_NAME LIKE @prefix + '%'
+              AND TABLE_SCHEMA NOT IN ('sys','INFORMATION_SCHEMA','guest')
+              ORDER BY TABLE_NAME", conn);
+        cmd.Parameters.AddWithValue("@prefix", _options.ViewPrefix);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var views = new List<string>();
         while (await reader.ReadAsync(ct))
@@ -1560,8 +1757,8 @@ public class TemplatesControllerTests
         mockRepo.Setup(r => r.GetByIdAsync(1, default)).ReturnsAsync(source);
         mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), default))
             .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 99; return t; });
-        mockRepo.Setup(r => r.SaveVersionAsync(It.IsAny<TemplateVersion>(), default))
-            .ReturnsAsync((TemplateVersion v, CancellationToken _) => { v.Id = 200; return v; });
+        mockRepo.Setup(r => r.PublishVersionAsync(99, It.IsAny<TemplateVersion>(), default))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => { v.Id = 200; return v; });
         var controller = CreateController(mockRepo.Object);
 
         var result = await controller.Duplicate(1, new DuplicateRequest("Copy of Invoice Email"));
@@ -1570,10 +1767,9 @@ public class TemplatesControllerTests
         mockRepo.Verify(r => r.CreateAsync(
             It.Is<Template>(t => t.Name == "Copy of Invoice Email" && t.TemplateType == "Email"),
             default), Times.Once);
-        mockRepo.Verify(r => r.SaveVersionAsync(
+        mockRepo.Verify(r => r.PublishVersionAsync(99,
             It.Is<TemplateVersion>(v => v.Body == "<p>Hello</p>" && v.VersionNumber == 1),
             default), Times.Once);
-        mockRepo.Verify(r => r.UpdateCurrentVersionAsync(99, 200, default), Times.Once);
     }
 
     [Fact]
@@ -1603,6 +1799,7 @@ Create `src/TemplateBuilder.Web/Controllers/TemplatesController.cs`:
 
 ```csharp
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
@@ -1613,8 +1810,13 @@ using TemplateBuilder.Web.ViewModels;
 
 namespace TemplateBuilder.Web.Controllers;
 
+public record ErrorResult(string Code, string Message);
+
 public class TemplatesController : Controller
 {
+    private const int MaxPreviewJsonBytes = 64 * 1024;
+    private const int PreviewTimeoutSeconds = 5;
+
     private readonly ITemplateRepository _repository;
     private readonly SqlViewDiscoveryService _viewDiscovery;
     private readonly ITemplateEngine _engine;
@@ -1651,13 +1853,20 @@ public class TemplatesController : Controller
     public async Task<IActionResult> Create(TemplateEditorViewModel model, CancellationToken ct = default)
     {
         if (!ModelState.IsValid) return View("Edit", model);
-        var template = await _repository.CreateAsync(new Template
+        try
         {
-            Name = model.Name,
-            TemplateType = model.TemplateType,
-            Description = model.Description
-        }, ct);
-        return RedirectToAction(nameof(Edit), new { id = template.Id });
+            var template = await _repository.CreateAsync(new Template
+            {
+                Name = model.Name.Trim(),
+                TemplateType = model.TemplateType,
+                Description = model.Description
+            }, ct);
+            return RedirectToAction(nameof(Edit), new { id = template.Id });
+        }
+        catch (DbUpdateException)
+        {
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", $"A template named '{model.Name.Trim()}' already exists."));
+        }
     }
 
     [HttpGet("Templates/{id:int}/Edit")]
@@ -1683,21 +1892,31 @@ public class TemplatesController : Controller
     public async Task<IActionResult> SaveVersion(int id, [FromBody] SaveVersionRequest request, CancellationToken ct = default)
     {
         var template = await _repository.GetByIdAsync(id, ct);
-        if (template is null) return NotFound();
-        template.Name = request.Name;
-        template.TemplateType = request.TemplateType;
-        template.Description = request.Description;
-        await _repository.UpdateTemplateAsync(template, ct);
-        var nextNumber = await _repository.GetNextVersionNumberAsync(id, ct);
-        var version = await _repository.SaveVersionAsync(new TemplateVersion
+        if (template is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
+        try
         {
-            TemplateId = id,
-            VersionNumber = nextNumber,
-            Body = request.Body,
-            ChangeComment = request.ChangeComment
-        }, ct);
-        await _repository.UpdateCurrentVersionAsync(id, version.Id, ct);
-        return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
+            template.Name = request.Name.Trim();
+            template.TemplateType = request.TemplateType;
+            template.Description = request.Description;
+            await _repository.UpdateTemplateAsync(template, ct);
+            var nextNumber = await _repository.GetNextVersionNumberAsync(id, ct);
+            var version = await _repository.PublishVersionAsync(id, new TemplateVersion
+            {
+                TemplateId = id,
+                VersionNumber = nextNumber,
+                Body = request.Body,
+                ChangeComment = request.ChangeComment
+            }, ct);
+            return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new ErrorResult("CONFLICT", "This template was modified by another user while you were editing. Please refresh and try again."));
+        }
+        catch (DbUpdateException)
+        {
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", $"A template named '{request.Name.Trim()}' already exists."));
+        }
     }
 
     [HttpGet("Templates/{id:int}/Versions")]
@@ -1711,18 +1930,24 @@ public class TemplatesController : Controller
     [HttpPost("Templates/{id:int}/Restore/{versionId:int}")]
     public async Task<IActionResult> RestoreVersion(int id, int versionId, CancellationToken ct = default)
     {
-        var oldBody = await _repository.GetVersionBodyAsync(versionId, ct);
-        if (oldBody is null) return NotFound();
-        var nextNumber = await _repository.GetNextVersionNumberAsync(id, ct);
-        var version = await _repository.SaveVersionAsync(new TemplateVersion
+        try
         {
-            TemplateId = id,
-            VersionNumber = nextNumber,
-            Body = oldBody,
-            ChangeComment = $"Restored from v{versionId}"
-        }, ct);
-        await _repository.UpdateCurrentVersionAsync(id, version.Id, ct);
-        return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
+            var oldBody = await _repository.GetVersionBodyAsync(versionId, ct);
+            if (oldBody is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Version {versionId} not found."));
+            var nextNumber = await _repository.GetNextVersionNumberAsync(id, ct);
+            var version = await _repository.PublishVersionAsync(id, new TemplateVersion
+            {
+                TemplateId = id,
+                VersionNumber = nextNumber,
+                Body = oldBody,
+                ChangeComment = $"Restored from v{versionId}"
+            }, ct);
+            return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new ErrorResult("CONFLICT", "This template was modified by another user while you were editing. Please refresh and try again."));
+        }
     }
 
     [HttpGet("Templates/Api/Views/{viewName}/Columns")]
@@ -1735,17 +1960,35 @@ public class TemplatesController : Controller
     [HttpPost("Templates/{id:int}/Preview")]
     public async Task<IActionResult> Preview(int id, [FromBody] PreviewRequest request, CancellationToken ct = default)
     {
+        if (request.ModelJson is not null &&
+            System.Text.Encoding.UTF8.GetByteCount(request.ModelJson) > MaxPreviewJsonBytes)
+            return BadRequest(new ErrorResult("PREVIEW_JSON_TOO_LARGE", "Preview JSON payload exceeds the 64 KB limit."));
+
+        Dictionary<string, JsonElement>? modelDict = null;
+        if (request.ModelJson is not null)
+        {
+            try { modelDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(request.ModelJson); }
+            catch (JsonException ex)
+            {
+                return BadRequest(new ErrorResult("PREVIEW_JSON_INVALID", $"Invalid JSON: {ex.Message}"));
+            }
+        }
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cts.CancelAfter(TimeSpan.FromSeconds(PreviewTimeoutSeconds));
         try
         {
-            var model = request.ModelJson is not null
-                ? JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(request.ModelJson) ?? new()
-                : (object)new { };
-            var html = await _engine.RenderBodyAsync(request.Body, model, ct);
+            var model = (object?)modelDict ?? new { };
+            var html = await _engine.RenderBodyAsync(request.Body, model, cts.Token);
             return Ok(new { html });
         }
-        catch (TemplateRenderException ex)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return BadRequest(new { error = ex.Message });
+            return StatusCode(408, new ErrorResult("PREVIEW_TIMEOUT", "Preview timed out. Simplify the template or model and try again."));
+        }
+        catch (TemplateRenderException)
+        {
+            return BadRequest(new ErrorResult("TEMPLATE_RENDER_ERROR", "Template rendering failed. Check template syntax."));
         }
     }
 
@@ -1753,7 +1996,7 @@ public class TemplatesController : Controller
     public async Task<IActionResult> ToggleActive(int id, CancellationToken ct = default)
     {
         var template = await _repository.GetByIdAsync(id, ct);
-        if (template is null) return NotFound();
+        if (template is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
         template.IsActive = !template.IsActive;
         await _repository.UpdateTemplateAsync(template, ct);
         return Ok(new { isActive = template.IsActive });
@@ -1763,28 +2006,32 @@ public class TemplatesController : Controller
     public async Task<IActionResult> Duplicate(int id, [FromBody] DuplicateRequest request, CancellationToken ct = default)
     {
         var source = await _repository.GetByIdAsync(id, ct);
-        if (source is null) return NotFound();
+        if (source is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
 
         var body = source.CurrentVersion?.Body ?? string.Empty;
-
-        var newTemplate = await _repository.CreateAsync(new Template
+        try
         {
-            Name = request.NewName,
-            TemplateType = source.TemplateType,
-            Description = source.Description
-        }, ct);
+            var newTemplate = await _repository.CreateAsync(new Template
+            {
+                Name = request.NewName.Trim(),
+                TemplateType = source.TemplateType,
+                Description = source.Description
+            }, ct);
 
-        var version = await _repository.SaveVersionAsync(new TemplateVersion
+            var version = await _repository.PublishVersionAsync(newTemplate.Id, new TemplateVersion
+            {
+                TemplateId = newTemplate.Id,
+                VersionNumber = 1,
+                Body = body,
+                ChangeComment = $"Duplicated from '{source.Name}'"
+            }, ct);
+
+            return Ok(new { id = newTemplate.Id });
+        }
+        catch (DbUpdateException)
         {
-            TemplateId = newTemplate.Id,
-            VersionNumber = 1,
-            Body = body,
-            ChangeComment = $"Duplicated from '{source.Name}'"
-        }, ct);
-
-        await _repository.UpdateCurrentVersionAsync(newTemplate.Id, version.Id, ct);
-
-        return Ok(new { id = newTemplate.Id });
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", $"A template named '{request.NewName.Trim()}' already exists."));
+        }
     }
 }
 ```

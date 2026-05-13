@@ -52,9 +52,10 @@ Consumer App → RenderAsync(templateId, model)
 | TemplateType | NVARCHAR(50) | Email / Report / Notice / Custom |
 | Description | NVARCHAR(500) | Nullable |
 | CurrentVersionId | INT | FK → TemplateVersions.Id |
-| IsActive | BIT | Soft delete — false hides from designer but still renders |
+| IsActive | BIT | Soft delete — false hides from designer AND blocks runtime rendering (throws TemplateNotFoundException) |
 | CreatedAt | DATETIME2 | |
 | UpdatedAt | DATETIME2 | |
+| RowVersion | ROWVERSION | EF Core [Timestamp] optimistic concurrency token |
 
 ### TemplateVersions
 
@@ -70,8 +71,12 @@ Consumer App → RenderAsync(templateId, model)
 
 **Key decisions:**
 - `CurrentVersionId` is a direct FK pointer — NuGet fetches the current body in a single indexed lookup, no aggregation.
-- SQL view metadata is never stored. Views are auto-discovered live from the database at design time only.
+- SQL view metadata is never stored. Views matching `ViewPrefix` (default: `TemplateBuilder_`) or an explicit `ViewAllowlist` are auto-discovered live from the database at design time only. Sensitive schemas (`sys`, `INFORMATION_SCHEMA`, `guest`) are always excluded.
 - Schema managed via EF Core code-first migrations.
+
+**Name uniqueness rule:** The unique constraint on `Templates.Name` uses the database's default collation (`SQL_Latin1_General_CP1_CI_AS` — case-insensitive, accent-sensitive). The application normalizes names by trimming leading/trailing whitespace before insert or update. Duplicate name conflict returns HTTP 400 `{ "code": "VALIDATION_ERROR", "message": "A template named '[name]' already exists." }`.
+
+**Audit trail (v1):** `CreatedBy` is nullable — no auth in v1. When authentication is added, populate `CreatedBy` from the authenticated user's identity at save time. All `TemplateRenderException` events must be logged at ERROR level with `templateId`, `versionId`, and UTC timestamp.
 
 ---
 
@@ -122,6 +127,19 @@ The designer places a Grid Block. The editor auto-generates `<thead>`. The body 
 
 **Convention:** The collection property name on the runtime model must match the collection name used in the `for` loop. The palette shows column names from the selected SQL view — these are the names the developer must use as model property names.
 
+### Model Binding Contract
+
+| Scenario | Behavior |
+|---|---|
+| Property name casing | Case-insensitive — `{{ model.CustomerName }}` matches POCO property `customerName` |
+| Null property value | Renders as empty string — no exception |
+| Missing property | Renders as empty string — no exception |
+| `Dictionary<string, object>` model | Keys treated as property names — case-insensitive lookup |
+| Collection name | Loop variable must match collection property name (case-insensitive): `{{ for item in model.OrderItems }}` requires `OrderItems` |
+| Nesting depth | One level: `model.Collection[i].Property`. Deeper nesting is unsupported in v1. |
+
+These behaviors are Scriban's native reflection-based binding and are not configurable.
+
 ---
 
 ## 5. NuGet Package — `TemplateBuilder.Core`
@@ -132,8 +150,12 @@ The designer places a Grid Block. The editor auto-generates `<thead>`. The body 
 builder.Services.AddTemplateBuilder(options =>
 {
     options.ConnectionString = builder.Configuration.GetConnectionString("TemplateDb");
-    options.EnableCaching = true;          // optional, default: true
-    options.CacheDurationMinutes = 30;     // optional, default: 30
+    options.EnableCaching = true;               // optional, default: true
+    options.CacheDurationMinutes = 30;          // optional, default: 30
+    options.ViewPrefix = "TemplateBuilder_";    // only views matching this prefix appear in the palette
+    // options.ViewAllowlist = new[] { "TemplateBuilder_CustomerOrders" }; // explicit list overrides prefix
+    options.StrictMode = false;                 // true = sanitize rendered output before returning to caller
+    options.ValidateSchemaOnStartup = false;    // true = check DB migration compatibility on startup
 });
 ```
 
@@ -154,9 +176,46 @@ public interface ITemplateEngine
 |---|---|
 | `TemplateNotFoundException` | Template ID/name not found, or `IsActive = false` |
 | `TemplateRenderException` | Scriban syntax error in the template body |
+| `SchemaVersionMismatchException` | DB schema is behind the required migration (when ValidateSchemaOnStartup = true or on first render) |
+
+`IsActive` governs editor visibility only. Both `RenderAsync` and `RenderByNameAsync` throw `TemplateNotFoundException` when `IsActive = false` — the inactive status is not leaked to callers (same response as not found).
+
+### Output Trust Model
+Template bodies are authored exclusively by internal trusted users. Scriban outputs model property values as-is — no HTML encoding is applied by the engine.
+
+`@Html.Raw(...)` is safe only when all model values originate from trusted internal sources. Callers passing model values from user-controlled or external input MUST HTML-encode those values before passing them to `RenderAsync`.
+
+v1 assumes model data comes from trusted internal databases. Multi-tenant use requires revisiting this contract.
+
+### Schema Compatibility
+`TemplateBuilder.Core` declares a `MinimumSchemaVersion` constant matching the EF Core migration ID it requires. On the first `RenderAsync` call (lazy) or during `AddTemplateBuilder` registration (if `ValidateSchemaOnStartup = true`), the package checks `__EFMigrationsHistory` for the required migration ID.
+
+If the migration is absent, it throws `SchemaVersionMismatchException`:
+> "TemplateBuilder.Core requires DB migration '{MigrationId}' which has not been applied. Run: dotnet ef database update --project TemplateBuilder.Infrastructure"
+
+Default: `ValidateSchemaOnStartup = false` (lazy check on first render).
 
 ### Caching
 On each `RenderAsync` call the NuGet executes one lightweight query: `SELECT CurrentVersionId FROM Templates WHERE Id = @id`. If the result matches the cached version key, the cached body is returned with no further DB access. If it differs (designer saved a new version), the full body is re-fetched and the cache is updated. This guarantees callers always see the latest published version immediately after a designer save, with minimal DB overhead.
+
+### Error Contracts
+
+All API error responses use a consistent JSON shape:
+```json
+{ "code": "ERROR_CODE", "message": "Human-readable message safe to display." }
+```
+
+| Scenario | HTTP Status | code |
+|---|---|---|
+| Template ID/name not found or inactive | 404 | `TEMPLATE_NOT_FOUND` |
+| Scriban syntax error | 500 | `TEMPLATE_RENDER_ERROR` |
+| Concurrent save conflict | 409 | `CONFLICT` |
+| Validation failure (name collision, etc.) | 400 | `VALIDATION_ERROR` |
+| Preview JSON malformed | 400 | `PREVIEW_JSON_INVALID` |
+| Preview JSON too large | 400 | `PREVIEW_JSON_TOO_LARGE` |
+| Preview render timeout | 408 | `PREVIEW_TIMEOUT` |
+
+**Safety rule:** `message` must never contain raw Scriban exception internals, stack traces, or SQL error text. Log the full error server-side; return a sanitized message to callers.
 
 ### Common usage patterns
 ```csharp
@@ -196,7 +255,7 @@ var pdf = pdfService.FromHtml(html);
 3-panel layout:
 
 **Left panel — Field Palette**
-- SQL View dropdown (auto-populated from database — lists all views)
+- SQL View dropdown (auto-populated from database — lists views matching the configured `ViewPrefix` or `ViewAllowlist`)
 - On view select: columns listed as draggable chips (colour-coded by scalar vs collection)
 - Blocks section: Loop Block and Grid Block as draggable items
 
@@ -212,7 +271,7 @@ var pdf = pdfService.FromHtml(html);
 - Current version number + "History" link
 - Optional save comment field
 - Preview button (opens modal)
-- Save Version button (creates new TemplateVersions row, updates CurrentVersionId)
+- Save Version button (creates new TemplateVersions row and updates CurrentVersionId in a single atomic transaction — partial failure rolls back both)
 
 ### Page 3: Version History (drawer/modal)
 - Lists all versions in reverse order: version number, change comment, date
@@ -224,6 +283,15 @@ var pdf = pdfService.FromHtml(html);
 - User can edit the JSON to test edge cases
 - "Render" button calls the same `TemplateEngine.RenderAsync` internally
 - Output displayed in an iframe below the JSON editor
+
+**Preview constraints:**
+
+| Constraint | Value |
+|---|---|
+| Max JSON payload | 64 KB — hard reject with 400 `PREVIEW_JSON_TOO_LARGE` |
+| Malformed JSON | 400 `PREVIEW_JSON_INVALID` |
+| Render timeout | 5 seconds — 408 `PREVIEW_TIMEOUT` |
+| Caching | None — every Render click executes fresh |
 
 ---
 
@@ -238,6 +306,37 @@ var pdf = pdfService.FromHtml(html);
 | Model binding | `object` + reflection | Accepts POCOs, anonymous types, dictionaries — maximum flexibility for callers |
 | Auth | None for v1 | Internal tool, can be added (ASP.NET Identity or Windows Auth) without structural changes |
 | Versioning | Append-only TemplateVersions | No overwrites, full history, restore by creating a new version |
+
+### Non-Functional Targets (v1)
+
+| Concern | Target |
+|---|---|
+| Render latency (cached) | p95 < 150 ms |
+| Render latency (cache miss) | p95 < 400 ms |
+| Template body size | Soft limit 512 KB — designer warns; hard reject at 1 MB |
+| Max preview JSON payload | 64 KB — hard reject (400) |
+| Max loop item count | No hard limit in v1; > 10 000 items untested — caller responsibility |
+
+These are design targets, not enforced SLAs.
+
+### Concurrency Policy
+`Templates.RowVersion` (SQL `ROWVERSION`) is mapped as an EF Core `[Timestamp]` concurrency token. On concurrent saves or restores:
+
+1. First save succeeds and advances `RowVersion`.
+2. Second save detects the stale token → EF Core throws `DbUpdateConcurrencyException`.
+3. Web app returns HTTP 409 `CONFLICT`: *"This template was modified by another user while you were editing. Please refresh and try again."*
+
+No version history is lost — the first save's TemplateVersion row is preserved.
+
+### HTML Sanitization
+Template bodies are treated as untrusted content at two enforcement points:
+
+1. **On save (always):** The template body is passed through an allowlist HTML sanitizer before being persisted to `TemplateVersions.Body`. Disallowed tags and attributes are stripped silently.
+2. **On render output (strict mode):** If `options.StrictMode = true`, the rendered HTML string is sanitized before being returned to the caller. Default: `false`.
+
+Default allowlist: `p, div, span, strong, em, b, i, u, h1–h6, ul, ol, li, br, hr, table, thead, tbody, tr, th, td, a [href: https/http only], img [src: https/data:image/* only]`.
+
+Library: `Ganss.Xss` (HtmlSanitizer). Added to `TemplateBuilder.Application`.
 
 ---
 
