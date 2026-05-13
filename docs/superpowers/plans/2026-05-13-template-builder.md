@@ -47,6 +47,7 @@ TemplateBuilder.sln
 │   │   ├── ViewModels/TemplateEditorViewModel.cs
 │   │   ├── Models/SaveVersionRequest.cs
 │   │   ├── Models/PreviewRequest.cs
+│   │   ├── Models/DuplicateRequest.cs
 │   │   ├── Views/Shared/_Layout.cshtml
 │   │   ├── Views/Templates/Index.cshtml
 │   │   ├── Views/Templates/Edit.cshtml
@@ -1405,6 +1406,7 @@ git commit -m "feat: add SqlViewDiscoveryService for design-time palette populat
 - Create: `src/TemplateBuilder.Web/ViewModels/TemplateEditorViewModel.cs`
 - Create: `src/TemplateBuilder.Web/Models/SaveVersionRequest.cs`
 - Create: `src/TemplateBuilder.Web/Models/PreviewRequest.cs`
+- Create: `src/TemplateBuilder.Web/Models/DuplicateRequest.cs`
 - Create: `tests/TemplateBuilder.Web.Tests/Controllers/TemplatesControllerTests.cs`
 
 - [ ] **Step 1: Create ViewModels and request models**
@@ -1478,6 +1480,14 @@ namespace TemplateBuilder.Web.Models;
 public record PreviewRequest(string Body, string? ModelJson);
 ```
 
+Create `src/TemplateBuilder.Web/Models/DuplicateRequest.cs`:
+
+```csharp
+namespace TemplateBuilder.Web.Models;
+
+public record DuplicateRequest(string NewName);
+```
+
 - [ ] **Step 2: Write failing controller tests**
 
 Create `tests/TemplateBuilder.Web.Tests/Controllers/TemplatesControllerTests.cs`:
@@ -1532,6 +1542,48 @@ public class TemplatesControllerTests
         var controller = new TemplatesController(mockRepo.Object, mockDiscovery.Object, new Mock<ITemplateEngine>().Object);
 
         var result = await controller.Edit(99);
+
+        result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task Duplicate_CreatesNewTemplateWithSameBodyAndRedirectsToEditor()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        var source = new Template
+        {
+            Id = 1, Name = "Invoice Email", TemplateType = "Email",
+            Description = "Monthly invoice",
+            CurrentVersion = new TemplateVersion { Id = 10, Body = "<p>Hello</p>", VersionNumber = 1 },
+            CurrentVersionId = 10
+        };
+        mockRepo.Setup(r => r.GetByIdAsync(1, default)).ReturnsAsync(source);
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), default))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 99; return t; });
+        mockRepo.Setup(r => r.SaveVersionAsync(It.IsAny<TemplateVersion>(), default))
+            .ReturnsAsync((TemplateVersion v, CancellationToken _) => { v.Id = 200; return v; });
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.Duplicate(1, new DuplicateRequest("Copy of Invoice Email"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        mockRepo.Verify(r => r.CreateAsync(
+            It.Is<Template>(t => t.Name == "Copy of Invoice Email" && t.TemplateType == "Email"),
+            default), Times.Once);
+        mockRepo.Verify(r => r.SaveVersionAsync(
+            It.Is<TemplateVersion>(v => v.Body == "<p>Hello</p>" && v.VersionNumber == 1),
+            default), Times.Once);
+        mockRepo.Verify(r => r.UpdateCurrentVersionAsync(99, 200, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Duplicate_NonExistentSource_ReturnsNotFound()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(999, default)).ReturnsAsync((Template?)null);
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.Duplicate(999, new DuplicateRequest("Copy"));
 
         result.Should().BeOfType<NotFoundResult>();
     }
@@ -1705,6 +1757,34 @@ public class TemplatesController : Controller
         template.IsActive = !template.IsActive;
         await _repository.UpdateTemplateAsync(template, ct);
         return Ok(new { isActive = template.IsActive });
+    }
+
+    [HttpPost("Templates/{id:int}/Duplicate")]
+    public async Task<IActionResult> Duplicate(int id, [FromBody] DuplicateRequest request, CancellationToken ct = default)
+    {
+        var source = await _repository.GetByIdAsync(id, ct);
+        if (source is null) return NotFound();
+
+        var body = source.CurrentVersion?.Body ?? string.Empty;
+
+        var newTemplate = await _repository.CreateAsync(new Template
+        {
+            Name = request.NewName,
+            TemplateType = source.TemplateType,
+            Description = source.Description
+        }, ct);
+
+        var version = await _repository.SaveVersionAsync(new TemplateVersion
+        {
+            TemplateId = newTemplate.Id,
+            VersionNumber = 1,
+            Body = body,
+            ChangeComment = $"Duplicated from '{source.Name}'"
+        }, ct);
+
+        await _repository.UpdateCurrentVersionAsync(newTemplate.Id, version.Id, ct);
+
+        return Ok(new { id = newTemplate.Id });
     }
 }
 ```
@@ -1927,6 +2007,7 @@ Create `src/TemplateBuilder.Web/Views/Templates/Index.cshtml`:
                                 </td>
                                 <td style="padding:.65rem 1rem;text-align:right;display:flex;gap:.4rem;justify-content:flex-end;">
                                     <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@t.Id">✏️ Edit</a>
+                                    <button class="btn btn-sm btn-secondary" onclick="openDuplicateModal(@t.Id, '@t.Name.Replace("'", "\\'")')">⧉ Duplicate</button>
                                     <button class="btn btn-sm btn-secondary" onclick="toggleActive(@t.Id, this)">
                                         @(t.IsActive ? "Disable" : "Enable")
                                     </button>
@@ -1960,6 +2041,26 @@ Create `src/TemplateBuilder.Web/Views/Templates/Index.cshtml`:
     </div>
 </div>
 
+<!-- Duplicate Modal -->
+<div class="modal-overlay" id="duplicate-modal">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+            <span style="font-weight:600;">Duplicate Template</span>
+            <button class="modal-close" onclick="document.getElementById('duplicate-modal').classList.remove('open')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:.75rem;">
+                <label>New Template Name</label>
+                <input type="text" id="duplicate-name-input" style="margin-top:.3rem;" />
+            </div>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="document.getElementById('duplicate-modal').classList.remove('open')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmDuplicate()">⧉ Duplicate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 async function toggleActive(id, btn) {
@@ -1970,6 +2071,28 @@ async function toggleActive(id, btn) {
         const statusCell = row.querySelectorAll('td')[4];
         statusCell.innerHTML = `<span style="color:${data.isActive ? 'var(--success)' : 'var(--text-muted)'};font-size:.82rem;">${data.isActive ? 'Active' : 'Inactive'}</span>`;
         btn.textContent = data.isActive ? 'Disable' : 'Enable';
+    }
+}
+
+let _duplicateSourceId = null;
+function openDuplicateModal(id, name) {
+    _duplicateSourceId = id;
+    document.getElementById('duplicate-name-input').value = `Copy of ${name}`;
+    document.getElementById('duplicate-modal').classList.add('open');
+    setTimeout(() => document.getElementById('duplicate-name-input').focus(), 50);
+}
+
+async function confirmDuplicate() {
+    const newName = document.getElementById('duplicate-name-input').value.trim();
+    if (!newName) return;
+    const res = await fetch(`/Templates/${_duplicateSourceId}/Duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newName })
+    });
+    if (res.ok) {
+        const { id } = await res.json();
+        window.location.href = `/Templates/${id}/Edit`;
     }
 }
 </script>
@@ -2413,11 +2536,13 @@ git commit -m "feat: complete TemplateBuilder — designer web app and Core NuGe
 - ✅ SQL View auto-discovery: Task 9 (`SqlViewDiscoveryService`) + Task 13 (palette JS)
 - ✅ Soft delete (IsActive): Task 10 (`ToggleActive` endpoint) + Task 12 (Index toggle button)
 - ✅ Append-only versioning / Restore: Task 10 (`RestoreVersion` endpoint)
+- ✅ Duplicate template: Task 10 (`Duplicate` endpoint + 2 tests) + Task 12 (Index button + modal + JS)
 
 **Type consistency check:**
 - `ITemplateEngine` defined in Task 3: `RenderAsync(int, object)`, `RenderByNameAsync(string, object)`, `RenderBodyAsync(string, object)` — all three used consistently in Tasks 7, 8, 10, 13
 - `ITemplateRepository` defined in Task 3 — all methods implemented in Task 6, all used in Task 10 controller
 - `TemplateNotFoundException(int)` and `TemplateNotFoundException(string)` — both constructors defined in Task 3, both used in Task 7
 - `SaveVersionRequest` record defined in Task 10, consumed in same task's controller
+- `DuplicateRequest` record defined in Task 10, consumed in same task's `Duplicate` endpoint and tests
 
 **No placeholders found.** All steps have complete code, commands, and expected output.

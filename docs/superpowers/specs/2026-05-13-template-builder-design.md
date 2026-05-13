@@ -180,9 +180,17 @@ var pdf = pdfService.FromHtml(html);
 ### Page 1: Template List (`/templates`)
 - Search bar + type filter dropdown (All / Email / Report / Notice / Custom)
 - Table: Name, Type badge, current version, last updated, Active status
-- Actions per row: Edit, Version History, Settings (activate/deactivate)
+- Actions per row: Edit, **Duplicate**, Settings (activate/deactivate)
 - "+ New Template" button → opens editor with blank canvas
 - Quick stats sidebar: count by type
+
+**Duplicate action:**
+- Clicking "Duplicate" on any row opens a small modal
+- Modal pre-fills the name field with `"Copy of [OriginalName]"`
+- User edits the name if desired, then confirms
+- System creates a new Template record (same `TemplateType` and `Description` as original, `IsActive = true`)
+- Copies the original's current version body as Version 1 of the new template (with `ChangeComment = "Duplicated from '[OriginalName]'"`)
+- Redirects user directly to the new template's editor (`/templates/{newId}/edit`)
 
 ### Page 2: Template Editor (`/templates/{id}/edit`)
 3-panel layout:
@@ -237,6 +245,9 @@ var pdf = pdfService.FromHtml(html);
 
 ### Designer (Web App)
 1. Create a new template of each type (Email, Report, Notice, Custom)
+2. On the Template List, click "Duplicate" on an existing template — verify modal opens with name pre-filled as "Copy of [OriginalName]"
+3. Confirm duplicate — verify redirect to new template's editor, body matches original, version shows v1, change comment says "Duplicated from '[OriginalName]'"
+4. Verify the original template is unchanged
 2. Select a SQL view — verify columns appear in the palette
 3. Drag scalar fields into the canvas — verify `{{ model.X }}` tokens are inserted
 4. Drop a Loop Block — verify the bordered region appears and inner fields are scoped to the loop
