@@ -127,4 +127,47 @@ public class TemplateRepositoryTests
 
         next.Should().Be(3);
     }
+
+    [Fact]
+    public async Task GetAllAsync_OnlyReturnsActiveTemplates()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        await repo.CreateAsync(new Template { Name = "Active", TemplateType = "Email" });
+        var inactive = await repo.CreateAsync(new Template { Name = "Inactive", TemplateType = "Email" });
+        inactive.IsActive = false;
+        await repo.UpdateTemplateAsync(inactive);
+
+        var result = await repo.GetAllAsync();
+
+        result.Should().HaveCount(1);
+        result[0].Name.Should().Be("Active");
+    }
+
+    [Fact]
+    public async Task GetVersionHistoryAsync_ReturnsVersionsDescending()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "F", TemplateType = "Email" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 1, Body = "v1" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 2, Body = "v2" });
+
+        var history = await repo.GetVersionHistoryAsync(template.Id);
+
+        history.Should().HaveCount(2);
+        history[0].VersionNumber.Should().Be(2);
+        history[1].VersionNumber.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetByNameAsync_UnknownName_ReturnsNull()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+
+        var result = await repo.GetByNameAsync("DoesNotExist");
+
+        result.Should().BeNull();
+    }
 }
