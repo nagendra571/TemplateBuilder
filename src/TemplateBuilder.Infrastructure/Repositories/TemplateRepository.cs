@@ -25,7 +25,7 @@ public class TemplateRepository : ITemplateRepository
 
     public async Task<int?> GetCurrentVersionIdAsync(int templateId, CancellationToken ct = default) =>
         await _context.Templates
-            .Where(t => t.Id == templateId)
+            .Where(t => t.Id == templateId && t.IsActive)
             .Select(t => t.CurrentVersionId)
             .FirstOrDefaultAsync(ct);
 
