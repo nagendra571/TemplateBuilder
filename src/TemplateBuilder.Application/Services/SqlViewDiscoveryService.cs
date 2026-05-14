@@ -13,7 +13,6 @@ public class SqlViewDiscoveryService : ISqlViewDiscoveryService
     private static readonly IReadOnlySet<string> ExcludedSchemas =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sys", "INFORMATION_SCHEMA", "guest" };
 
-    // Single source of truth: SQL fragment built from ExcludedSchemas (compile-time constant set, never user-supplied)
     private static readonly string ExcludedSchemaSql =
         string.Join(",", ExcludedSchemas.Select(s => $"'{s}'"));
 
@@ -62,6 +61,6 @@ public class SqlViewDiscoveryService : ISqlViewDiscoveryService
     }
 
     /// <summary>Escapes SQL LIKE metacharacters in <paramref name="value"/> so it is treated as a literal prefix.</summary>
-    private static string EscapeLikePattern(string value) =>
+    internal static string EscapeLikePattern(string value) =>
         value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 }
