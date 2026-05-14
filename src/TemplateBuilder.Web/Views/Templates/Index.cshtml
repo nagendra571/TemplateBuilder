@@ -1,0 +1,204 @@
+@model TemplateBuilder.Web.ViewModels.TemplateListViewModel
+@{
+    ViewData["Title"] = "Templates";
+}
+@Html.AntiForgeryToken()
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+    <div>
+        <h1 style="font-size:1.4rem;font-weight:700;">Templates</h1>
+        <p style="color:var(--text-muted);font-size:.85rem;margin-top:.2rem;">Manage your reusable document templates</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">+ New Template</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;">
+    <div>
+        <!-- Search + Filter -->
+        <form method="get" style="display:flex;gap:.6rem;margin-bottom:1rem;" role="search">
+            <div style="flex:1;">
+                <label for="search-input" class="visually-hidden">Search templates</label>
+                <input type="search" id="search-input" name="search" value="@Model.Search" placeholder="Search templates…" style="flex:1;width:100%;" />
+            </div>
+            <div>
+                <label for="type-filter" class="visually-hidden">Filter by type</label>
+                <select id="type-filter" name="type" style="width:160px;">
+                    <option value="">All Types</option>
+                    @foreach (var t in TemplateBuilder.Web.ViewModels.TemplateListViewModel.KnownTypes)
+                    {
+                        <option value="@t" selected="@(Model.TypeFilter == t)">@t</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary">Filter</button>
+        </form>
+
+        <!-- Template Table -->
+        @if (!Model.Templates.Any())
+        {
+            <div class="card" style="text-align:center;padding:3rem;color:var(--text-muted);">
+                <p style="font-size:1.1rem;margin-bottom:.5rem;">No templates yet</p>
+                <a class="btn btn-primary" asp-action="Create" style="margin-top:.5rem;">Create your first template</a>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <table style="width:100%;border-collapse:collapse;" role="table" aria-label="Template list">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text-muted);">
+                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Name</th>
+                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Type</th>
+                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Version</th>
+                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Updated</th>
+                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Status</th>
+                            <th scope="col" style="padding:.6rem 1rem;text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Templates)
+                        {
+                            <tr style="border-bottom:1px solid var(--border);" id="row-@t.Id">
+                                <td style="padding:.65rem 1rem;font-weight:500;">@t.Name</td>
+                                <td style="padding:.65rem 1rem;">
+                                    <span class="badge badge-@t.TemplateType.ToLower()">@t.TemplateType</span>
+                                </td>
+                                <td style="padding:.65rem 1rem;color:var(--text-muted);font-size:.82rem;">
+                                    v@(t.CurrentVersion?.VersionNumber ?? 0)
+                                </td>
+                                <td style="padding:.65rem 1rem;color:var(--text-muted);font-size:.82rem;">
+                                    @t.UpdatedAt.ToString("dd MMM yyyy")
+                                </td>
+                                <td style="padding:.65rem 1rem;">
+                                    <span style="color:@(t.IsActive ? "var(--success)" : "var(--text-muted)");font-size:.82rem;"
+                                          id="status-@t.Id">
+                                        @(t.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                </td>
+                                <td style="padding:.65rem 1rem;text-align:right;">
+                                    <div style="display:flex;gap:.4rem;justify-content:flex-end;">
+                                        <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@t.Id">Edit</a>
+                                        <button class="btn btn-sm btn-secondary"
+                                                onclick="openDuplicateModal(@t.Id, '@Html.Raw(t.Name.Replace("'", "\\'"))')">Duplicate</button>
+                                        <button class="btn btn-sm btn-secondary"
+                                                id="toggle-btn-@t.Id"
+                                                onclick="toggleActive(@t.Id, this)">
+                                            @(t.IsActive ? "Disable" : "Enable")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- Stats Sidebar -->
+    <div class="card" style="height:fit-content;">
+        <div class="card-header">Quick Stats</div>
+        <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:.6rem;font-size:.85rem;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Total</span>
+                    <strong>@Model.Templates.Count</strong>
+                </div>
+                @foreach (var kvp in Model.CountByType)
+                {
+                    <div style="display:flex;justify-content:space-between;">
+                        <span style="color:var(--text-muted);">@kvp.Key</span>
+                        <strong>@kvp.Value</strong>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Duplicate Modal -->
+<div class="modal-overlay" id="duplicate-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-modal-title">
+    <div class="modal" style="max-width:420px;">
+        <div class="modal-header">
+            <span id="duplicate-modal-title" style="font-weight:600;">Duplicate Template</span>
+            <button class="modal-close" aria-label="Close" onclick="closeDuplicateModal()">x</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:.75rem;">
+                <label for="duplicate-name-input">New Template Name</label>
+                <input type="text" id="duplicate-name-input" style="margin-top:.3rem;" autocomplete="off" />
+            </div>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeDuplicateModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmDuplicate()">Duplicate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+    .visually-hidden { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+</style>
+<script>
+    const _csrf = document.querySelector('input[name=__RequestVerificationToken]')?.value ?? '';
+
+    async function toggleActive(id, btn) {
+        btn.disabled = true;
+        const res = await fetch(`/Templates/${id}/ToggleActive`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': _csrf }
+        });
+        btn.disabled = false;
+        if (res.ok) {
+            const data = await res.json();
+            const statusEl = document.getElementById(`status-${id}`);
+            statusEl.style.color = data.isActive ? 'var(--success)' : 'var(--text-muted)';
+            statusEl.textContent = data.isActive ? 'Active' : 'Inactive';
+            btn.textContent = data.isActive ? 'Disable' : 'Enable';
+        }
+    }
+
+    let _duplicateSourceId = null;
+
+    function openDuplicateModal(id, name) {
+        _duplicateSourceId = id;
+        document.getElementById('duplicate-name-input').value = `Copy of ${name}`;
+        document.getElementById('duplicate-modal').classList.add('open');
+        setTimeout(() => document.getElementById('duplicate-name-input').focus(), 50);
+    }
+
+    function closeDuplicateModal() {
+        document.getElementById('duplicate-modal').classList.remove('open');
+        _duplicateSourceId = null;
+    }
+
+    async function confirmDuplicate() {
+        const newName = document.getElementById('duplicate-name-input').value.trim();
+        if (!newName) return;
+        const confirmBtn = document.querySelector('#duplicate-modal .btn-primary');
+        confirmBtn.disabled = true;
+        const res = await fetch(`/Templates/${_duplicateSourceId}/Duplicate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ newName })
+        });
+        confirmBtn.disabled = false;
+        if (res.ok) {
+            const { id } = await res.json();
+            window.location.href = `/Templates/${id}/Edit`;
+        } else {
+            const err = await res.json().catch(() => null);
+            alert(err?.message ?? 'Failed to duplicate template.');
+            closeDuplicateModal();
+        }
+    }
+
+    document.getElementById('duplicate-modal').addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeDuplicateModal();
+    });
+</script>
+}
