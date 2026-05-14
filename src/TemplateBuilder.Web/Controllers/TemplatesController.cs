@@ -88,9 +88,11 @@ public class TemplatesController : Controller
         });
     }
 
-    [HttpPost("Templates/{id:int}/SaveVersion")]
+    [HttpPost("Templates/{id:int}/SaveVersion"), ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveVersion(int id, [FromBody] SaveVersionRequest request, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", "Template name is required."));
         var template = await _repository.GetByIdAsync(id, ct);
         if (template is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
         try
@@ -122,12 +124,13 @@ public class TemplatesController : Controller
     [HttpGet("Templates/{id:int}/Versions")]
     public async Task<IActionResult> GetVersionHistory(int id, CancellationToken ct = default)
     {
-        var versions = await _repository.GetVersionHistoryAsync(id, ct);
         var template = await _repository.GetByIdAsync(id, ct);
-        return PartialView("_VersionHistory", (versions.ToList(), template?.CurrentVersionId));
+        if (template is null) return NotFound();
+        var versions = await _repository.GetVersionHistoryAsync(id, ct);
+        return PartialView("_VersionHistory", (versions.ToList(), template.CurrentVersionId));
     }
 
-    [HttpPost("Templates/{id:int}/Restore/{versionId:int}")]
+    [HttpPost("Templates/{id:int}/Restore/{versionId:int}"), ValidateAntiForgeryToken]
     public async Task<IActionResult> RestoreVersion(int id, int versionId, CancellationToken ct = default)
     {
         try
@@ -157,7 +160,7 @@ public class TemplatesController : Controller
         return Json(columns);
     }
 
-    [HttpPost("Templates/{id:int}/Preview")]
+    [HttpPost("Templates/{id:int}/Preview"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Preview(int id, [FromBody] PreviewRequest request, CancellationToken ct = default)
     {
         if (request.ModelJson is not null &&
@@ -192,7 +195,7 @@ public class TemplatesController : Controller
         }
     }
 
-    [HttpPost("Templates/{id:int}/ToggleActive")]
+    [HttpPost("Templates/{id:int}/ToggleActive"), ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleActive(int id, CancellationToken ct = default)
     {
         var template = await _repository.GetByIdAsync(id, ct);
@@ -202,7 +205,7 @@ public class TemplatesController : Controller
         return Ok(new { isActive = template.IsActive });
     }
 
-    [HttpPost("Templates/{id:int}/Duplicate")]
+    [HttpPost("Templates/{id:int}/Duplicate"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Duplicate(int id, [FromBody] DuplicateRequest request, CancellationToken ct = default)
     {
         var source = await _repository.GetByIdAsync(id, ct);

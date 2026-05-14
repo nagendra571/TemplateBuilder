@@ -93,4 +93,34 @@ public class TemplatesControllerTests
 
         result.Should().BeOfType<NotFoundResult>();
     }
+
+    [Fact]
+    public async Task Preview_OversizedPayload_ReturnsBadRequest()
+    {
+        var controller = CreateController();
+        var bigJson = new string('x', 65 * 1024); // > 64 KB
+        var result = await controller.Preview(1, new PreviewRequest("body", bigJson));
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Preview_InvalidJson_ReturnsBadRequest()
+    {
+        var controller = CreateController();
+        var result = await controller.Preview(1, new PreviewRequest("body", "{invalid"));
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task SaveVersion_NullName_ReturnsBadRequest()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email" });
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.SaveVersion(1, new SaveVersionRequest(null!, "Email", null, "body", null));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
 }
