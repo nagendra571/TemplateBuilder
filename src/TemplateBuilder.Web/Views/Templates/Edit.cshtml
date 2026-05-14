@@ -126,8 +126,11 @@
     </div>
 </div>
 
-@section Scripts {
+@section Styles {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css">
+}
+
+@section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/suneditor.min.js"></script>
 <script>
     const templateId = @(Model.Id?.ToString() ?? "null");

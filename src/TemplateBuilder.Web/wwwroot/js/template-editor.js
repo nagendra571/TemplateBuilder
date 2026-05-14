@@ -6,27 +6,25 @@ function escapeHtml(str) {
 
 let _editor = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    _editor = SUNEDITOR.create('template-body', {
-        height: '100%',
-        theme: 'dark',
-        buttonList: [
-            ['bold', 'italic', 'underline'],
-            ['formatBlock'],
-            ['list'],
-            ['link', 'table'],
-            ['codeView']
-        ],
-        addTagsWhitelist: 'span|div',
-        attributesWhitelist: {
-            span: 'class|style|contenteditable',
-            div: 'class|style',
-            all: 'data-*'
-        },
-        onDrop: function (e) {
-            return handleDrop(e);
-        }
-    });
+_editor = SUNEDITOR.create('template-body', {
+    height: '100%',
+    theme: 'dark',
+    buttonList: [
+        ['bold', 'italic', 'underline'],
+        ['formatBlock'],
+        ['list'],
+        ['link', 'table'],
+        ['codeView']
+    ],
+    addTagsWhitelist: 'span|div',
+    attributesWhitelist: {
+        span: 'class|style|contenteditable',
+        div: 'class|style',
+        all: 'data-*'
+    },
+    onDrop: function (e) {
+        return handleDrop(e);
+    }
 });
 
 function handleDrop(e) {
