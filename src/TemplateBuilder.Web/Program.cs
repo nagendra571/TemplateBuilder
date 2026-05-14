@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using TemplateBuilder.Application.Options;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Infrastructure.Data;
@@ -22,6 +24,22 @@ builder.Services.AddDbContext<TemplateBuilderDbContext>(options =>
 
 builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
 builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
+
+// Bind TemplateBuilderOptions from config (uses defaults if section absent)
+builder.Services.Configure<TemplateBuilderOptions>(
+    builder.Configuration.GetSection("TemplateBuilder"));
+
+// Memory cache needed by TemplateEngine
+builder.Services.AddMemoryCache();
+
+// Template rendering engine
+builder.Services.AddScoped<ITemplateEngine, TemplateEngine>();
+
+// SQL view discovery — design-time only, not used at render time
+builder.Services.AddScoped(sp =>
+    new SqlViewDiscoveryService(
+        connectionString,
+        sp.GetRequiredService<IOptions<TemplateBuilderOptions>>()));
 
 var app = builder.Build();
 
