@@ -62,7 +62,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Templates}/{action=Index}/{id?}");
 
+// Enables attribute-routed endpoints (e.g., /Templates/{id}/SaveVersion)
 app.MapControllers();
-
 
 app.Run();
