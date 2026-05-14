@@ -131,6 +131,21 @@
 <style>
     /* Editor page: remove main container padding so the 3-panel layout fills the viewport */
     .tb-main { padding: 0 !important; max-width: 100% !important; }
+    /* Code view: expand to fill the canvas instead of collapsing to 65px */
+    .sun-editor .se-wrapper.se-source-view-status .se-code-wrapper {
+        flex: 1 1 auto !important;
+        height: auto !important;
+        overflow: hidden !important;
+    }
+    /* Code view textarea — readable in dark theme */
+    .sun-editor .se-wrapper.se-source-view-status .se-code-wrapper [id*="code-viewer"] {
+        height: 100% !important;
+        background: #1e1e1e !important;
+        color: #c9d1d9 !important;
+        font-family: 'Consolas', 'Courier New', monospace !important;
+        font-size: .82rem !important;
+        box-sizing: border-box !important;
+    }
 </style>
 }
 
