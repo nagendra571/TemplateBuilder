@@ -27,14 +27,33 @@ public class SqlViewDiscoveryService : ISqlViewDiscoveryService
         if (_options.ViewAllowlist is not null)
             return _options.ViewAllowlist.ToList().AsReadOnly();
 
+        var prefixes = _options.ViewPrefix
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
         await using var conn = new SqlConnection(_connectionString);
         await conn.OpenAsync(ct);
+
+        string prefixFilter;
+        if (prefixes.Count == 0)
+        {
+            prefixFilter = "1=1";
+        }
+        else
+        {
+            var clauses = prefixes.Select((_, i) => $"TABLE_NAME LIKE @p{i} + '%'");
+            prefixFilter = "(" + string.Join(" OR ", clauses) + ")";
+        }
+
         await using var cmd = new SqlCommand(
             $@"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS
-              WHERE TABLE_NAME LIKE @prefix + '%'
+              WHERE {prefixFilter}
               AND TABLE_SCHEMA NOT IN ({ExcludedSchemaSql})
               ORDER BY TABLE_NAME", conn);
-        cmd.Parameters.AddWithValue("@prefix", EscapeLikePattern(_options.ViewPrefix));
+
+        for (int i = 0; i < prefixes.Count; i++)
+            cmd.Parameters.AddWithValue($"@p{i}", EscapeLikePattern(prefixes[i]));
+
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var views = new List<string>();
         while (await reader.ReadAsync(ct))
