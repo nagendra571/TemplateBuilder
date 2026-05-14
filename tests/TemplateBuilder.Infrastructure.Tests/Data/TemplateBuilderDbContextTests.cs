@@ -5,14 +5,14 @@ using TemplateBuilder.Infrastructure.Data;
 
 namespace TemplateBuilder.Infrastructure.Tests.Data;
 
-public class AppDbContextTests
+public class TemplateBuilderDbContextTests
 {
-    private static AppDbContext CreateInMemoryContext()
+    private static TemplateBuilderDbContext CreateInMemoryContext()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
+        var options = new DbContextOptionsBuilder<TemplateBuilderDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
-        return new AppDbContext(options);
+        return new TemplateBuilderDbContext(options);
     }
 
     [Fact]

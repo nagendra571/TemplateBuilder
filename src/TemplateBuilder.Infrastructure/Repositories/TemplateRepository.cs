@@ -7,9 +7,9 @@ namespace TemplateBuilder.Infrastructure.Repositories;
 
 public class TemplateRepository : ITemplateRepository
 {
-    private readonly AppDbContext _context;
+    private readonly TemplateBuilderDbContext _context;
 
-    public TemplateRepository(AppDbContext context) => _context = context;
+    public TemplateRepository(TemplateBuilderDbContext context) => _context = context;
 
     public async Task<Template?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await _context.Templates

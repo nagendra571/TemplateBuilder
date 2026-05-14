@@ -8,8 +8,8 @@ namespace TemplateBuilder.Infrastructure.Tests.Repositories;
 
 public class TemplateRepositoryTests
 {
-    private static AppDbContext CreateContext() =>
-        new(new DbContextOptionsBuilder<AppDbContext>()
+    private static TemplateBuilderDbContext CreateContext() =>
+        new(new DbContextOptionsBuilder<TemplateBuilderDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
             .Options);

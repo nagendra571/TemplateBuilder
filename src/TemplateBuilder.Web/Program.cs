@@ -13,7 +13,7 @@ var connectionString = builder.Configuration.GetConnectionString("TemplateDb")
         "Connection string 'TemplateDb' not found. " +
         "Verify appsettings.json or the CONNECTIONSTRINGS__TEMPLATEDB environment variable.");
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<TemplateBuilderDbContext>(options =>
     options.UseSqlServer(connectionString, sqlOptions =>
         sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,

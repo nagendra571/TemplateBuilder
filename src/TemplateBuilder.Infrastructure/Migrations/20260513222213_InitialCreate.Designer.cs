@@ -11,7 +11,7 @@ using TemplateBuilder.Infrastructure.Data;
 
 namespace TemplateBuilder.Infrastructure.Migrations
 {
-    [DbContext(typeof(AppDbContext))]
+    [DbContext(typeof(TemplateBuilderDbContext))]
     [Migration("20260513222213_InitialCreate")]
     partial class InitialCreate
     {

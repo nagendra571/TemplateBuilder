@@ -3,16 +3,16 @@ using TemplateBuilder.Domain.Entities;
 
 namespace TemplateBuilder.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class TemplateBuilderDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    public TemplateBuilderDbContext(DbContextOptions<TemplateBuilderDbContext> options) : base(options) { }
 
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(TemplateBuilderDbContext).Assembly);
     }
 
     /// <summary>
