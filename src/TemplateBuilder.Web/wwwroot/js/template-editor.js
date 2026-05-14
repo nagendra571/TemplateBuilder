@@ -1,5 +1,9 @@
 const _csrf = document.querySelector('input[name=__RequestVerificationToken]')?.value ?? '';
 
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 tinymce.init({
     selector: '#template-body',
     height: '100%',
@@ -70,9 +74,9 @@ async function loadViewColumns(viewName) {
             return;
         }
         palette.innerHTML = columns.map(c => `
-            <div class="palette-field" draggable="true" data-field="${c.name}"
+            <div class="palette-field" draggable="true" data-field="${escapeHtml(c.name)}"
                  style="background:var(--accent);opacity:.85;color:white;border-radius:var(--radius);padding:.25rem .5rem;font-size:.75rem;margin-bottom:.3rem;cursor:grab;user-select:none;">
-                ${c.name} <span style="opacity:.6;font-size:.68rem;">${c.dataType}</span>
+                ${escapeHtml(c.name)} <span style="opacity:.6;font-size:.68rem;">${escapeHtml(c.dataType)}</span>
             </div>`).join('');
     } catch {
         palette.innerHTML = '<div style="color:var(--danger);font-size:.78rem;padding:.5rem;">Failed to load columns</div>';
@@ -84,7 +88,14 @@ async function saveVersion() {
     const errorEl = document.getElementById('save-error');
     errorEl.style.display = 'none';
     btn.disabled = true;
-    const body = tinymce.get('template-body').getContent();
+    const tinyEditor = tinymce.get('template-body');
+    if (!tinyEditor) {
+        errorEl.textContent = 'Editor is still loading — please wait a moment.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+    }
+    const body = tinyEditor.getContent();
     try {
         const res = await fetch(`/Templates/${templateId}/SaveVersion`, {
             method: 'POST',
@@ -144,10 +155,7 @@ async function restoreVersion(versionId) {
             headers: { 'RequestVerificationToken': _csrf }
         });
         if (res.ok) {
-            const data = await res.json();
-            document.getElementById('version-display').textContent = `v${data.versionNumber}`;
-            closeModal('version-modal');
-            showToast('Version restored — reload to see changes in editor');
+            window.location.reload();
         } else {
             const err = await res.json().catch(() => null);
             restoreErrorEl.textContent = err?.message ?? 'Failed to restore version.';
@@ -171,7 +179,14 @@ async function renderPreview() {
     const frameWrap = document.getElementById('preview-frame-wrap');
     errorEl.style.display = 'none';
     btn.disabled = true;
-    const body = tinymce.get('template-body').getContent();
+    const tinyEditor = tinymce.get('template-body');
+    if (!tinyEditor) {
+        errorEl.textContent = 'Editor is still loading — please wait a moment.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+    }
+    const body = tinyEditor.getContent();
     const modelJson = document.getElementById('preview-json').value;
     try {
         const res = await fetch(`/Templates/${templateId}/Preview`, {

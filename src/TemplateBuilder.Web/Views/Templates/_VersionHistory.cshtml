@@ -20,6 +20,10 @@
             {
                 <button class="btn btn-sm btn-secondary" onclick="restoreVersion(@v.Id)">Restore</button>
             }
+            @if (v.Id == Model.CurrentVersionId)
+            {
+                <span></span>
+            }
         </div>
     }
 </div>
