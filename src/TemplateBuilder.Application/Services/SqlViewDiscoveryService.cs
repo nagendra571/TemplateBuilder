@@ -5,13 +5,17 @@ using TemplateBuilder.Application.Options;
 
 namespace TemplateBuilder.Application.Services;
 
-public class SqlViewDiscoveryService
+public class SqlViewDiscoveryService : ISqlViewDiscoveryService
 {
     private readonly string _connectionString;
     private readonly TemplateBuilderOptions _options;
 
     private static readonly IReadOnlySet<string> ExcludedSchemas =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "sys", "INFORMATION_SCHEMA", "guest" };
+
+    // Single source of truth: SQL fragment built from ExcludedSchemas (compile-time constant set, never user-supplied)
+    private static readonly string ExcludedSchemaSql =
+        string.Join(",", ExcludedSchemas.Select(s => $"'{s}'"));
 
     public SqlViewDiscoveryService(string connectionString, IOptions<TemplateBuilderOptions> options)
     {
@@ -27,11 +31,11 @@ public class SqlViewDiscoveryService
         await using var conn = new SqlConnection(_connectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(
-            @"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS
+            $@"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.VIEWS
               WHERE TABLE_NAME LIKE @prefix + '%'
-              AND TABLE_SCHEMA NOT IN ('sys','INFORMATION_SCHEMA','guest')
+              AND TABLE_SCHEMA NOT IN ({ExcludedSchemaSql})
               ORDER BY TABLE_NAME", conn);
-        cmd.Parameters.AddWithValue("@prefix", _options.ViewPrefix);
+        cmd.Parameters.AddWithValue("@prefix", EscapeLikePattern(_options.ViewPrefix));
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var views = new List<string>();
         while (await reader.ReadAsync(ct))
@@ -44,9 +48,10 @@ public class SqlViewDiscoveryService
         await using var conn = new SqlConnection(_connectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(
-            @"SELECT COLUMN_NAME, DATA_TYPE
+            $@"SELECT COLUMN_NAME, DATA_TYPE
               FROM INFORMATION_SCHEMA.COLUMNS
               WHERE TABLE_NAME = @viewName
+              AND TABLE_SCHEMA NOT IN ({ExcludedSchemaSql})
               ORDER BY ORDINAL_POSITION", conn);
         cmd.Parameters.AddWithValue("@viewName", viewName);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -55,4 +60,8 @@ public class SqlViewDiscoveryService
             columns.Add(new SqlColumnInfo(reader.GetString(0), reader.GetString(1)));
         return columns;
     }
+
+    /// <summary>Escapes SQL LIKE metacharacters in <paramref name="value"/> so it is treated as a literal prefix.</summary>
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
 }

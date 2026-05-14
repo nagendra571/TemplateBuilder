@@ -36,7 +36,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ITemplateEngine, TemplateEngine>();
 
 // SQL view discovery — design-time only, not used at render time
-builder.Services.AddScoped(sp =>
+builder.Services.AddScoped<ISqlViewDiscoveryService>(sp =>
     new SqlViewDiscoveryService(
         connectionString,
         sp.GetRequiredService<IOptions<TemplateBuilderOptions>>()));
