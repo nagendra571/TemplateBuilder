@@ -121,7 +121,9 @@ async function saveVersion() {
 async function openVersionHistory() {
     const modal = document.getElementById('version-modal');
     const content = document.getElementById('version-history-content');
+    const restoreErrorEl = document.getElementById('restore-error');
     content.innerHTML = 'Loading…';
+    restoreErrorEl.style.display = 'none';
     modal.classList.add('open');
     try {
         const res = await fetch(`/Templates/${templateId}/Versions`);
@@ -133,6 +135,8 @@ async function openVersionHistory() {
 
 async function restoreVersion(versionId) {
     const btn = event.currentTarget;
+    const restoreErrorEl = document.getElementById('restore-error');
+    restoreErrorEl.style.display = 'none';
     btn.disabled = true;
     try {
         const res = await fetch(`/Templates/${templateId}/Restore/${versionId}`, {
@@ -146,11 +150,13 @@ async function restoreVersion(versionId) {
             showToast('Version restored — reload to see changes in editor');
         } else {
             const err = await res.json().catch(() => null);
-            alert(err?.message ?? 'Failed to restore version.');
+            restoreErrorEl.textContent = err?.message ?? 'Failed to restore version.';
+            restoreErrorEl.style.display = 'block';
             btn.disabled = false;
         }
     } catch {
-        alert('Network error — please try again.');
+        restoreErrorEl.textContent = 'Network error — please try again.';
+        restoreErrorEl.style.display = 'block';
         btn.disabled = false;
     }
 }
