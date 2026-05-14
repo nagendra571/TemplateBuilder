@@ -4,42 +4,62 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-tinymce.init({
-    selector: '#template-body',
-    height: '100%',
-    menubar: false,
-    plugins: 'lists link table code',
-    toolbar: 'bold italic underline | h1 h2 | bullist numlist | link table | code',
-    skin: 'oxide-dark',
-    content_css: 'dark',
-    content_style: `
-        .tb-field { background: #3a3aff22; color: #6366f1; border-radius: 3px; padding: 0 4px; font-family: monospace; }
-        .tb-loop { border: 2px dashed #f59e0b; border-radius: 6px; padding: 8px; margin: 4px 0; }
-        .tb-loop-label { font-size: 11px; color: #f59e0b; margin-bottom: 4px; }
-    `,
-    setup(editor) {
-        editor.on('drop', (e) => handleDrop(e, editor));
-    }
+let _editor = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    _editor = SUNEDITOR.create('template-body', {
+        height: '100%',
+        theme: 'dark',
+        buttonList: [
+            ['bold', 'italic', 'underline'],
+            ['formatBlock'],
+            ['list'],
+            ['link', 'table'],
+            ['codeView']
+        ],
+        addTagsWhitelist: 'span|div',
+        attributesWhitelist: {
+            span: 'class|style|contenteditable',
+            div: 'class|style',
+            all: 'data-*'
+        },
+        onDrop: function (e) {
+            return handleDrop(e);
+        }
+    });
 });
 
-function handleDrop(e, editor) {
+function handleDrop(e) {
     const fieldName = e.dataTransfer?.getData('field-name');
     const blockType = e.dataTransfer?.getData('block-type');
+
+    if (!fieldName && !blockType) return; // not our drag; let SunEditor handle
+
+    // Position cursor at drop coordinates before inserting
+    if (document.caretRangeFromPoint) {
+        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+        if (range) {
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+
     if (fieldName) {
-        e.preventDefault();
-        editor.insertContent(`<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`);
+        _editor.insertHTML(
+            `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`,
+            true
+        );
     } else if (blockType === 'loop') {
-        e.preventDefault();
         const view = document.getElementById('view-selector').value || 'Items';
-        editor.insertContent(`
+        _editor.insertHTML(`
             <div class="tb-loop">
                 <div class="tb-loop-label">LOOP — ${view}</div>
                 {{ for item in model.${view} }}<p><!-- drag fields here --></p>{{ end }}
-            </div>`);
+            </div>`, true);
     } else if (blockType === 'grid') {
-        e.preventDefault();
         const view = document.getElementById('view-selector').value || 'Items';
-        editor.insertContent(`
+        _editor.insertHTML(`
             <table border="1" style="width:100%;border-collapse:collapse;">
                 <thead><tr><th>Column1</th><th>Column2</th></tr></thead>
                 <tbody>
@@ -47,8 +67,10 @@ function handleDrop(e, editor) {
                 <tr><td>{{ item.Column1 }}</td><td>{{ item.Column2 }}</td></tr>
                 {{ end }}
                 </tbody>
-            </table>`);
+            </table>`, true);
     }
+
+    return false; // tell SunEditor: we handled it, cancel default
 }
 
 document.addEventListener('dragstart', (e) => {
@@ -88,14 +110,13 @@ async function saveVersion() {
     const errorEl = document.getElementById('save-error');
     errorEl.style.display = 'none';
     btn.disabled = true;
-    const tinyEditor = tinymce.get('template-body');
-    if (!tinyEditor) {
+    if (!_editor) {
         errorEl.textContent = 'Editor is still loading — please wait a moment.';
         errorEl.style.display = 'block';
         btn.disabled = false;
         return;
     }
-    const body = tinyEditor.getContent();
+    const body = _editor.getContents();
     try {
         const res = await fetch(`/Templates/${templateId}/SaveVersion`, {
             method: 'POST',
@@ -179,14 +200,13 @@ async function renderPreview() {
     const frameWrap = document.getElementById('preview-frame-wrap');
     errorEl.style.display = 'none';
     btn.disabled = true;
-    const tinyEditor = tinymce.get('template-body');
-    if (!tinyEditor) {
+    if (!_editor) {
         errorEl.textContent = 'Editor is still loading — please wait a moment.';
         errorEl.style.display = 'block';
         btn.disabled = false;
         return;
     }
-    const body = tinyEditor.getContent();
+    const body = _editor.getContents();
     const modelJson = document.getElementById('preview-json').value;
     try {
         const res = await fetch(`/Templates/${templateId}/Preview`, {
