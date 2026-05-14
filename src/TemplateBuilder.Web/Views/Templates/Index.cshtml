@@ -156,6 +156,9 @@
             statusEl.style.color = data.isActive ? 'var(--success)' : 'var(--text-muted)';
             statusEl.textContent = data.isActive ? 'Active' : 'Inactive';
             btn.textContent = data.isActive ? 'Disable' : 'Enable';
+        } else {
+            const err = await res.json().catch(() => null);
+            alert(err?.message ?? 'Failed to update template status.');
         }
     }
 
@@ -197,8 +200,9 @@
         }
     }
 
-    document.getElementById('duplicate-modal').addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeDuplicateModal();
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && document.getElementById('duplicate-modal').classList.contains('open'))
+            closeDuplicateModal();
     });
 </script>
 }
