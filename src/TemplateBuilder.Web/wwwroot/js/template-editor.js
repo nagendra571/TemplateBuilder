@@ -6,12 +6,18 @@ function escapeHtml(str) {
 
 let _editor = null;
 
-_editor = SUNEDITOR.create('template-body', {
+_editor = SUNEDITOR.create(document.getElementById('template-body'), {
+    plugins: {
+        list: SUNEDITOR.plugins.list,
+        table: SUNEDITOR.plugins.table,
+        link: SUNEDITOR.plugins.link,
+        blockStyle: SUNEDITOR.plugins.blockStyle
+    },
     height: '100%',
     theme: 'dark',
     buttonList: [
         ['bold', 'italic', 'underline'],
-        ['formatBlock'],
+        ['blockStyle'],
         ['list'],
         ['link', 'table'],
         ['codeView']

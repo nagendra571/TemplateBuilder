@@ -68,3 +68,11 @@ label { display: block; margin-bottom: .3rem; font-size: .8rem; color: var(--tex
 .sun-editor-editable .tb-field { background: #3a3aff22; color: #6366f1; border-radius: 3px; padding: 0 4px; font-family: monospace; }
 .sun-editor-editable .tb-loop { border: 2px dashed #f59e0b; border-radius: 6px; padding: 8px; margin: 4px 0; }
 .sun-editor-editable .tb-loop-label { font-size: 11px; color: #f59e0b; margin-bottom: 4px; }
+
+/* SunEditor layout — fill the canvas flex container, suppress unstyled resize handle and unused panels */
+.sun-editor { flex: 1 !important; min-height: 0 !important; display: flex !important; flex-direction: column !important; }
+.sun-editor .se-container { flex: 1 !important; min-height: 0 !important; display: flex !important; flex-direction: column !important; }
+.sun-editor .se-wrapper { flex: 1 !important; min-height: 0 !important; height: auto !important; display: flex !important; flex-direction: column !important; }
+.sun-editor .se-wrapper-inner { flex: 1 !important; min-height: 65px; overflow-y: auto !important; }
+.sun-editor .se-drag-handle { display: none !important; }
+.sun-editor .se-find-replace { display: none !important; }
