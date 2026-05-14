@@ -8,24 +8,36 @@ let _editor = null;
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
-        list: SUNEDITOR.plugins.list,
-        table: SUNEDITOR.plugins.table,
-        link: SUNEDITOR.plugins.link,
-        blockStyle: SUNEDITOR.plugins.blockStyle
+        list:          SUNEDITOR.plugins.list,
+        table:         SUNEDITOR.plugins.table,
+        link:          SUNEDITOR.plugins.link,
+        blockStyle:    SUNEDITOR.plugins.blockStyle,
+        align:         SUNEDITOR.plugins.align,
+        fontSize:      SUNEDITOR.plugins.fontSize,
+        fontColor:       SUNEDITOR.plugins.fontColor,
+        backgroundColor: SUNEDITOR.plugins.backgroundColor,
+        hr:              SUNEDITOR.plugins.hr,
+        image:         SUNEDITOR.plugins.image,
     },
     height: '100%',
     theme: 'dark',
     buttonList: [
-        ['bold', 'italic', 'underline'],
-        ['blockStyle'],
-        ['list'],
-        ['link', 'table'],
-        ['codeView']
+        ['undo', 'redo'],
+        ['bold', 'italic', 'underline', 'strike'],
+        ['blockStyle', 'fontSize'],
+        ['fontColor', 'backgroundColor'],
+        ['align'],
+        ['list', 'hr'],
+        ['link', 'table', 'image'],
+        ['removeFormat'],
+        ['codeView'],
     ],
-    addTagsWhitelist: 'span|div',
+    fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
+    addTagsWhitelist: 'span|div|img|hr',
     attributesWhitelist: {
         span: 'class|style|contenteditable',
         div: 'class|style',
+        img: 'src|alt|width|height|style',
         all: 'data-*'
     }
 });
@@ -287,22 +299,32 @@ function showToast(msg) {
 // Fix SunEditor v3 code view: inject CSS so the wrapper expands to fill the canvas.
 // SunEditor sets .se-code-wrapper to height:65px via its own stylesheet; we need flex:1
 // when the parent .se-wrapper has the se-source-view-status class (code view active).
-(function fixCodeView() {
+(function fixEditorUI() {
+    // 1. Code view: expand wrapper (collapses to 65px) and fix line-numbers column
+    //    stealing 100% width, leaving the code textarea with 2px.
+    // 2. Font-size input: SunEditor renders it at 172px — shrink to 65px.
+    // 3. Color swatches: .se-svg-color-helper defaults to black (invisible on dark toolbar).
+    //    Set visible defaults via JS attribute so SunEditor can still overwrite on pick.
     const style = document.createElement('style');
-    // SunEditor v3 initialises .se-code-view-line (line numbers) to the full canvas width,
-    // leaving the actual code textarea with 2 px. Hide the line-numbers column and let
-    // the code viewer expand. Also fix the wrapper height (collapses to 65 px otherwise).
     style.textContent = [
         '.sun-editor .se-wrapper.se-source-view-status .se-code-wrapper{',
-        '  flex:1 1 auto!important;height:auto!important;overflow:hidden!important;',
-        '}',
+        '  flex:1 1 auto!important;height:auto!important;overflow:hidden!important;}',
         '.sun-editor .se-code-wrapper .se-code-view-line{display:none!important;}',
         '.sun-editor .se-code-wrapper .se-code-viewer{',
         '  flex:1 1 auto!important;width:100%!important;min-width:0!important;',
         '  height:100%!important;box-sizing:border-box!important;padding:.75rem!important;',
         '  background:#1e1e1e!important;color:#c9d1d9!important;',
-        '  font-family:Consolas,"Courier New",monospace!important;font-size:.82rem!important;',
-        '}'
+        '  font-family:Consolas,"Courier New",monospace!important;font-size:.82rem!important;}',
+        '.__se__font_size{width:65px!important;min-width:0!important;}'
     ].join('');
     document.head.appendChild(style);
+
+    // Set visible default fills for color-swatch bars (SunEditor overwrites via setAttribute
+    // when user picks a colour, so these are just the "no colour chosen yet" state).
+    setTimeout(() => {
+        const fontSwatch = document.querySelector('[data-command="fontColor"] .se-svg-color-helper');
+        const bgSwatch   = document.querySelector('[data-command="backgroundColor"] .se-svg-color-helper');
+        if (fontSwatch && !fontSwatch.getAttribute('fill')) fontSwatch.setAttribute('fill', '#e2e2f0');
+        if (bgSwatch   && !bgSwatch.getAttribute('fill'))   bgSwatch.setAttribute('fill', '#f59e0b');
+    }, 300);
 })();
