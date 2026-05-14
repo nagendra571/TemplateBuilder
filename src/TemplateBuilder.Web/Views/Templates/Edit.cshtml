@@ -6,7 +6,7 @@
 
 <form id="editor-form" asp-action="@(isNew ? "Create" : "")" method="post">
     @Html.AntiForgeryToken()
-    <div style="display:grid;grid-template-columns:220px 1fr 200px;gap:0;height:calc(100vh - 100px);overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);">
+    <div style="display:grid;grid-template-columns:260px 1fr 300px;gap:0;height:calc(100vh - 54px);overflow:hidden;background:var(--surface);border-top:1px solid var(--border);">
 
         <!-- LEFT: Field Palette -->
         <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
@@ -67,7 +67,7 @@
                     <div>
                         <label>Version</label>
                         <div style="display:flex;align-items:center;gap:.5rem;">
-                            <span id="version-display" style="font-size:.82rem;">v@Model.CurrentVersionNumber</span>
+                            <span id="version-display" style="font-size:.82rem;">v @Model.CurrentVersionNumber</span>
                             <button type="button" class="btn btn-sm btn-secondary" onclick="openVersionHistory()">History</button>
                         </div>
                     </div>
@@ -128,6 +128,10 @@
 
 @section Styles {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css">
+<style>
+    /* Editor page: remove main container padding so the 3-panel layout fills the viewport */
+    .tb-main { padding: 0 !important; max-width: 100% !important; }
+</style>
 }
 
 @section Scripts {

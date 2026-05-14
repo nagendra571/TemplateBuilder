@@ -27,55 +27,75 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         span: 'class|style|contenteditable',
         div: 'class|style',
         all: 'data-*'
-    },
-    onDrop: function (e) {
-        return handleDrop(e);
     }
 });
 
-function handleDrop(e) {
-    const fieldName = e.dataTransfer?.getData('field-name');
-    const blockType = e.dataTransfer?.getData('block-type');
+// Wire drop directly onto the editable area using capture so we intercept
+// before SunEditor's own drop handler clears the selection.
+(function wireEditorDrop() {
+    const editorArea = document.querySelector('.sun-editor-editable');
+    if (!editorArea) return;
 
-    if (!fieldName && !blockType) return; // not our drag; let SunEditor handle
-
-    // Position cursor at drop coordinates before inserting
-    if (document.caretRangeFromPoint) {
-        const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-        if (range) {
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
+    editorArea.addEventListener('dragover', (e) => {
+        if (e.dataTransfer.types.includes('field-name') || e.dataTransfer.types.includes('block-type')) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
         }
-    }
+    }, true);
 
-    if (fieldName) {
-        _editor.insertHTML(
-            `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`,
-            true
-        );
-    } else if (blockType === 'loop') {
-        const view = document.getElementById('view-selector').value || 'Items';
-        _editor.insertHTML(`
-            <div class="tb-loop">
-                <div class="tb-loop-label">LOOP — ${view}</div>
-                {{ for item in model.${view} }}<p><!-- drag fields here --></p>{{ end }}
-            </div>`, true);
-    } else if (blockType === 'grid') {
-        const view = document.getElementById('view-selector').value || 'Items';
-        _editor.insertHTML(`
-            <table border="1" style="width:100%;border-collapse:collapse;">
-                <thead><tr><th>Column1</th><th>Column2</th></tr></thead>
-                <tbody>
-                {{ for item in model.${view} }}
-                <tr><td>{{ item.Column1 }}</td><td>{{ item.Column2 }}</td></tr>
-                {{ end }}
-                </tbody>
-            </table>`, true);
-    }
+    editorArea.addEventListener('drop', (e) => {
+        const fieldName = e.dataTransfer.getData('field-name');
+        const blockType = e.dataTransfer.getData('block-type');
+        if (!fieldName && !blockType) return;
 
-    return false; // tell SunEditor: we handled it, cancel default
-}
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        // Position cursor at the drop point (Chrome/Safari then Firefox)
+        if (document.caretRangeFromPoint) {
+            const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+            if (range) {
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        } else if (document.caretPositionFromPoint) {
+            const pos = document.caretPositionFromPoint(e.clientX, e.clientY);
+            if (pos) {
+                const r = document.createRange();
+                r.setStart(pos.offsetNode, pos.offset);
+                r.collapse(true);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(r);
+            }
+        }
+
+        if (fieldName) {
+            _editor.$.html.insert(
+                `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`
+            );
+        } else if (blockType === 'loop') {
+            const view = document.getElementById('view-selector').value || 'Items';
+            _editor.$.html.insert(`
+                <div class="tb-loop">
+                    <div class="tb-loop-label">LOOP — ${view}</div>
+                    {{ for item in model.${view} }}<p><!-- drag fields here --></p>{{ end }}
+                </div>`);
+        } else if (blockType === 'grid') {
+            const view = document.getElementById('view-selector').value || 'Items';
+            _editor.$.html.insert(`
+                <table border="1" style="width:100%;border-collapse:collapse;">
+                    <thead><tr><th>Column1</th><th>Column2</th></tr></thead>
+                    <tbody>
+                    {{ for item in model.${view} }}
+                    <tr><td>{{ item.Column1 }}</td><td>{{ item.Column2 }}</td></tr>
+                    {{ end }}
+                    </tbody>
+                </table>`);
+        }
+    }, true);
+})();
 
 document.addEventListener('dragstart', (e) => {
     const field = e.target.closest('[data-field]');
@@ -120,7 +140,7 @@ async function saveVersion() {
         btn.disabled = false;
         return;
     }
-    const body = _editor.getContents();
+    const body = _editor.$.html.get();
     try {
         const res = await fetch(`/Templates/${templateId}/SaveVersion`, {
             method: 'POST',
@@ -210,7 +230,7 @@ async function renderPreview() {
         btn.disabled = false;
         return;
     }
-    const body = _editor.getContents();
+    const body = _editor.$.html.get();
     const modelJson = document.getElementById('preview-json').value;
     try {
         const res = await fetch(`/Templates/${templateId}/Preview`, {

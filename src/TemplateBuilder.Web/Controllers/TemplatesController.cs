@@ -47,12 +47,20 @@ public class TemplatesController : Controller
     }
 
     [HttpGet]
-    public IActionResult Create() => View("Edit", new TemplateEditorViewModel());
+    public async Task<IActionResult> Create(CancellationToken ct = default)
+    {
+        var views = await _viewDiscovery.GetViewNamesAsync(ct);
+        return View("Edit", new TemplateEditorViewModel { AvailableViews = views.ToList() });
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TemplateEditorViewModel model, CancellationToken ct = default)
     {
-        if (!ModelState.IsValid) return View("Edit", model);
+        if (!ModelState.IsValid)
+        {
+            model.AvailableViews = (await _viewDiscovery.GetViewNamesAsync(ct)).ToList();
+            return View("Edit", model);
+        }
         try
         {
             var template = await _repository.CreateAsync(new Template

@@ -74,19 +74,23 @@ public class TemplateRepository : ITemplateRepository
 
     public async Task<TemplateVersion> PublishVersionAsync(int templateId, TemplateVersion version, CancellationToken ct = default)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        version.CreatedAt = DateTime.UtcNow;
-        _context.TemplateVersions.Add(version);
-        await _context.SaveChangesAsync(ct);
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            version.CreatedAt = DateTime.UtcNow;
+            _context.TemplateVersions.Add(version);
+            await _context.SaveChangesAsync(ct);
 
-        var template = await _context.Templates.FindAsync(templateId, ct)
-            ?? throw new InvalidOperationException(
-                   $"Template {templateId} not found. Cannot publish version.");
-        template.CurrentVersionId = version.Id;
-        template.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync(ct);
+            var template = await _context.Templates.FindAsync([templateId], ct)
+                ?? throw new InvalidOperationException(
+                       $"Template {templateId} not found. Cannot publish version.");
+            template.CurrentVersionId = version.Id;
+            template.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(ct);
 
-        await transaction.CommitAsync(ct);
-        return version;
+            await transaction.CommitAsync(ct);
+            return version;
+        });
     }
 }

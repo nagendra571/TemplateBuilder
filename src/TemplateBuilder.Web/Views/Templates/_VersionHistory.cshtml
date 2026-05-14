@@ -5,7 +5,7 @@
         var isCurrent = v.Id == Model.CurrentVersionId;
         <div style="background:var(--bg);border:@(isCurrent ? "2px solid var(--accent)" : "1px solid var(--border)");border-radius:var(--radius);padding:.6rem .9rem;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.5rem;">
             <div>
-                <span style="font-weight:600;">v@v.VersionNumber</span>
+                <span style="font-weight:600;">v@(v.VersionNumber)</span>
                 @if (!string.IsNullOrWhiteSpace(v.ChangeComment))
                 {
                     <span style="color:var(--text-muted);font-size:.82rem;margin-left:.5rem;">— @v.ChangeComment</span>
