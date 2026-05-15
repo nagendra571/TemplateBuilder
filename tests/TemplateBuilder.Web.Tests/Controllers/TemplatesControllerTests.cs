@@ -14,12 +14,14 @@ public class TemplatesControllerTests
     private static TemplatesController CreateController(
         ITemplateRepository? repo = null,
         ISqlViewDiscoveryService? discovery = null,
-        ITemplateEngine? engine = null)
+        ITemplateEngine? engine = null,
+        IHtmlSanitizerService? sanitizer = null)
     {
         var mockRepo = repo ?? new Mock<ITemplateRepository>().Object;
         var mockDiscovery = discovery ?? new Mock<ISqlViewDiscoveryService>().Object;
         var mockEngine = engine ?? new Mock<ITemplateEngine>().Object;
-        return new TemplatesController(mockRepo, mockDiscovery, mockEngine);
+        var mockSanitizer = sanitizer ?? new Mock<IHtmlSanitizerService>().Object;
+        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer);
     }
 
     [Fact]
