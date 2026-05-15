@@ -119,19 +119,13 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     onChange: markDirty,
     linkTargetNewWindow: true,
     imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
-        const alt = info.altText ?? '';
-        if (!alt.trim()) {
-            alert('Please enter alt text for this image.');
+        const alt = (info?.altText ?? info?.alt ?? '').trim();
+        if (!alt) {
+            showToast('Alt text is required for images (accessibility).');
+            uploadHandler?.(null);
             return false;
         }
-    },
-    onImageResize: function(id, ratio, element) {
-        const natural = element.naturalWidth / element.naturalHeight;
-        if (ratio.w && !ratio.h) {
-            element.style.height = (parseInt(ratio.w) / natural) + 'px';
-        } else if (ratio.h && !ratio.w) {
-            element.style.width = (parseInt(ratio.h) * natural) + 'px';
-        }
+        return true;
     }
 });
 
@@ -200,6 +194,21 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
                 </table>`);
         }
     }, true);
+})();
+
+// Aspect-ratio lock: re-enforce after SunEditor resize-handle drag ends
+(function wireImageAspectLock() {
+    setTimeout(() => {
+        const editable = document.querySelector('.sun-editor-editable');
+        if (!editable) return;
+        editable.addEventListener('mouseup', () => {
+            const resized = editable.querySelector('img[style*="width"]');
+            if (!resized || !resized.naturalWidth) return;
+            const ratio = resized.naturalWidth / resized.naturalHeight;
+            const w = resized.offsetWidth;
+            if (w && ratio) resized.style.height = Math.round(w / ratio) + 'px';
+        });
+    }, 500); // wait for editor DOM to be ready
 })();
 
 document.addEventListener('dragstart', (e) => {
