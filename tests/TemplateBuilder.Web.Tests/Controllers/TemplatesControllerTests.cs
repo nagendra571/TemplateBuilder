@@ -157,7 +157,6 @@ public class TemplatesControllerTests
         var result = await controller.Validate(1, new ValidateRequest("{{ invalid"), CancellationToken.None);
         result.Should().BeOfType<OkObjectResult>();
         var ok = (OkObjectResult)result;
-        var json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
-        json.Should().Contain("\"valid\":false");
+        ok.Value.Should().BeEquivalentTo(new { valid = false, message = "Unexpected token at line 2" });
     }
 }

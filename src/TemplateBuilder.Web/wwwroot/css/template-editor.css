@@ -429,8 +429,8 @@
 }
 
 .tb-validate-panel--ok {
-    background: rgba(16, 185, 129, .1);
-    color: #065f46;
+    background: rgba(16, 185, 129, .15);
+    color: #10b981;
 }
 
 .tb-validate-panel--error {

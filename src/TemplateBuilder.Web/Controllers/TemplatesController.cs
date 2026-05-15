@@ -222,7 +222,7 @@ public class TemplatesController : Controller
         if (string.IsNullOrWhiteSpace(request?.Body))
             return BadRequest(new { message = "Body is required." });
 
-        if (request.Body.Length > 64 * 1024)
+        if (System.Text.Encoding.UTF8.GetByteCount(request.Body) > 64 * 1024)
             return BadRequest(new { message = "Body exceeds size limit." });
 
         try
