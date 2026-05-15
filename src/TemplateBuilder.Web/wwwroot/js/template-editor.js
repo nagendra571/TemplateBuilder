@@ -205,18 +205,20 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
             );
         } else if (blockType === 'loop') {
             const view = document.getElementById('view-selector').value || 'Items';
+            const safeView = escapeHtml(view);
             _editor.$.html.insert(`
                 <div class="tb-loop">
-                    <div class="tb-loop-label">LOOP — ${view}</div>
-                    {{ for item in model.${view} }}<p><!-- drag fields here --></p>{{ end }}
+                    <div class="tb-loop-label">LOOP — ${safeView}</div>
+                    {{ for item in model.${safeView} }}<p><!-- drag fields here --></p>{{ end }}
                 </div>`);
         } else if (blockType === 'grid') {
             const view = document.getElementById('view-selector').value || 'Items';
+            const safeView = escapeHtml(view);
             _editor.$.html.insert(`
                 <table border="1" style="width:100%;border-collapse:collapse;">
                     <thead><tr><th>Column1</th><th>Column2</th></tr></thead>
                     <tbody>
-                    {{ for item in model.${view} }}
+                    {{ for item in model.${safeView} }}
                     <tr><td>{{ item.Column1 }}</td><td>{{ item.Column2 }}</td></tr>
                     {{ end }}
                     </tbody>
@@ -444,7 +446,8 @@ function openLoopWizard() {
     // Reset fields
     document.getElementById('loop-collection').value = '';
     document.getElementById('loop-alias').value = 'item';
-    document.querySelector('input[name="loop-starter"][value="empty"]').checked = true;
+    const emptyRadio = document.querySelector('input[name="loop-starter"][value="empty"]');
+    if (emptyRadio) emptyRadio.checked = true;
     document.getElementById('loop-error').style.display = 'none';
     modal.classList.add('open');
     trapFocus(modal);
@@ -838,6 +841,8 @@ document.getElementById('btn-loop-insert')?.addEventListener('click', () => {
         document.getElementById('loop-collection').focus();
         return;
     }
+
+    if (!_editor) { errorEl.textContent = 'Editor is still loading.'; errorEl.style.display = 'block'; return; }
 
     const safeCol   = escapeHtml(collection);
     const safeAlias = escapeHtml(alias);
