@@ -30,7 +30,9 @@ const blockquotePlugin = {
     innerHTML: '<span style="font-size:1rem;font-weight:700;">❝</span>',
     add: function(core) {},
     action: function() {
+        if (!_editor) return;
         document.execCommand('formatBlock', false, 'blockquote');
+        markDirty();
     }
 };
 SUNEDITOR.plugins.blockquote = blockquotePlugin;
@@ -42,26 +44,30 @@ const pageBreakPlugin = {
     innerHTML: '<span style="font-size:.7rem;letter-spacing:.03em;">PG↵</span>',
     add: function(core) {},
     action: function() {
+        if (!_editor) return;
         _editor.$.html.insert('<div class="tb-page-break" contenteditable="false">— Page Break —</div>');
+        markDirty();
     }
 };
 SUNEDITOR.plugins.pageBreak = pageBreakPlugin;
 
-function makeHrPlugin(name, title, style) {
+function makeHrPlugin(name, title, iconStyle, suffix) {
     return {
         name,
         display: 'command',
         title,
-        innerHTML: `<hr style="${style};width:16px;display:inline-block;vertical-align:middle;margin:0;">`,
+        innerHTML: `<span style="display:inline-block;width:14px;${iconStyle};vertical-align:middle;"></span>`,
         add: function(core) {},
         action: function() {
-            _editor.$.html.insert(`<hr class="tb-hr tb-hr--${name.replace('hr','')}">`, false, true);
+            if (!_editor) return;
+            _editor.$.html.insert(`<hr class="tb-hr tb-hr--${suffix}">`);
+            markDirty();
         }
     };
 }
-SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border:none;border-top:1px solid');
-SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border:none;border-top:3px solid');
-SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border:none;border-top:1px dashed');
+SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border-top:1px solid currentColor',   'thin');
+SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border-top:3px solid currentColor',   'thick');
+SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border-top:1px dashed currentColor',  'spaced');
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
@@ -101,7 +107,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     addTagsWhitelist: 'span|div|img|hr|blockquote',
     attributesWhitelist: {
         span:  'class|style|contenteditable',
-        div:   'class|style',
+        div:   'class|style|contenteditable',
         img:   'src|alt|width|height|style',
         table: 'border|cellpadding|cellspacing|style|class',
         tr:    'style|class',
