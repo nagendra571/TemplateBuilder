@@ -74,6 +74,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         list:            SUNEDITOR.plugins.list,
         table:           SUNEDITOR.plugins.table,
         link:            SUNEDITOR.plugins.link,
+        unlink:          SUNEDITOR.plugins.unlink,
         blockStyle:      SUNEDITOR.plugins.blockStyle,
         align:           SUNEDITOR.plugins.align,
         fontSize:        SUNEDITOR.plugins.fontSize,
@@ -99,7 +100,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['align'],
         ['list', 'hrThin', 'hrThick', 'hrSpaced'],
         ['pageBreak'],
-        ['link', 'table', 'image'],
+        ['link', 'unlink', 'table', 'image'],
         ['blockquote', 'removeFormat'],
         ['codeView'],
     ],
@@ -115,7 +116,23 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         th:    'style|class|contenteditable|colspan|rowspan',
         all:   'data-*'
     },
-    onChange: markDirty
+    onChange: markDirty,
+    linkTargetNewWindow: true,
+    imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
+        const alt = info.altText ?? '';
+        if (!alt.trim()) {
+            alert('Please enter alt text for this image.');
+            return false;
+        }
+    },
+    onImageResize: function(id, ratio, element) {
+        const natural = element.naturalWidth / element.naturalHeight;
+        if (ratio.w && !ratio.h) {
+            element.style.height = (parseInt(ratio.w) / natural) + 'px';
+        } else if (ratio.h && !ratio.w) {
+            element.style.width = (parseInt(ratio.h) * natural) + 'px';
+        }
+    }
 });
 
 // ── Drag-and-drop into editor ─────────────────────────────────────────────────
