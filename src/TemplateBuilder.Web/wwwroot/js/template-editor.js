@@ -21,6 +21,48 @@ window.addEventListener('beforeunload', (e) => {
 
 let _editor = null;
 
+// ── Custom plugins (must be registered before SUNEDITOR.create) ───────────────
+
+const blockquotePlugin = {
+    name: 'blockquote',
+    display: 'command',
+    title: 'Blockquote',
+    innerHTML: '<span style="font-size:1rem;font-weight:700;">❝</span>',
+    add: function(core) {},
+    action: function() {
+        document.execCommand('formatBlock', false, 'blockquote');
+    }
+};
+SUNEDITOR.plugins.blockquote = blockquotePlugin;
+
+const pageBreakPlugin = {
+    name: 'pageBreak',
+    display: 'command',
+    title: 'Page Break',
+    innerHTML: '<span style="font-size:.7rem;letter-spacing:.03em;">PG↵</span>',
+    add: function(core) {},
+    action: function() {
+        _editor.$.html.insert('<div class="tb-page-break" contenteditable="false">— Page Break —</div>');
+    }
+};
+SUNEDITOR.plugins.pageBreak = pageBreakPlugin;
+
+function makeHrPlugin(name, title, style) {
+    return {
+        name,
+        display: 'command',
+        title,
+        innerHTML: `<hr style="${style};width:16px;display:inline-block;vertical-align:middle;margin:0;">`,
+        add: function(core) {},
+        action: function() {
+            _editor.$.html.insert(`<hr class="tb-hr tb-hr--${name.replace('hr','')}">`, false, true);
+        }
+    };
+}
+SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border:none;border-top:1px solid');
+SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border:none;border-top:3px solid');
+SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border:none;border-top:1px dashed');
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
@@ -31,24 +73,32 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         fontSize:        SUNEDITOR.plugins.fontSize,
         fontColor:       SUNEDITOR.plugins.fontColor,
         backgroundColor: SUNEDITOR.plugins.backgroundColor,
-        hr:              SUNEDITOR.plugins.hr,
         image:           SUNEDITOR.plugins.image,
+        subscript:       SUNEDITOR.plugins.subscript,
+        superscript:     SUNEDITOR.plugins.superscript,
+        blockquote:      SUNEDITOR.plugins.blockquote,
+        pageBreak:       SUNEDITOR.plugins.pageBreak,
+        hrThin:          SUNEDITOR.plugins.hrThin,
+        hrThick:         SUNEDITOR.plugins.hrThick,
+        hrSpaced:        SUNEDITOR.plugins.hrSpaced,
     },
     height: '100%',
     theme: 'dark',
     buttonList: [
         ['undo', 'redo'],
         ['bold', 'italic', 'underline', 'strike'],
+        ['subscript', 'superscript'],
         ['blockStyle', 'fontSize'],
         ['fontColor', 'backgroundColor'],
         ['align'],
-        ['list', 'hr'],
+        ['list', 'hrThin', 'hrThick', 'hrSpaced'],
+        ['pageBreak'],
         ['link', 'table', 'image'],
-        ['removeFormat'],
+        ['blockquote', 'removeFormat'],
         ['codeView'],
     ],
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
-    addTagsWhitelist: 'span|div|img|hr',
+    addTagsWhitelist: 'span|div|img|hr|blockquote',
     attributesWhitelist: {
         span:  'class|style|contenteditable',
         div:   'class|style',
