@@ -4,20 +4,35 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Unsaved-change tracking ───────────────────────────────────────────────────
+
+let _isDirty = false;
+function markDirty() { _isDirty = true; }
+function markClean() { _isDirty = false; }
+
+window.addEventListener('beforeunload', (e) => {
+    if (_isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// ── Editor initialisation ─────────────────────────────────────────────────────
+
 let _editor = null;
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
-        list:          SUNEDITOR.plugins.list,
-        table:         SUNEDITOR.plugins.table,
-        link:          SUNEDITOR.plugins.link,
-        blockStyle:    SUNEDITOR.plugins.blockStyle,
-        align:         SUNEDITOR.plugins.align,
-        fontSize:      SUNEDITOR.plugins.fontSize,
+        list:            SUNEDITOR.plugins.list,
+        table:           SUNEDITOR.plugins.table,
+        link:            SUNEDITOR.plugins.link,
+        blockStyle:      SUNEDITOR.plugins.blockStyle,
+        align:           SUNEDITOR.plugins.align,
+        fontSize:        SUNEDITOR.plugins.fontSize,
         fontColor:       SUNEDITOR.plugins.fontColor,
         backgroundColor: SUNEDITOR.plugins.backgroundColor,
         hr:              SUNEDITOR.plugins.hr,
-        image:         SUNEDITOR.plugins.image,
+        image:           SUNEDITOR.plugins.image,
     },
     height: '100%',
     theme: 'dark',
@@ -35,15 +50,20 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
     addTagsWhitelist: 'span|div|img|hr',
     attributesWhitelist: {
-        span: 'class|style|contenteditable',
-        div: 'class|style',
-        img: 'src|alt|width|height|style',
-        all: 'data-*'
-    }
+        span:  'class|style|contenteditable',
+        div:   'class|style',
+        img:   'src|alt|width|height|style',
+        table: 'border|cellpadding|cellspacing|style|class',
+        tr:    'style|class',
+        td:    'style|class|contenteditable|colspan|rowspan',
+        th:    'style|class|contenteditable|colspan|rowspan',
+        all:   'data-*'
+    },
+    onChange: markDirty
 });
 
-// Wire drop directly onto the editable area using capture so we intercept
-// before SunEditor's own drop handler clears the selection.
+// ── Drag-and-drop into editor ─────────────────────────────────────────────────
+
 (function wireEditorDrop() {
     const editorArea = document.querySelector('.sun-editor-editable');
     if (!editorArea) return;
@@ -116,30 +136,50 @@ document.addEventListener('dragstart', (e) => {
     if (block) e.dataTransfer.setData('block-type', block.dataset.block);
 });
 
+// ── Field palette — load columns + keyboard Insert ────────────────────────────
+
 async function loadViewColumns(viewName) {
     const palette = document.getElementById('field-palette');
     if (!viewName) {
-        palette.innerHTML = '<div style="color:var(--text-muted);font-size:.78rem;text-align:center;margin-top:1rem;">Select a view to see fields</div>';
+        palette.innerHTML = '<div class="tb-palette-msg">Select a view to see fields</div>';
         return;
     }
-    palette.innerHTML = '<div style="color:var(--text-muted);font-size:.78rem;padding:.5rem;">Loading…</div>';
+    palette.innerHTML = '<div class="tb-palette-msg">Loading…</div>';
     try {
         const res = await fetch(`/Templates/Api/Views/${encodeURIComponent(viewName)}/Columns`);
         if (!res.ok) throw new Error('Failed to load columns');
         const columns = await res.json();
         if (columns.length === 0) {
-            palette.innerHTML = '<div style="color:var(--text-muted);font-size:.78rem;text-align:center;margin-top:1rem;">No columns found</div>';
+            palette.innerHTML = '<div class="tb-palette-msg">No columns found</div>';
             return;
         }
         palette.innerHTML = columns.map(c => `
-            <div class="palette-field" draggable="true" data-field="${escapeHtml(c.name)}"
-                 style="background:var(--accent);opacity:.85;color:white;border-radius:var(--radius);padding:.25rem .5rem;font-size:.75rem;margin-bottom:.3rem;cursor:grab;user-select:none;">
-                ${escapeHtml(c.name)} <span style="opacity:.6;font-size:.68rem;">${escapeHtml(c.dataType)}</span>
+            <div class="palette-field" draggable="true" data-field="${escapeHtml(c.name)}">
+                <span class="palette-field-label">${escapeHtml(c.name)}
+                    <span class="palette-field-type">${escapeHtml(c.dataType)}</span>
+                </span>
+                <button type="button" class="palette-insert-btn"
+                        aria-label="Insert ${escapeHtml(c.name)} field"
+                        data-field="${escapeHtml(c.name)}">Insert</button>
             </div>`).join('');
     } catch {
-        palette.innerHTML = '<div style="color:var(--danger);font-size:.78rem;padding:.5rem;">Failed to load columns</div>';
+        palette.innerHTML = '<div class="tb-palette-msg tb-palette-msg--error">Failed to load columns</div>';
     }
 }
+
+// Keyboard insert — event delegation on the palette container
+document.getElementById('field-palette').addEventListener('click', (e) => {
+    const btn = e.target.closest('.palette-insert-btn');
+    if (!btn || !_editor) return;
+    e.stopPropagation();
+    _editor.$.html.insert(
+        `<span class="tb-field" contenteditable="false">{{ model.${btn.dataset.field} }}</span>&nbsp;`
+    );
+    document.querySelector('.sun-editor-editable')?.focus();
+    markDirty();
+});
+
+// ── Save version ──────────────────────────────────────────────────────────────
 
 async function saveVersion() {
     const btn = document.getElementById('btn-save');
@@ -172,6 +212,7 @@ async function saveVersion() {
             const data = await res.json();
             document.getElementById('version-display').textContent = `v${data.versionNumber}`;
             document.getElementById('save-comment').value = '';
+            markClean();
             showToast('Version saved');
         } else {
             const err = await res.json().catch(() => null);
@@ -186,6 +227,8 @@ async function saveVersion() {
     }
 }
 
+// ── Version history modal ─────────────────────────────────────────────────────
+
 async function openVersionHistory() {
     const modal = document.getElementById('version-modal');
     const content = document.getElementById('version-history-content');
@@ -193,21 +236,24 @@ async function openVersionHistory() {
     content.innerHTML = 'Loading…';
     restoreErrorEl.style.display = 'none';
     modal.classList.add('open');
+    trapFocus(modal);
     try {
         const res = await fetch(`/Templates/${templateId}/Versions`);
-        content.innerHTML = res.ok ? await res.text() : '<p style="color:var(--danger)">Failed to load version history.</p>';
+        content.innerHTML = res.ok
+            ? await res.text()
+            : '<p style="color:var(--danger)">Failed to load version history.</p>';
     } catch {
         content.innerHTML = '<p style="color:var(--danger)">Network error loading version history.</p>';
     }
 }
 
-async function restoreVersion(versionId) {
-    const btn = event.currentTarget;
+// Called from _VersionHistory.cshtml inline onclick; btn passed as `this`
+async function restoreVersion(btn, versionId, sourceVersionNumber) {
     const restoreErrorEl = document.getElementById('restore-error');
     restoreErrorEl.style.display = 'none';
     btn.disabled = true;
     try {
-        const res = await fetch(`/Templates/${templateId}/Restore/${versionId}`, {
+        const res = await fetch(`/Templates/${templateId}/Restore/${versionId}/${sourceVersionNumber}`, {
             method: 'POST',
             headers: { 'RequestVerificationToken': _csrf }
         });
@@ -226,8 +272,12 @@ async function restoreVersion(versionId) {
     }
 }
 
+// ── Preview modal ─────────────────────────────────────────────────────────────
+
 function openPreview() {
-    document.getElementById('preview-modal').classList.add('open');
+    const modal = document.getElementById('preview-modal');
+    modal.classList.add('open');
+    trapFocus(modal);
 }
 
 async function renderPreview() {
@@ -247,7 +297,10 @@ async function renderPreview() {
     try {
         const res = await fetch(`/Templates/${templateId}/Preview`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
             body: JSON.stringify({ body, modelJson })
         });
         if (res.ok) {
@@ -267,8 +320,43 @@ async function renderPreview() {
     }
 }
 
+// ── Modal focus trap ──────────────────────────────────────────────────────────
+
+function trapFocus(modal) {
+    const sel = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+    function getFocusable() { return Array.from(modal.querySelectorAll(sel)); }
+
+    const initial = getFocusable();
+    if (initial.length) initial[0].focus();
+
+    function onKeydown(e) {
+        if (e.key !== 'Tab') return;
+        const focusable = getFocusable();
+        if (!focusable.length) return;
+        const idx = focusable.indexOf(document.activeElement);
+        if (e.shiftKey) {
+            if (idx <= 0) { e.preventDefault(); focusable[focusable.length - 1].focus(); }
+        } else {
+            if (idx >= focusable.length - 1) { e.preventDefault(); focusable[0].focus(); }
+        }
+    }
+    modal._focusTrap = onKeydown;
+    modal.addEventListener('keydown', onKeydown);
+}
+
+function releaseFocusTrap(modal) {
+    if (modal._focusTrap) {
+        modal.removeEventListener('keydown', modal._focusTrap);
+        delete modal._focusTrap;
+    }
+}
+
 function closeModal(id) {
-    document.getElementById(id).classList.remove('open');
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    releaseFocusTrap(modal);
+    modal.classList.remove('open');
 }
 
 document.addEventListener('keydown', e => {
@@ -278,6 +366,8 @@ document.addEventListener('keydown', e => {
         if (el?.classList.contains('open')) closeModal(id);
     });
 });
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
 
 function showToast(msg) {
     const toast = document.createElement('div');
@@ -296,15 +386,15 @@ function showToast(msg) {
     }, 2500);
 }
 
+// ── SunEditor UI fixes ────────────────────────────────────────────────────────
+
 // Fix SunEditor v3 code view: inject CSS so the wrapper expands to fill the canvas.
 // SunEditor sets .se-code-wrapper to height:65px via its own stylesheet; we need flex:1
 // when the parent .se-wrapper has the se-source-view-status class (code view active).
 (function fixEditorUI() {
-    // 1. Code view: expand wrapper (collapses to 65px) and fix line-numbers column
-    //    stealing 100% width, leaving the code textarea with 2px.
-    // 2. Font-size input: SunEditor renders it at 172px — shrink to 65px.
-    // 3. Color swatches: .se-svg-color-helper defaults to black (invisible on dark toolbar).
-    //    Set visible defaults via JS attribute so SunEditor can still overwrite on pick.
+    // 1. Code view: expand wrapper and fix line-numbers column stealing 100% width
+    // 2. Font-size input: SunEditor renders it at 172px — shrink to 65px
+    // 3. Color swatches: set visible defaults on dark toolbar
     const style = document.createElement('style');
     style.textContent = [
         '.sun-editor .se-wrapper.se-source-view-status .se-code-wrapper{',
@@ -319,8 +409,6 @@ function showToast(msg) {
     ].join('');
     document.head.appendChild(style);
 
-    // Set visible default fills for color-swatch bars (SunEditor overwrites via setAttribute
-    // when user picks a colour, so these are just the "no colour chosen yet" state).
     setTimeout(() => {
         const fontSwatch = document.querySelector('[data-command="fontColor"] .se-svg-color-helper');
         const bgSwatch   = document.querySelector('[data-command="backgroundColor"] .se-svg-color-helper');
@@ -328,3 +416,25 @@ function showToast(msg) {
         if (bgSwatch   && !bgSwatch.getAttribute('fill'))   bgSwatch.setAttribute('fill', '#f59e0b');
     }, 300);
 })();
+
+// ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
+
+document.getElementById('view-selector')?.addEventListener('change', e => loadViewColumns(e.target.value));
+document.getElementById('btn-history')?.addEventListener('click', openVersionHistory);
+document.getElementById('btn-preview')?.addEventListener('click', openPreview);
+document.getElementById('btn-save')?.addEventListener('click', saveVersion);
+document.getElementById('btn-render')?.addEventListener('click', renderPreview);
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const overlay = btn.closest('.modal-overlay');
+        if (overlay) closeModal(overlay.id);
+    });
+});
+
+['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', markDirty);
+    el.addEventListener('change', markDirty);
+});

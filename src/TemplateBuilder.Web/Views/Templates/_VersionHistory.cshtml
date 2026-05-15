@@ -18,7 +18,7 @@
             <span style="color:var(--text-muted);font-size:.78rem;">@v.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>
             @if (!isCurrent)
             {
-                <button class="btn btn-sm btn-secondary" onclick="restoreVersion(@v.Id)">Restore</button>
+                <button class="btn btn-sm btn-secondary" onclick="restoreVersion(this, @v.Id, @v.VersionNumber)">Restore</button>
             }
             @if (v.Id == Model.CurrentVersionId)
             {

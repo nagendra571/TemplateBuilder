@@ -20,12 +20,14 @@ public class TemplatesController : Controller
     private readonly ITemplateRepository _repository;
     private readonly ISqlViewDiscoveryService _viewDiscovery;
     private readonly ITemplateEngine _engine;
+    private readonly IHtmlSanitizerService _sanitizer;
 
-    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine)
+    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer)
     {
         _repository = repository;
         _viewDiscovery = viewDiscovery;
         _engine = engine;
+        _sanitizer = sanitizer;
     }
 
     [HttpGet]
@@ -138,8 +140,8 @@ public class TemplatesController : Controller
         return PartialView("_VersionHistory", (versions.ToList(), template.CurrentVersionId));
     }
 
-    [HttpPost("Templates/{id:int}/Restore/{versionId:int}"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> RestoreVersion(int id, int versionId, CancellationToken ct = default)
+    [HttpPost("Templates/{id:int}/Restore/{versionId:int}/{sourceVersionNumber:int}"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> RestoreVersion(int id, int versionId, int sourceVersionNumber, CancellationToken ct = default)
     {
         try
         {
@@ -151,7 +153,7 @@ public class TemplatesController : Controller
                 TemplateId = id,
                 VersionNumber = nextNumber,
                 Body = oldBody,
-                ChangeComment = $"Restored from v{versionId}"
+                ChangeComment = $"Restored from v{sourceVersionNumber}"
             }, ct);
             return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
         }
@@ -168,7 +170,7 @@ public class TemplatesController : Controller
         return Json(columns);
     }
 
-    [HttpPost("Templates/{id:int}/Preview"), IgnoreAntiforgeryToken]
+    [HttpPost("Templates/{id:int}/Preview"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Preview(int id, [FromBody] PreviewRequest request, CancellationToken ct = default)
     {
         if (request.ModelJson is not null &&
@@ -190,7 +192,7 @@ public class TemplatesController : Controller
         try
         {
             var model = (object?)modelDict ?? new { };
-            var html = await _engine.RenderBodyAsync(request.Body, model, cts.Token);
+            var html = _sanitizer.Sanitize(await _engine.RenderBodyAsync(request.Body, model, cts.Token));
             return Ok(new { html });
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
