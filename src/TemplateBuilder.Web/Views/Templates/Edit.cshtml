@@ -159,6 +159,45 @@
     </div>
 </div>
 
+<!-- Conditional Wizard Modal -->
+<div class="modal-overlay" id="conditional-modal" role="dialog" aria-modal="true" aria-labelledby="conditional-modal-title">
+    <div class="modal modal--narrow">
+        <div class="modal-header">
+            <span id="conditional-modal-title" class="modal-title">Insert Conditional</span>
+            <button class="modal-close" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tb-form-row">
+                <label for="cond-field">Field</label>
+                <input type="text" id="cond-field" placeholder="e.g. model.Status" autocomplete="off" list="cond-field-list">
+                <datalist id="cond-field-list"></datalist>
+            </div>
+            <div class="tb-form-row">
+                <label for="cond-operator">Operator</label>
+                <select id="cond-operator">
+                    <option value="==">== (equals)</option>
+                    <option value="!=">!= (not equals)</option>
+                    <option value=">">&gt; (greater than)</option>
+                    <option value="<">&lt; (less than)</option>
+                    <option value="contains">contains</option>
+                    <option value="!= null">!= null (exists)</option>
+                </select>
+            </div>
+            <div class="tb-form-row" id="cond-value-row">
+                <label for="cond-value">Value</label>
+                <input type="text" id="cond-value" placeholder="e.g. Active">
+            </div>
+            <div class="tb-form-row">
+                <label><input type="checkbox" id="cond-include-else"> Include else branch</label>
+            </div>
+            <div id="cond-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+                <button type="button" id="btn-cond-insert" class="btn btn-primary">Insert</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Styles {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css">
 <link rel="stylesheet" href="~/css/template-editor.css" asp-append-version="true">

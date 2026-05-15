@@ -94,6 +94,15 @@ SUNEDITOR.plugins.insertLoop = {
     action: function() { if (!_editor) return; openLoopWizard(); }
 };
 
+SUNEDITOR.plugins.insertConditional = {
+    name: 'insertConditional',
+    display: 'command',
+    title: 'Insert Conditional',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">if</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; openConditionalWizard(); }
+};
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
@@ -113,8 +122,9 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         hrThin:          SUNEDITOR.plugins.hrThin,
         hrThick:         SUNEDITOR.plugins.hrThick,
         hrSpaced:        SUNEDITOR.plugins.hrSpaced,
-        insertField:     SUNEDITOR.plugins.insertField,
-        insertLoop:      SUNEDITOR.plugins.insertLoop,
+        insertField:        SUNEDITOR.plugins.insertField,
+        insertLoop:         SUNEDITOR.plugins.insertLoop,
+        insertConditional:  SUNEDITOR.plugins.insertConditional,
     },
     height: '100%',
     theme: 'dark',
@@ -130,6 +140,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['link', 'unlink', 'table', 'image'],
         ['insertField'],
         ['insertLoop'],
+        ['insertConditional'],
         ['blockquote', 'removeFormat'],
         ['codeView'],
     ],
@@ -454,6 +465,33 @@ function openLoopWizard() {
     document.getElementById('loop-collection').focus();
 }
 
+// ── Conditional wizard modal ──────────────────────────────────────────────────
+
+function openConditionalWizard() {
+    const modal = document.getElementById('conditional-modal');
+    // Populate datalist from _currentColumns using model.X prefix
+    const dl = document.getElementById('cond-field-list');
+    dl.innerHTML = _currentColumns.map(c => `<option value="model.${escapeHtml(c.name)}">`).join('');
+    // Reset fields
+    document.getElementById('cond-field').value = '';
+    document.getElementById('cond-operator').value = '==';
+    document.getElementById('cond-value').value = '';
+    document.getElementById('cond-include-else').checked = false;
+    document.getElementById('cond-value-row').style.display = '';
+    document.getElementById('cond-error').style.display = 'none';
+    modal.classList.add('open');
+    trapFocus(modal);
+    document.getElementById('cond-field').focus();
+}
+
+// Wire operator change once (module-level IIFE) to avoid stacking listeners
+(function wireCondOperatorChange() {
+    document.getElementById('cond-operator')?.addEventListener('change', function() {
+        document.getElementById('cond-value-row').style.display =
+            this.value === '!= null' ? 'none' : '';
+    });
+})();
+
 // ── Modal focus trap ──────────────────────────────────────────────────────────
 
 function trapFocus(modal) {
@@ -495,7 +533,7 @@ function closeModal(id) {
 
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    ['version-modal', 'preview-modal', 'loop-modal'].forEach(id => {
+    ['version-modal', 'preview-modal', 'loop-modal', 'conditional-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el?.classList.contains('open')) closeModal(id);
     });
@@ -860,6 +898,52 @@ document.getElementById('btn-loop-insert')?.addEventListener('click', () => {
     );
     markDirty();
     closeModal('loop-modal');
+    document.querySelector('.sun-editor-editable')?.focus();
+});
+
+document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
+    const field    = document.getElementById('cond-field').value.trim();
+    const operator = document.getElementById('cond-operator').value;
+    const value    = document.getElementById('cond-value').value.trim();
+    const includeElse = document.getElementById('cond-include-else').checked;
+    const errorEl  = document.getElementById('cond-error');
+    errorEl.style.display = 'none';
+
+    if (!field) {
+        errorEl.textContent = 'Field is required.';
+        errorEl.style.display = 'block';
+        document.getElementById('cond-field').focus();
+        return;
+    }
+
+    if (!_editor) {
+        errorEl.textContent = 'Editor is still loading.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const safeField = escapeHtml(field);
+    const safeValue = escapeHtml(value);
+
+    let condition;
+    if (operator === '!= null') {
+        condition = `${safeField} != null`;
+    } else if (operator === 'contains') {
+        condition = `${safeField} | string.contains "${safeValue}"`;
+    } else {
+        condition = `${safeField} ${operator} "${safeValue}"`;
+    }
+
+    let scaffold =
+        `{{ if ${condition} }}<p><!-- content here --></p>`;
+    if (includeElse) {
+        scaffold += `{{ else }}<p><!-- else content --></p>`;
+    }
+    scaffold += `{{ end }}`;
+
+    _editor.$.html.insert(scaffold);
+    markDirty();
+    closeModal('conditional-modal');
     document.querySelector('.sun-editor-editable')?.focus();
 });
 
