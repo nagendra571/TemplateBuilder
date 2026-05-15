@@ -215,6 +215,27 @@ public class TemplatesController : Controller
         return Ok(new { isActive = template.IsActive });
     }
 
+    [HttpPost("Templates/{id:int}/Validate")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Validate(int id, [FromBody] ValidateRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Body))
+            return BadRequest(new { message = "Body is required." });
+
+        if (request.Body.Length > 64 * 1024)
+            return BadRequest(new { message = "Body exceeds size limit." });
+
+        try
+        {
+            await _engine.RenderBodyAsync(request.Body, new { }, ct);
+            return Ok(new { valid = true });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new { valid = false, message = ex.Message });
+        }
+    }
+
     [HttpPost("Templates/{id:int}/Duplicate"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Duplicate(int id, [FromBody] DuplicateRequest request, CancellationToken ct = default)
     {

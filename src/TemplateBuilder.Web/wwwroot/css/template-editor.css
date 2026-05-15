@@ -413,3 +413,40 @@
     gap: .3rem;
     cursor: pointer;
 }
+
+/* ==========================================
+   Validate Panel
+   ========================================== */
+
+.tb-validate-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .4rem .7rem;
+    font-size: .78rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.tb-validate-panel--ok {
+    background: rgba(16, 185, 129, .1);
+    color: #065f46;
+}
+
+.tb-validate-panel--error {
+    background: rgba(220, 38, 38, .08);
+    color: var(--danger);
+}
+
+.tb-validate-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: .85rem;
+    padding: 0 .2rem;
+    line-height: 1;
+    opacity: .6;
+    flex-shrink: 0;
+}
+
+.tb-validate-dismiss:hover { opacity: 1; }

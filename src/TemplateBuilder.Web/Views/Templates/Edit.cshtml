@@ -36,6 +36,10 @@
         <!-- CENTER: Canvas -->
         <div class="tb-panel-center">
             <div class="tb-panel-heading">CANVAS</div>
+            <div id="validate-panel" class="tb-validate-panel" hidden>
+                <span id="validate-msg"></span>
+                <button type="button" id="btn-validate-dismiss" class="tb-validate-dismiss" aria-label="Dismiss">&#x2715;</button>
+            </div>
             <div class="tb-canvas-body">
                 <textarea id="template-body" name="Body">@Model.Body</textarea>
             </div>

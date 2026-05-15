@@ -125,4 +125,39 @@ public class TemplatesControllerTests
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
+
+    [Fact]
+    public async Task Validate_EmptyBody_ReturnsBadRequest()
+    {
+        var controller = CreateController();
+        var result = await controller.Validate(1, new ValidateRequest(""), CancellationToken.None);
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Validate_ValidTemplate_ReturnsOkWithValidTrue()
+    {
+        var mockEngine = new Mock<ITemplateEngine>();
+        mockEngine.Setup(e => e.RenderBodyAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("rendered");
+        var controller = CreateController(engine: mockEngine.Object);
+        var result = await controller.Validate(1, new ValidateRequest("<p>Hello</p>"), CancellationToken.None);
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { valid = true });
+    }
+
+    [Fact]
+    public async Task Validate_InvalidTemplate_ReturnsOkWithValidFalse()
+    {
+        var mockEngine = new Mock<ITemplateEngine>();
+        mockEngine.Setup(e => e.RenderBodyAsync(It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Unexpected token at line 2"));
+        var controller = CreateController(engine: mockEngine.Object);
+        var result = await controller.Validate(1, new ValidateRequest("{{ invalid"), CancellationToken.None);
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        var json = System.Text.Json.JsonSerializer.Serialize(ok.Value);
+        json.Should().Contain("\"valid\":false");
+    }
 }

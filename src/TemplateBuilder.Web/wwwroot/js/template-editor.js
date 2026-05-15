@@ -103,6 +103,15 @@ SUNEDITOR.plugins.insertConditional = {
     action: function() { if (!_editor) return; openConditionalWizard(); }
 };
 
+SUNEDITOR.plugins.validate = {
+    name: 'validate',
+    display: 'command',
+    title: 'Validate Template',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#x2713;</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; runValidate(); }
+};
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
@@ -125,6 +134,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         insertField:        SUNEDITOR.plugins.insertField,
         insertLoop:         SUNEDITOR.plugins.insertLoop,
         insertConditional:  SUNEDITOR.plugins.insertConditional,
+        validate:           SUNEDITOR.plugins.validate,
     },
     height: '100%',
     theme: 'dark',
@@ -142,6 +152,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['insertLoop'],
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
+        ['validate'],
         ['codeView'],
     ],
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
@@ -444,6 +455,51 @@ async function renderPreview() {
         errorEl.style.display = 'block';
     } finally {
         btn.disabled = false;
+    }
+}
+
+// ── Validate ──────────────────────────────────────────────────────────────────
+
+async function runValidate() {
+    const panel = document.getElementById('validate-panel');
+    const msgEl = document.getElementById('validate-msg');
+    if (!panel || !msgEl) return;
+    panel.hidden = true;
+
+    const body = _editor.$.html.get();
+    try {
+        const res = await fetch(`/Templates/${templateId}/Validate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ body })
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            msgEl.textContent = data?.message ?? 'Validation request failed.';
+            panel.classList.remove('tb-validate-panel--ok');
+            panel.classList.add('tb-validate-panel--error');
+            panel.hidden = false;
+            return;
+        }
+        const data = await res.json();
+        if (data.valid) {
+            msgEl.textContent = 'No errors found.';
+            panel.classList.remove('tb-validate-panel--error');
+            panel.classList.add('tb-validate-panel--ok');
+        } else {
+            msgEl.textContent = data.message ?? 'Template has errors.';
+            panel.classList.remove('tb-validate-panel--ok');
+            panel.classList.add('tb-validate-panel--error');
+        }
+        panel.hidden = false;
+    } catch {
+        msgEl.textContent = 'Network error — please try again.';
+        panel.classList.remove('tb-validate-panel--ok');
+        panel.classList.add('tb-validate-panel--error');
+        panel.hidden = false;
     }
 }
 
@@ -858,6 +914,9 @@ document.getElementById('btn-history')?.addEventListener('click', openVersionHis
 document.getElementById('btn-preview')?.addEventListener('click', openPreview);
 document.getElementById('btn-save')?.addEventListener('click', saveVersion);
 document.getElementById('btn-render')?.addEventListener('click', renderPreview);
+document.getElementById('btn-validate-dismiss')?.addEventListener('click', () => {
+    document.getElementById('validate-panel').hidden = true;
+});
 
 document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
