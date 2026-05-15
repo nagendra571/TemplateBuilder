@@ -341,3 +341,58 @@
 .tb-table--striped tbody tr:nth-child(even) td { background: rgba(128,128,128,.08); }
 .tb-table--compact td, .tb-table--compact th { padding: .15rem .35rem; font-size: .82rem; }
 .tb-table--bordered td, .tb-table--bordered th { border: 1px solid var(--border); }
+
+/* ==========================================
+   Insert Field Dropdown
+   ========================================== */
+
+#tb-field-dropdown {
+    position: absolute;
+    z-index: 9999;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    padding: .4rem;
+    width: 220px;
+    max-height: 280px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#tb-field-dropdown[hidden] { display: none; }
+
+#tb-field-search {
+    font-size: .78rem;
+    margin-bottom: .3rem;
+    padding: .25rem .4rem;
+}
+
+#tb-field-list {
+    overflow-y: auto;
+    flex: 1;
+}
+
+.tb-field-item {
+    padding: .25rem .5rem;
+    font-size: .78rem;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem;
+}
+
+.tb-field-item:hover,
+.tb-field-item:focus {
+    background: var(--accent);
+    color: white;
+    outline: none;
+}
+
+.tb-field-item-type {
+    opacity: .6;
+    font-size: .68rem;
+}

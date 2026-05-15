@@ -10,6 +10,8 @@ let _isDirty = false;
 function markDirty() { _isDirty = true; }
 function markClean() { _isDirty = false; }
 
+let _currentColumns = [];
+
 window.addEventListener('beforeunload', (e) => {
     if (_isDirty) {
         e.preventDefault();
@@ -69,6 +71,20 @@ SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border-top
 SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border-top:3px solid currentColor',   'thick');
 SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border-top:1px dashed currentColor',  'spaced');
 
+SUNEDITOR.plugins.insertField = {
+    name: 'insertField',
+    display: 'command',
+    title: 'Insert Field',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;letter-spacing:.03em;">&#123;&#123; &#125;&#125;</span>',
+    add: function(core) {},
+    action: function() {
+        if (!_editor) return;
+        const view = document.getElementById('view-selector')?.value;
+        if (!view) { showToast('Select a SQL view first'); return; }
+        toggleFieldDropdown();
+    }
+};
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
@@ -88,6 +104,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         hrThin:          SUNEDITOR.plugins.hrThin,
         hrThick:         SUNEDITOR.plugins.hrThick,
         hrSpaced:        SUNEDITOR.plugins.hrSpaced,
+        insertField:     SUNEDITOR.plugins.insertField,
     },
     height: '100%',
     theme: 'dark',
@@ -101,6 +118,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['list', 'hrThin', 'hrThick', 'hrSpaced'],
         ['pageBreak'],
         ['link', 'unlink', 'table', 'image'],
+        ['insertField'],
         ['blockquote', 'removeFormat'],
         ['codeView'],
     ],
@@ -223,6 +241,7 @@ document.addEventListener('dragstart', (e) => {
 async function loadViewColumns(viewName) {
     const palette = document.getElementById('field-palette');
     if (!viewName) {
+        _currentColumns = [];
         palette.innerHTML = '<div class="tb-palette-msg">Select a view to see fields</div>';
         return;
     }
@@ -231,6 +250,7 @@ async function loadViewColumns(viewName) {
         const res = await fetch(`/Templates/Api/Views/${encodeURIComponent(viewName)}/Columns`);
         if (!res.ok) throw new Error('Failed to load columns');
         const columns = await res.json();
+        _currentColumns = columns;
         if (columns.length === 0) {
             palette.innerHTML = '<div class="tb-palette-msg">No columns found</div>';
             return;
@@ -245,6 +265,7 @@ async function loadViewColumns(viewName) {
                         data-field="${escapeHtml(c.name)}">Insert</button>
             </div>`).join('');
     } catch {
+        _currentColumns = [];
         palette.innerHTML = '<div class="tb-palette-msg tb-palette-msg--error">Failed to load columns</div>';
     }
 }
@@ -447,6 +468,8 @@ document.addEventListener('keydown', e => {
         const el = document.getElementById(id);
         if (el?.classList.contains('open')) closeModal(id);
     });
+    const fd = document.getElementById('tb-field-dropdown');
+    if (fd && !fd.hidden) fd.hidden = true;
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -659,6 +682,98 @@ function showToast(msg) {
             hideToolbar();
         }
     });
+})();
+
+// ── Insert Field dropdown ─────────────────────────────────────────────────────
+
+(function wireFieldDropdown() {
+    const dropdown = document.createElement('div');
+    dropdown.id = 'tb-field-dropdown';
+    dropdown.hidden = true;
+    dropdown.innerHTML = `
+        <input type="search" id="tb-field-search" placeholder="Search fields…" autocomplete="off">
+        <div id="tb-field-list"></div>`;
+    document.body.appendChild(dropdown);
+
+    function openDropdown() {
+        const btn = document.querySelector('[data-command="insertField"]') ??
+                    document.querySelector('[title="Insert Field"]');
+        if (btn) {
+            const r = btn.getBoundingClientRect();
+            dropdown.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+            dropdown.style.left = (r.left + window.scrollX) + 'px';
+        }
+        renderFieldList('');
+        dropdown.hidden = false;
+        document.getElementById('tb-field-search').value = '';
+        document.getElementById('tb-field-search').focus();
+    }
+
+    function closeDropdown() {
+        dropdown.hidden = true;
+    }
+
+    function renderFieldList(query) {
+        const list = document.getElementById('tb-field-list');
+        const cols = query
+            ? _currentColumns.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
+            : _currentColumns;
+        list.innerHTML = cols.map(c =>
+            `<div class="tb-field-item" data-field="${escapeHtml(c.name)}" tabindex="0">
+                ${escapeHtml(c.name)}<span class="tb-field-item-type">${escapeHtml(c.dataType)}</span>
+             </div>`
+        ).join('') || '<div style="padding:.25rem .5rem;font-size:.78rem;color:var(--text-muted)">No fields found</div>';
+    }
+
+    function insertFieldToken(fieldName) {
+        if (!_editor) return;
+        _editor.$.html.insert(
+            `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`
+        );
+        document.querySelector('.sun-editor-editable')?.focus();
+        markDirty();
+        closeDropdown();
+    }
+
+    document.getElementById('tb-field-search')?.addEventListener('input', (e) => {
+        renderFieldList(e.target.value);
+    });
+
+    document.body.addEventListener('click', (e) => {
+        const item = e.target.closest('.tb-field-item');
+        if (item && !dropdown.hidden) {
+            insertFieldToken(item.dataset.field);
+            return;
+        }
+        if (!dropdown.hidden && !dropdown.contains(e.target)) {
+            const btn = e.target.closest('[data-command="insertField"], [title="Insert Field"]');
+            if (!btn) closeDropdown();
+        }
+    });
+
+    dropdown.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeDropdown(); document.querySelector('.sun-editor-editable')?.focus(); return; }
+        const items = Array.from(dropdown.querySelectorAll('.tb-field-item'));
+        const idx = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            items[idx + 1 < items.length ? idx + 1 : 0]?.focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            items[idx - 1 >= 0 ? idx - 1 : items.length - 1]?.focus();
+        } else if (e.key === 'Enter') {
+            const focused = dropdown.querySelector('.tb-field-item:focus');
+            if (focused) insertFieldToken(focused.dataset.field);
+        } else if (e.key === 'Tab' && document.activeElement.id === 'tb-field-search') {
+            e.preventDefault();
+            items[0]?.focus();
+        }
+    });
+
+    window.toggleFieldDropdown = function() {
+        if (dropdown.hidden) openDropdown();
+        else closeDropdown();
+    };
 })();
 
 // ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
