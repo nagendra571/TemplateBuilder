@@ -396,3 +396,20 @@
     opacity: .6;
     font-size: .68rem;
 }
+
+/* ==========================================
+   Loop Wizard
+   ========================================== */
+
+.tb-radio-group {
+    display: flex;
+    gap: .75rem;
+    font-size: .82rem;
+}
+
+.tb-radio-group label {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    cursor: pointer;
+}

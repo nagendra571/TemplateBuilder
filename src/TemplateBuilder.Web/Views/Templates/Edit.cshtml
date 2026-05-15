@@ -126,6 +126,39 @@
     </div>
 </div>
 
+<!-- Loop Wizard Modal -->
+<div class="modal-overlay" id="loop-modal" role="dialog" aria-modal="true" aria-labelledby="loop-modal-title">
+    <div class="modal modal--narrow">
+        <div class="modal-header">
+            <span id="loop-modal-title" class="modal-title">Insert Loop</span>
+            <button class="modal-close" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tb-form-row">
+                <label for="loop-collection">Collection (view field or name)</label>
+                <input type="text" id="loop-collection" placeholder="e.g. Items" autocomplete="off" list="loop-collection-list">
+                <datalist id="loop-collection-list"></datalist>
+            </div>
+            <div class="tb-form-row">
+                <label for="loop-alias">Item alias</label>
+                <input type="text" id="loop-alias" placeholder="e.g. item" value="item">
+            </div>
+            <div class="tb-form-row">
+                <label>Starter template</label>
+                <div class="tb-radio-group">
+                    <label><input type="radio" name="loop-starter" value="empty" checked> Empty</label>
+                    <label><input type="radio" name="loop-starter" value="list"> Bullet list</label>
+                    <label><input type="radio" name="loop-starter" value="table"> Table</label>
+                </div>
+            </div>
+            <div id="loop-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+                <button type="button" id="btn-loop-insert" class="btn btn-primary">Insert</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Styles {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@latest/dist/css/suneditor.min.css">
 <link rel="stylesheet" href="~/css/template-editor.css" asp-append-version="true">

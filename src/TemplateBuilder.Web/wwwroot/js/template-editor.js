@@ -85,6 +85,15 @@ SUNEDITOR.plugins.insertField = {
     }
 };
 
+SUNEDITOR.plugins.insertLoop = {
+    name: 'insertLoop',
+    display: 'command',
+    title: 'Insert Loop',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#8635;</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; openLoopWizard(); }
+};
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
@@ -105,6 +114,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         hrThick:         SUNEDITOR.plugins.hrThick,
         hrSpaced:        SUNEDITOR.plugins.hrSpaced,
         insertField:     SUNEDITOR.plugins.insertField,
+        insertLoop:      SUNEDITOR.plugins.insertLoop,
     },
     height: '100%',
     theme: 'dark',
@@ -119,6 +129,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['pageBreak'],
         ['link', 'unlink', 'table', 'image'],
         ['insertField'],
+        ['insertLoop'],
         ['blockquote', 'removeFormat'],
         ['codeView'],
     ],
@@ -423,6 +434,23 @@ async function renderPreview() {
     }
 }
 
+// ── Loop wizard modal ─────────────────────────────────────────────────────────
+
+function openLoopWizard() {
+    const modal = document.getElementById('loop-modal');
+    // Populate datalist from _currentColumns
+    const dl = document.getElementById('loop-collection-list');
+    dl.innerHTML = _currentColumns.map(c => `<option value="${escapeHtml(c.name)}">`).join('');
+    // Reset fields
+    document.getElementById('loop-collection').value = '';
+    document.getElementById('loop-alias').value = 'item';
+    document.querySelector('input[name="loop-starter"][value="empty"]').checked = true;
+    document.getElementById('loop-error').style.display = 'none';
+    modal.classList.add('open');
+    trapFocus(modal);
+    document.getElementById('loop-collection').focus();
+}
+
 // ── Modal focus trap ──────────────────────────────────────────────────────────
 
 function trapFocus(modal) {
@@ -464,7 +492,7 @@ function closeModal(id) {
 
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    ['version-modal', 'preview-modal'].forEach(id => {
+    ['version-modal', 'preview-modal', 'loop-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el?.classList.contains('open')) closeModal(id);
     });
@@ -795,6 +823,39 @@ document.querySelectorAll('.modal-close').forEach(btn => {
         const overlay = btn.closest('.modal-overlay');
         if (overlay) closeModal(overlay.id);
     });
+});
+
+document.getElementById('btn-loop-insert')?.addEventListener('click', () => {
+    const collection = document.getElementById('loop-collection').value.trim();
+    const alias = document.getElementById('loop-alias').value.trim() || 'item';
+    const starter = document.querySelector('input[name="loop-starter"]:checked')?.value ?? 'empty';
+    const errorEl = document.getElementById('loop-error');
+    errorEl.style.display = 'none';
+
+    if (!collection) {
+        errorEl.textContent = 'Collection name is required.';
+        errorEl.style.display = 'block';
+        document.getElementById('loop-collection').focus();
+        return;
+    }
+
+    const safeCol   = escapeHtml(collection);
+    const safeAlias = escapeHtml(alias);
+
+    let innerHtml = '';
+    if (starter === 'list') {
+        innerHtml = `<ul><li>{{ ${safeAlias}.FieldName }}</li></ul>`;
+    } else if (starter === 'table') {
+        innerHtml = `<table border="1" style="width:100%;border-collapse:collapse;"><thead><tr><th>Column1</th></tr></thead><tbody><tr><td>{{ ${safeAlias}.FieldName }}</td></tr></tbody></table>`;
+    }
+
+    _editor.$.html.insert(
+        `<div class="tb-loop"><div class="tb-loop-label" contenteditable="false">LOOP — ${safeCol}</div>` +
+        `{{ for ${safeAlias} in model.${safeCol} }}${innerHtml}{{ end }}</div>`
+    );
+    markDirty();
+    closeModal('loop-modal');
+    document.querySelector('.sun-editor-editable')?.focus();
 });
 
 ['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
