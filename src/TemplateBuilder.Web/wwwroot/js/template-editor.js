@@ -276,7 +276,7 @@ document.getElementById('field-palette').addEventListener('click', (e) => {
     if (!btn || !_editor) return;
     e.stopPropagation();
     _editor.$.html.insert(
-        `<span class="tb-field" contenteditable="false">{{ model.${btn.dataset.field} }}</span>&nbsp;`
+        `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(btn.dataset.field)} }}</span>&nbsp;`
     );
     document.querySelector('.sun-editor-editable')?.focus();
     markDirty();
@@ -702,6 +702,12 @@ function showToast(msg) {
             const r = btn.getBoundingClientRect();
             dropdown.style.top  = (r.bottom + window.scrollY + 4) + 'px';
             dropdown.style.left = (r.left + window.scrollX) + 'px';
+            // Clamp to viewport right edge
+            const dropW = 220;
+            const maxLeft = window.innerWidth + window.scrollX - dropW - 4;
+            if (parseFloat(dropdown.style.left) > maxLeft) {
+                dropdown.style.left = maxLeft + 'px';
+            }
         }
         renderFieldList('');
         dropdown.hidden = false;
@@ -728,14 +734,14 @@ function showToast(msg) {
     function insertFieldToken(fieldName) {
         if (!_editor) return;
         _editor.$.html.insert(
-            `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`
+            `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(fieldName)} }}</span>&nbsp;`
         );
         document.querySelector('.sun-editor-editable')?.focus();
         markDirty();
         closeDropdown();
     }
 
-    document.getElementById('tb-field-search')?.addEventListener('input', (e) => {
+    document.getElementById('tb-field-search').addEventListener('input', (e) => {
         renderFieldList(e.target.value);
     });
 
