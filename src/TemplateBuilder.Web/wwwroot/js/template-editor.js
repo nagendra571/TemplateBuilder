@@ -499,6 +499,168 @@ function showToast(msg) {
     }, 300);
 })();
 
+// ── Floating table toolbar ────────────────────────────────────────────────────
+
+(function wireTableToolbar() {
+    const editable = document.querySelector('.sun-editor-editable');
+    if (!editable) return;
+
+    // Create the toolbar element
+    const toolbar = document.createElement('div');
+    toolbar.id = 'tb-table-toolbar';
+    toolbar.setAttribute('aria-label', 'Table tools');
+    // Start visibility:hidden (not hidden attr) so offsetHeight is measurable on first show
+    toolbar.style.visibility = 'hidden';
+    toolbar.innerHTML = `
+        <button type="button" data-tt="addRowBelow"  title="Add row below">+ Row</button>
+        <button type="button" data-tt="delRow"       title="Delete row">− Row</button>
+        <button type="button" data-tt="addColAfter"  title="Add column after">+ Col</button>
+        <button type="button" data-tt="delCol"       title="Delete column">− Col</button>
+        <span class="tt-sep"></span>
+        <button type="button" data-tt="toggleHeader" title="Toggle header row">Header</button>
+        <span class="tt-sep"></span>
+        <button type="button" data-tt="valignTop"    title="Align top">↑</button>
+        <button type="button" data-tt="valignMid"    title="Align middle">↕</button>
+        <button type="button" data-tt="valignBot"    title="Align bottom">↓</button>
+        <span class="tt-sep"></span>
+        <div class="tt-style-wrap">
+            <button type="button" data-tt="styleToggle" title="Table style">Style ▾</button>
+            <div class="tt-style-menu" hidden>
+                <button type="button" data-ts="tb-table--striped">Striped</button>
+                <button type="button" data-ts="tb-table--compact">Compact</button>
+                <button type="button" data-ts="tb-table--bordered">Bordered</button>
+            </div>
+        </div>`;
+    document.body.appendChild(toolbar);
+
+    let _activeCell = null;
+    let _activeTable = null;
+    let _positioned = false;
+
+    function getCell(node) {
+        return node?.closest('td, th');
+    }
+
+    function showToolbar(cell) {
+        _activeCell = cell;
+        _activeTable = cell.closest('table');
+
+        if (!_positioned) {
+            // First show: element is visibility:hidden but has layout — measure it
+            toolbar.style.visibility = 'hidden';
+            toolbar.hidden = false;
+            _positioned = true;
+        }
+
+        const rect = _activeTable.getBoundingClientRect();
+        const toolbarH = toolbar.offsetHeight || 32;
+        toolbar.style.top  = (rect.top + window.scrollY - toolbarH - 6) + 'px';
+        toolbar.style.left = (rect.left + window.scrollX) + 'px';
+        toolbar.style.visibility = 'visible';
+        toolbar.hidden = false;
+    }
+
+    function hideToolbar() {
+        toolbar.hidden = true;
+        toolbar.style.visibility = 'hidden';
+        _activeCell = null;
+        _activeTable = null;
+        toolbar.querySelector('.tt-style-menu').hidden = true;
+    }
+
+    // Show on click inside a table cell
+    editable.addEventListener('mousedown', (e) => {
+        const cell = getCell(e.target);
+        if (cell) { showToolbar(cell); }
+        else if (!toolbar.contains(e.target)) { hideToolbar(); }
+    });
+
+    // Table operations
+    toolbar.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-tt]')?.dataset.tt;
+        const styleClass = e.target.closest('[data-ts]')?.dataset.ts;
+
+        if (!action && !styleClass) return;
+        if (!_activeCell || !_activeTable) return;
+
+        if (action === 'styleToggle') {
+            toolbar.querySelector('.tt-style-menu').hidden =
+                !toolbar.querySelector('.tt-style-menu').hidden;
+            return;
+        }
+
+        if (styleClass) {
+            const classes = ['tb-table--striped', 'tb-table--compact', 'tb-table--bordered'];
+            classes.forEach(c => _activeTable.classList.remove(c));
+            _activeTable.classList.add(styleClass);
+            toolbar.querySelector('.tt-style-menu').hidden = true;
+            markDirty();
+            return;
+        }
+
+        const row = _activeCell.closest('tr');
+        const rowIndex = row.rowIndex;  // 0-based in the table
+        const cellIndex = _activeCell.cellIndex;
+
+        if (action === 'addRowBelow') {
+            const newRow = _activeTable.insertRow(rowIndex + 1);
+            const colCount = row.cells.length;
+            for (let i = 0; i < colCount; i++) {
+                const td = newRow.insertCell(i);
+                td.innerHTML = '&nbsp;';
+            }
+        } else if (action === 'delRow') {
+            if (_activeTable.rows.length > 1) _activeTable.deleteRow(rowIndex);
+        } else if (action === 'addColAfter') {
+            Array.from(_activeTable.rows).forEach(r => {
+                const td = r.insertCell(cellIndex + 1);
+                td.innerHTML = '&nbsp;';
+            });
+        } else if (action === 'delCol') {
+            if (_activeTable.rows[0].cells.length > 1) {
+                Array.from(_activeTable.rows).forEach(r => r.deleteCell(cellIndex));
+            }
+        } else if (action === 'toggleHeader') {
+            const firstRow = _activeTable.rows[0];
+            const isHeader = firstRow.cells[0].tagName === 'TH';
+            Array.from(firstRow.cells).forEach(cell => {
+                const newCell = document.createElement(isHeader ? 'td' : 'th');
+                newCell.innerHTML = cell.innerHTML;
+                Array.from(cell.attributes).forEach(a => newCell.setAttribute(a.name, a.value));
+                cell.replaceWith(newCell);
+            });
+            // Wrap/unwrap in thead
+            if (!isHeader) {
+                const thead = document.createElement('thead');
+                thead.appendChild(firstRow);
+                _activeTable.insertBefore(thead, _activeTable.firstChild);
+            } else {
+                const thead = _activeTable.querySelector('thead');
+                if (thead) {
+                    _activeTable.insertBefore(firstRow, _activeTable.firstChild);
+                    thead.remove();
+                }
+            }
+        } else if (action === 'valignTop') {
+            _activeCell.style.verticalAlign = 'top';
+        } else if (action === 'valignMid') {
+            _activeCell.style.verticalAlign = 'middle';
+        } else if (action === 'valignBot') {
+            _activeCell.style.verticalAlign = 'bottom';
+        }
+
+        markDirty();
+    });
+
+    // Hide when clicking outside both editor and toolbar
+    document.addEventListener('mousedown', (e) => {
+        if (toolbar.hidden) return;
+        if (!editable.contains(e.target) && !toolbar.contains(e.target)) {
+            hideToolbar();
+        }
+    });
+})();
+
 // ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
 
 document.getElementById('view-selector')?.addEventListener('change', e => loadViewColumns(e.target.value));

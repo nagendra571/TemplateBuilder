@@ -270,3 +270,74 @@
 .sun-editor-editable .tb-hr--thin   { border-top: 1px solid var(--border); }
 .sun-editor-editable .tb-hr--thick  { border-top: 3px solid var(--border); }
 .sun-editor-editable .tb-hr--spaced { border-top: 1px dashed var(--border); padding-top: .5rem; padding-bottom: .5rem; }
+
+/* ==========================================
+   Table Floating Toolbar
+   ========================================== */
+
+#tb-table-toolbar {
+    position: absolute;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .25rem .4rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    font-size: .72rem;
+    white-space: nowrap;
+}
+
+#tb-table-toolbar[hidden] { display: none; }
+
+#tb-table-toolbar button {
+    padding: .15rem .4rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    cursor: pointer;
+    font-size: .72rem;
+    line-height: 1.4;
+}
+
+#tb-table-toolbar button:hover { background: var(--accent); color: white; border-color: var(--accent); }
+
+.tt-sep {
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+    flex-shrink: 0;
+}
+
+.tt-style-wrap { position: relative; }
+
+.tt-style-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    display: flex;
+    flex-direction: column;
+    min-width: 100px;
+    z-index: 1001;
+}
+
+.tt-style-menu[hidden] { display: none; }
+
+.tt-style-menu button {
+    border: none !important;
+    border-radius: 0 !important;
+    text-align: left;
+    padding: .3rem .6rem;
+}
+
+/* Table style presets */
+.tb-table--striped tbody tr:nth-child(even) td { background: rgba(128,128,128,.08); }
+.tb-table--compact td, .tb-table--compact th { padding: .15rem .35rem; font-size: .82rem; }
+.tb-table--bordered td, .tb-table--bordered th { border: 1px solid var(--border); }
