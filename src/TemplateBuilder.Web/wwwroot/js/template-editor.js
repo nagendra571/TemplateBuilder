@@ -81,6 +81,19 @@ SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border-top
 SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border-top:3px solid currentColor',   'thick');
 SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border-top:1px dashed currentColor',  'spaced');
 
+SUNEDITOR.plugins.unlink = {
+    name: 'unlink',
+    display: 'command',
+    title: 'Remove Link',
+    innerHTML: '<span style="font-size:.78rem;">&#x26D4;</span>',
+    add: function(core) {},
+    action: function() {
+        if (!_editor) return;
+        document.execCommand('unlink');
+        markDirty();
+    }
+};
+
 SUNEDITOR.plugins.insertField = {
     name: 'insertField',
     display: 'command',
