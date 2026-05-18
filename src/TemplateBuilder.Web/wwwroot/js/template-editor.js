@@ -15,6 +15,7 @@ let _currentColumns = [];
 let _splitActive = false;
 let _splitDebounce = null;
 let _splitDeviceWidth = '100%';
+let _splitFetchController = null;
 
 function debouncedSplitRefresh() {
     clearTimeout(_splitDebounce);
@@ -947,7 +948,9 @@ function toggleSplitView() {
 }
 
 async function refreshSplitPreview() {
-    if (!_splitActive || !_editor) return;
+    if (!_splitActive || !_editor || !templateId) return;
+    if (_splitFetchController) _splitFetchController.abort();
+    _splitFetchController = new AbortController();
     const body = _editor.$.html.get();
     try {
         const res = await fetch(`/Templates/${templateId}/Preview`, {
@@ -956,7 +959,8 @@ async function refreshSplitPreview() {
                 'Content-Type': 'application/json',
                 'RequestVerificationToken': _csrf
             },
-            body: JSON.stringify({ body, modelJson: '{}' })
+            body: JSON.stringify({ body, modelJson: '{}' }),
+            signal: _splitFetchController.signal
         });
         if (res.ok) {
             const { html } = await res.json();
@@ -966,8 +970,8 @@ async function refreshSplitPreview() {
                 frame.srcdoc = html;
             }
         }
-    } catch {
-        // Silent fail — stale preview is acceptable
+    } catch (e) {
+        if (e?.name !== 'AbortError') { /* silent fail — stale preview is acceptable */ }
     }
 }
 
@@ -1082,7 +1086,9 @@ document.getElementById('split-controls')?.addEventListener('click', (e) => {
     if (!btn) return;
     _splitDeviceWidth = btn.dataset.width;
     document.querySelectorAll('.tb-device-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tb-device-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
     btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
     const frame = document.getElementById('split-frame');
     if (frame) frame.style.maxWidth = _splitDeviceWidth;
 });
