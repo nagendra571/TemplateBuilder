@@ -12,6 +12,15 @@ function markClean() { _isDirty = false; }
 
 let _currentColumns = [];
 
+let _splitActive = false;
+let _splitDebounce = null;
+let _splitDeviceWidth = '100%';
+
+function debouncedSplitRefresh() {
+    clearTimeout(_splitDebounce);
+    _splitDebounce = setTimeout(refreshSplitPreview, 500);
+}
+
 window.addEventListener('beforeunload', (e) => {
     if (_isDirty) {
         e.preventDefault();
@@ -112,6 +121,15 @@ SUNEDITOR.plugins.validate = {
     action: function() { if (!_editor) return; runValidate(); }
 };
 
+SUNEDITOR.plugins.splitView = {
+    name: 'splitView',
+    display: 'command',
+    title: 'Toggle Split View',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#x229F;</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; toggleSplitView(); }
+};
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
@@ -135,6 +153,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         insertLoop:         SUNEDITOR.plugins.insertLoop,
         insertConditional:  SUNEDITOR.plugins.insertConditional,
         validate:           SUNEDITOR.plugins.validate,
+        splitView:          SUNEDITOR.plugins.splitView,
     },
     height: '100%',
     theme: 'dark',
@@ -152,6 +171,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['insertLoop'],
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
+        ['splitView'],
         ['validate'],
         ['codeView'],
     ],
@@ -167,7 +187,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         th:    'style|class|contenteditable|colspan|rowspan',
         all:   'data-*'
     },
-    onChange: markDirty,
+    onChange: function() { markDirty(); debouncedSplitRefresh(); },
     linkTargetNewWindow: true,
     imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
         const alt = (info?.altText ?? info?.alt ?? '').trim();
@@ -907,6 +927,50 @@ function showToast(msg) {
     };
 })();
 
+// ── Split view ────────────────────────────────────────────────────────────────
+
+function toggleSplitView() {
+    _splitActive = !_splitActive;
+    const grid = document.querySelector('.tb-editor-grid');
+    const controls = document.getElementById('split-controls');
+    const pane = document.getElementById('split-pane');
+    if (_splitActive) {
+        grid.classList.add('tb-split-active');
+        controls.hidden = false;
+        pane.hidden = false;
+        refreshSplitPreview();
+    } else {
+        grid.classList.remove('tb-split-active');
+        controls.hidden = true;
+        pane.hidden = true;
+    }
+}
+
+async function refreshSplitPreview() {
+    if (!_splitActive || !_editor) return;
+    const body = _editor.$.html.get();
+    try {
+        const res = await fetch(`/Templates/${templateId}/Preview`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ body, modelJson: '{}' })
+        });
+        if (res.ok) {
+            const { html } = await res.json();
+            const frame = document.getElementById('split-frame');
+            if (frame) {
+                frame.style.maxWidth = _splitDeviceWidth;
+                frame.srcdoc = html;
+            }
+        }
+    } catch {
+        // Silent fail — stale preview is acceptable
+    }
+}
+
 // ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
 
 document.getElementById('view-selector')?.addEventListener('change', e => loadViewColumns(e.target.value));
@@ -1011,4 +1075,14 @@ document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
     if (!el) return;
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
+});
+
+document.getElementById('split-controls')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tb-device-btn');
+    if (!btn) return;
+    _splitDeviceWidth = btn.dataset.width;
+    document.querySelectorAll('.tb-device-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const frame = document.getElementById('split-frame');
+    if (frame) frame.style.maxWidth = _splitDeviceWidth;
 });

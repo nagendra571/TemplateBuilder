@@ -40,8 +40,19 @@
                 <span id="validate-msg"></span>
                 <button type="button" id="btn-validate-dismiss" class="tb-validate-dismiss" aria-label="Dismiss">&#x2715;</button>
             </div>
+            <div id="split-controls" class="tb-split-controls" hidden>
+                <span class="tb-split-label">Preview</span>
+                <div class="tb-device-btns">
+                    <button type="button" class="tb-device-btn active" data-width="100%" title="Desktop">⬜</button>
+                    <button type="button" class="tb-device-btn" data-width="768px" title="Tablet">▭</button>
+                    <button type="button" class="tb-device-btn" data-width="375px" title="Mobile">▯</button>
+                </div>
+            </div>
             <div class="tb-canvas-body">
                 <textarea id="template-body" name="Body">@Model.Body</textarea>
+            </div>
+            <div id="split-pane" class="tb-split-pane" hidden>
+                <iframe id="split-frame" class="tb-split-frame" title="Split preview"></iframe>
             </div>
         </div>
 
