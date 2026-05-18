@@ -47,7 +47,6 @@ const blockquotePlugin = {
         markDirty();
     }
 };
-SUNEDITOR.plugins.blockquote = blockquotePlugin;
 
 const pageBreakPlugin = {
     name: 'pageBreak',
@@ -61,7 +60,6 @@ const pageBreakPlugin = {
         markDirty();
     }
 };
-SUNEDITOR.plugins.pageBreak = pageBreakPlugin;
 
 function makeHrPlugin(name, title, iconStyle, suffix) {
     return {
@@ -77,11 +75,11 @@ function makeHrPlugin(name, title, iconStyle, suffix) {
         }
     };
 }
-SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border-top:1px solid currentColor',   'thin');
-SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border-top:3px solid currentColor',   'thick');
-SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border-top:1px dashed currentColor',  'spaced');
+const hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border-top:1px solid currentColor',   'thin');
+const hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border-top:3px solid currentColor',   'thick');
+const hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border-top:1px dashed currentColor',  'spaced');
 
-SUNEDITOR.plugins.insertField = {
+const insertFieldPlugin = {
     name: 'insertField',
     display: 'command',
     title: 'Insert Field',
@@ -95,7 +93,7 @@ SUNEDITOR.plugins.insertField = {
     }
 };
 
-SUNEDITOR.plugins.insertLoop = {
+const insertLoopPlugin = {
     name: 'insertLoop',
     display: 'command',
     title: 'Insert Loop',
@@ -104,7 +102,7 @@ SUNEDITOR.plugins.insertLoop = {
     action: function() { if (!_editor) return; openLoopWizard(); }
 };
 
-SUNEDITOR.plugins.insertConditional = {
+const insertConditionalPlugin = {
     name: 'insertConditional',
     display: 'command',
     title: 'Insert Conditional',
@@ -113,7 +111,7 @@ SUNEDITOR.plugins.insertConditional = {
     action: function() { if (!_editor) return; openConditionalWizard(); }
 };
 
-SUNEDITOR.plugins.validate = {
+const validatePlugin = {
     name: 'validate',
     display: 'command',
     title: 'Validate Template',
@@ -122,7 +120,7 @@ SUNEDITOR.plugins.validate = {
     action: function() { if (!_editor) return; runValidate(); }
 };
 
-SUNEDITOR.plugins.splitView = {
+const splitViewPlugin = {
     name: 'splitView',
     display: 'command',
     title: 'Toggle Split View',
@@ -132,42 +130,28 @@ SUNEDITOR.plugins.splitView = {
 };
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
-    plugins: {
-        list:            SUNEDITOR.plugins.list,
-        table:           SUNEDITOR.plugins.table,
-        link:            SUNEDITOR.plugins.link,
-        unlink:          SUNEDITOR.plugins.unlink,
-        blockStyle:      SUNEDITOR.plugins.blockStyle,
-        align:           SUNEDITOR.plugins.align,
-        fontSize:        SUNEDITOR.plugins.fontSize,
-        fontColor:       SUNEDITOR.plugins.fontColor,
-        backgroundColor: SUNEDITOR.plugins.backgroundColor,
-        image:           SUNEDITOR.plugins.image,
-        subscript:       SUNEDITOR.plugins.subscript,
-        superscript:     SUNEDITOR.plugins.superscript,
-        blockquote:      SUNEDITOR.plugins.blockquote,
-        pageBreak:       SUNEDITOR.plugins.pageBreak,
-        hrThin:          SUNEDITOR.plugins.hrThin,
-        hrThick:         SUNEDITOR.plugins.hrThick,
-        hrSpaced:        SUNEDITOR.plugins.hrSpaced,
-        insertField:        SUNEDITOR.plugins.insertField,
-        insertLoop:         SUNEDITOR.plugins.insertLoop,
-        insertConditional:  SUNEDITOR.plugins.insertConditional,
-        validate:           SUNEDITOR.plugins.validate,
-        splitView:          SUNEDITOR.plugins.splitView,
-    },
+    plugins: [
+        blockquotePlugin,
+        pageBreakPlugin,
+        hrThin, hrThick, hrSpaced,
+        insertFieldPlugin,
+        insertLoopPlugin,
+        insertConditionalPlugin,
+        validatePlugin,
+        splitViewPlugin,
+    ],
     height: '100%',
     theme: 'dark',
     buttonList: [
         ['undo', 'redo'],
         ['bold', 'italic', 'underline', 'strike'],
         ['subscript', 'superscript'],
-        ['blockStyle', 'fontSize'],
-        ['fontColor', 'backgroundColor'],
+        ['formatBlock', 'fontSize'],
+        ['fontColor', 'hiliteColor'],
         ['align'],
         ['list', 'hrThin', 'hrThick', 'hrSpaced'],
         ['pageBreak'],
-        ['link', 'unlink', 'table', 'image'],
+        ['link', 'table', 'image'],
         ['insertField'],
         ['insertLoop'],
         ['insertConditional'],
