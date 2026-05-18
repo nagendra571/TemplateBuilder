@@ -14,7 +14,6 @@ let _currentColumns = [];
 
 let _splitActive = false;
 let _splitDebounce = null;
-let _splitDeviceWidth = '100%';
 let _splitFetchController = null;
 
 function debouncedSplitRefresh() {
@@ -950,7 +949,6 @@ async function refreshSplitPreview() {
             const { html } = await res.json();
             const frame = document.getElementById('split-frame');
             if (frame) {
-                frame.style.maxWidth = _splitDeviceWidth;
                 frame.srcdoc = html;
             }
         }
@@ -1065,14 +1063,3 @@ document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
     el.addEventListener('change', markDirty);
 });
 
-document.getElementById('split-controls')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('.tb-device-btn');
-    if (!btn) return;
-    _splitDeviceWidth = btn.dataset.width;
-    document.querySelectorAll('.tb-device-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tb-device-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
-    btn.classList.add('active');
-    btn.setAttribute('aria-pressed', 'true');
-    const frame = document.getElementById('split-frame');
-    if (frame) frame.style.maxWidth = _splitDeviceWidth;
-});

@@ -461,13 +461,9 @@
 }
 
 .tb-split-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding: .35rem .7rem;
     border-bottom: 1px solid var(--border);
     font-size: .78rem;
-    gap: .5rem;
 }
 
 .tb-split-label {
@@ -475,28 +471,6 @@
     font-size: .72rem;
     font-weight: 600;
     letter-spacing: .05em;
-}
-
-.tb-device-btns {
-    display: flex;
-    gap: .25rem;
-}
-
-.tb-device-btn {
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: .15rem .35rem;
-    font-size: .78rem;
-    cursor: pointer;
-    line-height: 1;
-    opacity: .6;
-}
-
-.tb-device-btn.active {
-    border-color: var(--accent);
-    opacity: 1;
-    color: var(--accent);
 }
 
 .tb-split-pane {
