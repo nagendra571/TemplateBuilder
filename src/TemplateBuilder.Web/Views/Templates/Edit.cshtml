@@ -36,8 +36,23 @@
         <!-- CENTER: Canvas -->
         <div class="tb-panel-center">
             <div class="tb-panel-heading">CANVAS</div>
+            <div id="validate-panel" class="tb-validate-panel" hidden>
+                <span id="validate-msg"></span>
+                <button type="button" id="btn-validate-dismiss" class="tb-validate-dismiss" aria-label="Dismiss">&#x2715;</button>
+            </div>
+            <div id="split-controls" class="tb-split-controls" hidden>
+                <span class="tb-split-label">Preview</span>
+                <div class="tb-device-btns">
+                    <button type="button" class="tb-device-btn active" data-width="100%" title="Desktop" aria-pressed="true">⬜</button>
+                    <button type="button" class="tb-device-btn" data-width="768px" title="Tablet" aria-pressed="false">▭</button>
+                    <button type="button" class="tb-device-btn" data-width="375px" title="Mobile" aria-pressed="false">▯</button>
+                </div>
+            </div>
             <div class="tb-canvas-body">
                 <textarea id="template-body" name="Body">@Model.Body</textarea>
+            </div>
+            <div id="split-pane" class="tb-split-pane" hidden>
+                <iframe id="split-frame" class="tb-split-frame" title="Split preview"></iframe>
             </div>
         </div>
 
@@ -121,6 +136,78 @@
             <div id="preview-error" class="tb-error-msg" role="alert" style="display:none;"></div>
             <div class="tb-preview-frame-wrap" id="preview-frame-wrap" style="display:none;">
                 <iframe id="preview-frame" class="tb-preview-frame" title="Template preview"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loop Wizard Modal -->
+<div class="modal-overlay" id="loop-modal" role="dialog" aria-modal="true" aria-labelledby="loop-modal-title">
+    <div class="modal modal--narrow">
+        <div class="modal-header">
+            <span id="loop-modal-title" class="modal-title">Insert Loop</span>
+            <button class="modal-close" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tb-form-row">
+                <label for="loop-collection">Collection (view field or name)</label>
+                <input type="text" id="loop-collection" placeholder="e.g. Items" autocomplete="off" list="loop-collection-list">
+                <datalist id="loop-collection-list"></datalist>
+            </div>
+            <div class="tb-form-row">
+                <label for="loop-alias">Item alias</label>
+                <input type="text" id="loop-alias" placeholder="e.g. item" value="item">
+            </div>
+            <div class="tb-form-row">
+                <label>Starter template</label>
+                <div class="tb-radio-group">
+                    <label><input type="radio" name="loop-starter" value="empty" checked> Empty</label>
+                    <label><input type="radio" name="loop-starter" value="list"> Bullet list</label>
+                    <label><input type="radio" name="loop-starter" value="table"> Table</label>
+                </div>
+            </div>
+            <div id="loop-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+                <button type="button" id="btn-loop-insert" class="btn btn-primary">Insert</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conditional Wizard Modal -->
+<div class="modal-overlay" id="conditional-modal" role="dialog" aria-modal="true" aria-labelledby="conditional-modal-title">
+    <div class="modal modal--narrow">
+        <div class="modal-header">
+            <span id="conditional-modal-title" class="modal-title">Insert Conditional</span>
+            <button class="modal-close" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tb-form-row">
+                <label for="cond-field">Field</label>
+                <input type="text" id="cond-field" placeholder="e.g. model.Status" autocomplete="off" list="cond-field-list">
+                <datalist id="cond-field-list"></datalist>
+            </div>
+            <div class="tb-form-row">
+                <label for="cond-operator">Operator</label>
+                <select id="cond-operator">
+                    <option value="==">== (equals)</option>
+                    <option value="!=">!= (not equals)</option>
+                    <option value=">">&gt; (greater than)</option>
+                    <option value="<">&lt; (less than)</option>
+                    <option value="contains">contains</option>
+                    <option value="!= null">!= null (exists)</option>
+                </select>
+            </div>
+            <div class="tb-form-row" id="cond-value-row">
+                <label for="cond-value">Value</label>
+                <input type="text" id="cond-value" placeholder="e.g. Active">
+            </div>
+            <div class="tb-form-row">
+                <label><input type="checkbox" id="cond-include-else"> Include else branch</label>
+            </div>
+            <div id="cond-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+                <button type="button" id="btn-cond-insert" class="btn btn-primary">Insert</button>
             </div>
         </div>
     </div>

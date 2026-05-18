@@ -10,6 +10,18 @@ let _isDirty = false;
 function markDirty() { _isDirty = true; }
 function markClean() { _isDirty = false; }
 
+let _currentColumns = [];
+
+let _splitActive = false;
+let _splitDebounce = null;
+let _splitDeviceWidth = '100%';
+let _splitFetchController = null;
+
+function debouncedSplitRefresh() {
+    clearTimeout(_splitDebounce);
+    _splitDebounce = setTimeout(refreshSplitPreview, 500);
+}
+
 window.addEventListener('beforeunload', (e) => {
     if (_isDirty) {
         e.preventDefault();
@@ -21,37 +33,154 @@ window.addEventListener('beforeunload', (e) => {
 
 let _editor = null;
 
+// ── Custom plugins (must be registered before SUNEDITOR.create) ───────────────
+
+const blockquotePlugin = {
+    name: 'blockquote',
+    display: 'command',
+    title: 'Blockquote',
+    innerHTML: '<span style="font-size:1rem;font-weight:700;">❝</span>',
+    add: function(core) {},
+    action: function() {
+        if (!_editor) return;
+        document.execCommand('formatBlock', false, 'blockquote');
+        markDirty();
+    }
+};
+SUNEDITOR.plugins.blockquote = blockquotePlugin;
+
+const pageBreakPlugin = {
+    name: 'pageBreak',
+    display: 'command',
+    title: 'Page Break',
+    innerHTML: '<span style="font-size:.7rem;letter-spacing:.03em;">PG↵</span>',
+    add: function(core) {},
+    action: function() {
+        if (!_editor) return;
+        _editor.$.html.insert('<div class="tb-page-break" contenteditable="false">— Page Break —</div>');
+        markDirty();
+    }
+};
+SUNEDITOR.plugins.pageBreak = pageBreakPlugin;
+
+function makeHrPlugin(name, title, iconStyle, suffix) {
+    return {
+        name,
+        display: 'command',
+        title,
+        innerHTML: `<span style="display:inline-block;width:14px;${iconStyle};vertical-align:middle;"></span>`,
+        add: function(core) {},
+        action: function() {
+            if (!_editor) return;
+            _editor.$.html.insert(`<hr class="tb-hr tb-hr--${suffix}">`);
+            markDirty();
+        }
+    };
+}
+SUNEDITOR.plugins.hrThin   = makeHrPlugin('hrThin',   'Thin Rule',   'border-top:1px solid currentColor',   'thin');
+SUNEDITOR.plugins.hrThick  = makeHrPlugin('hrThick',  'Thick Rule',  'border-top:3px solid currentColor',   'thick');
+SUNEDITOR.plugins.hrSpaced = makeHrPlugin('hrSpaced', 'Spaced Rule', 'border-top:1px dashed currentColor',  'spaced');
+
+SUNEDITOR.plugins.insertField = {
+    name: 'insertField',
+    display: 'command',
+    title: 'Insert Field',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;letter-spacing:.03em;">&#123;&#123; &#125;&#125;</span>',
+    add: function(core) {},
+    action: function() {
+        if (!_editor) return;
+        const view = document.getElementById('view-selector')?.value;
+        if (!view) { showToast('Select a SQL view first'); return; }
+        toggleFieldDropdown();
+    }
+};
+
+SUNEDITOR.plugins.insertLoop = {
+    name: 'insertLoop',
+    display: 'command',
+    title: 'Insert Loop',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#8635;</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; openLoopWizard(); }
+};
+
+SUNEDITOR.plugins.insertConditional = {
+    name: 'insertConditional',
+    display: 'command',
+    title: 'Insert Conditional',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">if</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; openConditionalWizard(); }
+};
+
+SUNEDITOR.plugins.validate = {
+    name: 'validate',
+    display: 'command',
+    title: 'Validate Template',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#x2713;</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; runValidate(); }
+};
+
+SUNEDITOR.plugins.splitView = {
+    name: 'splitView',
+    display: 'command',
+    title: 'Toggle Split View',
+    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#x229F;</span>',
+    add: function(core) {},
+    action: function() { if (!_editor) return; toggleSplitView(); }
+};
+
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: {
         list:            SUNEDITOR.plugins.list,
         table:           SUNEDITOR.plugins.table,
         link:            SUNEDITOR.plugins.link,
+        unlink:          SUNEDITOR.plugins.unlink,
         blockStyle:      SUNEDITOR.plugins.blockStyle,
         align:           SUNEDITOR.plugins.align,
         fontSize:        SUNEDITOR.plugins.fontSize,
         fontColor:       SUNEDITOR.plugins.fontColor,
         backgroundColor: SUNEDITOR.plugins.backgroundColor,
-        hr:              SUNEDITOR.plugins.hr,
         image:           SUNEDITOR.plugins.image,
+        subscript:       SUNEDITOR.plugins.subscript,
+        superscript:     SUNEDITOR.plugins.superscript,
+        blockquote:      SUNEDITOR.plugins.blockquote,
+        pageBreak:       SUNEDITOR.plugins.pageBreak,
+        hrThin:          SUNEDITOR.plugins.hrThin,
+        hrThick:         SUNEDITOR.plugins.hrThick,
+        hrSpaced:        SUNEDITOR.plugins.hrSpaced,
+        insertField:        SUNEDITOR.plugins.insertField,
+        insertLoop:         SUNEDITOR.plugins.insertLoop,
+        insertConditional:  SUNEDITOR.plugins.insertConditional,
+        validate:           SUNEDITOR.plugins.validate,
+        splitView:          SUNEDITOR.plugins.splitView,
     },
     height: '100%',
     theme: 'dark',
     buttonList: [
         ['undo', 'redo'],
         ['bold', 'italic', 'underline', 'strike'],
+        ['subscript', 'superscript'],
         ['blockStyle', 'fontSize'],
         ['fontColor', 'backgroundColor'],
         ['align'],
-        ['list', 'hr'],
-        ['link', 'table', 'image'],
-        ['removeFormat'],
+        ['list', 'hrThin', 'hrThick', 'hrSpaced'],
+        ['pageBreak'],
+        ['link', 'unlink', 'table', 'image'],
+        ['insertField'],
+        ['insertLoop'],
+        ['insertConditional'],
+        ['blockquote', 'removeFormat'],
+        ['splitView'],
+        ['validate'],
         ['codeView'],
     ],
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
-    addTagsWhitelist: 'span|div|img|hr',
+    addTagsWhitelist: 'span|div|img|hr|blockquote',
     attributesWhitelist: {
         span:  'class|style|contenteditable',
-        div:   'class|style',
+        div:   'class|style|contenteditable',
         img:   'src|alt|width|height|style',
         table: 'border|cellpadding|cellspacing|style|class',
         tr:    'style|class',
@@ -59,7 +188,17 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         th:    'style|class|contenteditable|colspan|rowspan',
         all:   'data-*'
     },
-    onChange: markDirty
+    onChange: function() { markDirty(); debouncedSplitRefresh(); },
+    linkTargetNewWindow: true,
+    imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
+        const alt = (info?.altText ?? info?.alt ?? '').trim();
+        if (!alt) {
+            showToast('Alt text is required for images (accessibility).');
+            uploadHandler?.(null);
+            return false;
+        }
+        return true;
+    }
 });
 
 // ── Drag-and-drop into editor ─────────────────────────────────────────────────
@@ -109,24 +248,41 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
             );
         } else if (blockType === 'loop') {
             const view = document.getElementById('view-selector').value || 'Items';
+            const safeView = escapeHtml(view);
             _editor.$.html.insert(`
                 <div class="tb-loop">
-                    <div class="tb-loop-label">LOOP — ${view}</div>
-                    {{ for item in model.${view} }}<p><!-- drag fields here --></p>{{ end }}
+                    <div class="tb-loop-label">LOOP — ${safeView}</div>
+                    {{ for item in model.${safeView} }}<p><!-- drag fields here --></p>{{ end }}
                 </div>`);
         } else if (blockType === 'grid') {
             const view = document.getElementById('view-selector').value || 'Items';
+            const safeView = escapeHtml(view);
             _editor.$.html.insert(`
                 <table border="1" style="width:100%;border-collapse:collapse;">
                     <thead><tr><th>Column1</th><th>Column2</th></tr></thead>
                     <tbody>
-                    {{ for item in model.${view} }}
+                    {{ for item in model.${safeView} }}
                     <tr><td>{{ item.Column1 }}</td><td>{{ item.Column2 }}</td></tr>
                     {{ end }}
                     </tbody>
                 </table>`);
         }
     }, true);
+})();
+
+// Aspect-ratio lock: re-enforce after SunEditor resize-handle drag ends
+(function wireImageAspectLock() {
+    setTimeout(() => {
+        const editable = document.querySelector('.sun-editor-editable');
+        if (!editable) return;
+        editable.addEventListener('mouseup', () => {
+            const resized = editable.querySelector('img[style*="width"]');
+            if (!resized || !resized.naturalWidth) return;
+            const ratio = resized.naturalWidth / resized.naturalHeight;
+            const w = resized.offsetWidth;
+            if (w && ratio) resized.style.height = Math.round(w / ratio) + 'px';
+        });
+    }, 500); // wait for editor DOM to be ready
 })();
 
 document.addEventListener('dragstart', (e) => {
@@ -141,6 +297,7 @@ document.addEventListener('dragstart', (e) => {
 async function loadViewColumns(viewName) {
     const palette = document.getElementById('field-palette');
     if (!viewName) {
+        _currentColumns = [];
         palette.innerHTML = '<div class="tb-palette-msg">Select a view to see fields</div>';
         return;
     }
@@ -149,6 +306,7 @@ async function loadViewColumns(viewName) {
         const res = await fetch(`/Templates/Api/Views/${encodeURIComponent(viewName)}/Columns`);
         if (!res.ok) throw new Error('Failed to load columns');
         const columns = await res.json();
+        _currentColumns = columns;
         if (columns.length === 0) {
             palette.innerHTML = '<div class="tb-palette-msg">No columns found</div>';
             return;
@@ -163,6 +321,7 @@ async function loadViewColumns(viewName) {
                         data-field="${escapeHtml(c.name)}">Insert</button>
             </div>`).join('');
     } catch {
+        _currentColumns = [];
         palette.innerHTML = '<div class="tb-palette-msg tb-palette-msg--error">Failed to load columns</div>';
     }
 }
@@ -173,7 +332,7 @@ document.getElementById('field-palette').addEventListener('click', (e) => {
     if (!btn || !_editor) return;
     e.stopPropagation();
     _editor.$.html.insert(
-        `<span class="tb-field" contenteditable="false">{{ model.${btn.dataset.field} }}</span>&nbsp;`
+        `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(btn.dataset.field)} }}</span>&nbsp;`
     );
     document.querySelector('.sun-editor-editable')?.focus();
     markDirty();
@@ -320,6 +479,96 @@ async function renderPreview() {
     }
 }
 
+// ── Validate ──────────────────────────────────────────────────────────────────
+
+async function runValidate() {
+    const panel = document.getElementById('validate-panel');
+    const msgEl = document.getElementById('validate-msg');
+    if (!panel || !msgEl) return;
+    panel.hidden = true;
+
+    const body = _editor.$.html.get();
+    try {
+        const res = await fetch(`/Templates/${templateId}/Validate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ body })
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            msgEl.textContent = data?.message ?? 'Validation request failed.';
+            panel.classList.remove('tb-validate-panel--ok');
+            panel.classList.add('tb-validate-panel--error');
+            panel.hidden = false;
+            return;
+        }
+        const data = await res.json();
+        if (data.valid) {
+            msgEl.textContent = 'No errors found.';
+            panel.classList.remove('tb-validate-panel--error');
+            panel.classList.add('tb-validate-panel--ok');
+        } else {
+            msgEl.textContent = data.message ?? 'Template has errors.';
+            panel.classList.remove('tb-validate-panel--ok');
+            panel.classList.add('tb-validate-panel--error');
+        }
+        panel.hidden = false;
+    } catch {
+        msgEl.textContent = 'Network error — please try again.';
+        panel.classList.remove('tb-validate-panel--ok');
+        panel.classList.add('tb-validate-panel--error');
+        panel.hidden = false;
+    }
+}
+
+// ── Loop wizard modal ─────────────────────────────────────────────────────────
+
+function openLoopWizard() {
+    const modal = document.getElementById('loop-modal');
+    // Populate datalist from _currentColumns
+    const dl = document.getElementById('loop-collection-list');
+    dl.innerHTML = _currentColumns.map(c => `<option value="${escapeHtml(c.name)}">`).join('');
+    // Reset fields
+    document.getElementById('loop-collection').value = '';
+    document.getElementById('loop-alias').value = 'item';
+    const emptyRadio = document.querySelector('input[name="loop-starter"][value="empty"]');
+    if (emptyRadio) emptyRadio.checked = true;
+    document.getElementById('loop-error').style.display = 'none';
+    modal.classList.add('open');
+    trapFocus(modal);
+    document.getElementById('loop-collection').focus();
+}
+
+// ── Conditional wizard modal ──────────────────────────────────────────────────
+
+function openConditionalWizard() {
+    const modal = document.getElementById('conditional-modal');
+    // Populate datalist from _currentColumns using model.X prefix
+    const dl = document.getElementById('cond-field-list');
+    dl.innerHTML = _currentColumns.map(c => `<option value="model.${escapeHtml(c.name)}">`).join('');
+    // Reset fields
+    document.getElementById('cond-field').value = '';
+    document.getElementById('cond-operator').value = '==';
+    document.getElementById('cond-value').value = '';
+    document.getElementById('cond-include-else').checked = false;
+    document.getElementById('cond-value-row').style.display = '';
+    document.getElementById('cond-error').style.display = 'none';
+    modal.classList.add('open');
+    trapFocus(modal);
+    document.getElementById('cond-field').focus();
+}
+
+// Wire operator change once (module-level IIFE) to avoid stacking listeners
+(function wireCondOperatorChange() {
+    document.getElementById('cond-operator')?.addEventListener('change', function() {
+        document.getElementById('cond-value-row').style.display =
+            this.value === '!= null' ? 'none' : '';
+    });
+})();
+
 // ── Modal focus trap ──────────────────────────────────────────────────────────
 
 function trapFocus(modal) {
@@ -361,10 +610,12 @@ function closeModal(id) {
 
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    ['version-modal', 'preview-modal'].forEach(id => {
+    ['version-modal', 'preview-modal', 'loop-modal', 'conditional-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el?.classList.contains('open')) closeModal(id);
     });
+    const fd = document.getElementById('tb-field-dropdown');
+    if (fd && !fd.hidden) fd.hidden = true;
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -417,6 +668,313 @@ function showToast(msg) {
     }, 300);
 })();
 
+// ── Floating table toolbar ────────────────────────────────────────────────────
+
+(function wireTableToolbar() {
+    const editable = document.querySelector('.sun-editor-editable');
+    if (!editable) return;
+
+    // Create the toolbar element
+    const toolbar = document.createElement('div');
+    toolbar.id = 'tb-table-toolbar';
+    toolbar.setAttribute('aria-label', 'Table tools');
+    // Start visibility:hidden (not hidden attr) so offsetHeight is measurable on first show
+    toolbar.style.visibility = 'hidden';
+    toolbar.innerHTML = `
+        <button type="button" data-tt="addRowBelow"  title="Add row below">+ Row</button>
+        <button type="button" data-tt="delRow"       title="Delete row">− Row</button>
+        <button type="button" data-tt="addColAfter"  title="Add column after">+ Col</button>
+        <button type="button" data-tt="delCol"       title="Delete column">− Col</button>
+        <span class="tt-sep"></span>
+        <button type="button" data-tt="toggleHeader" title="Toggle header row">Header</button>
+        <span class="tt-sep"></span>
+        <button type="button" data-tt="valignTop"    title="Align top">↑</button>
+        <button type="button" data-tt="valignMid"    title="Align middle">↕</button>
+        <button type="button" data-tt="valignBot"    title="Align bottom">↓</button>
+        <span class="tt-sep"></span>
+        <div class="tt-style-wrap">
+            <button type="button" data-tt="styleToggle" title="Table style">Style ▾</button>
+            <div class="tt-style-menu" hidden>
+                <button type="button" data-ts="tb-table--striped">Striped</button>
+                <button type="button" data-ts="tb-table--compact">Compact</button>
+                <button type="button" data-ts="tb-table--bordered">Bordered</button>
+            </div>
+        </div>`;
+    document.body.appendChild(toolbar);
+
+    let _activeCell = null;
+    let _activeTable = null;
+    let _positioned = false;
+
+    function getCell(node) {
+        return node?.closest('td, th');
+    }
+
+    function showToolbar(cell) {
+        _activeCell = cell;
+        _activeTable = cell.closest('table');
+
+        if (!_positioned) {
+            // First show: element is visibility:hidden but has layout — measure it
+            toolbar.style.visibility = 'hidden';
+            toolbar.hidden = false;
+            _positioned = true;
+        }
+
+        const rect = _activeTable.getBoundingClientRect();
+        const toolbarH = toolbar.offsetHeight || 32;
+        toolbar.style.top  = (rect.top + window.scrollY - toolbarH - 6) + 'px';
+        toolbar.style.left = (rect.left + window.scrollX) + 'px';
+        toolbar.style.visibility = 'visible';
+        toolbar.hidden = false;
+    }
+
+    function hideToolbar() {
+        toolbar.hidden = true;
+        toolbar.style.visibility = 'hidden';
+        _activeCell = null;
+        _activeTable = null;
+        toolbar.querySelector('.tt-style-menu').hidden = true;
+    }
+
+    // Show on click inside a table cell
+    editable.addEventListener('mousedown', (e) => {
+        const cell = getCell(e.target);
+        if (cell) { showToolbar(cell); }
+        else if (!toolbar.contains(e.target)) { hideToolbar(); }
+    });
+
+    // Table operations
+    toolbar.addEventListener('click', (e) => {
+        const action = e.target.closest('[data-tt]')?.dataset.tt;
+        const styleClass = e.target.closest('[data-ts]')?.dataset.ts;
+
+        if (!action && !styleClass) return;
+        if (!_activeCell || !_activeTable) return;
+
+        if (action === 'styleToggle') {
+            toolbar.querySelector('.tt-style-menu').hidden =
+                !toolbar.querySelector('.tt-style-menu').hidden;
+            return;
+        }
+
+        if (styleClass) {
+            const classes = ['tb-table--striped', 'tb-table--compact', 'tb-table--bordered'];
+            classes.forEach(c => _activeTable.classList.remove(c));
+            _activeTable.classList.add(styleClass);
+            toolbar.querySelector('.tt-style-menu').hidden = true;
+            markDirty();
+            return;
+        }
+
+        const row = _activeCell.closest('tr');
+        const rowIndex = row.rowIndex;  // 0-based in the table
+        const cellIndex = _activeCell.cellIndex;
+
+        if (action === 'addRowBelow') {
+            const newRow = _activeTable.insertRow(rowIndex + 1);
+            const colCount = row.cells.length;
+            for (let i = 0; i < colCount; i++) {
+                const td = newRow.insertCell(i);
+                td.innerHTML = '&nbsp;';
+            }
+        } else if (action === 'delRow') {
+            if (_activeTable.rows.length > 1) _activeTable.deleteRow(rowIndex);
+        } else if (action === 'addColAfter') {
+            Array.from(_activeTable.rows).forEach(r => {
+                const td = r.insertCell(cellIndex + 1);
+                td.innerHTML = '&nbsp;';
+            });
+        } else if (action === 'delCol') {
+            if (_activeTable.rows[0].cells.length > 1) {
+                Array.from(_activeTable.rows).forEach(r => r.deleteCell(cellIndex));
+            }
+        } else if (action === 'toggleHeader') {
+            const firstRow = _activeTable.rows[0];
+            const isHeader = firstRow.cells[0].tagName === 'TH';
+            Array.from(firstRow.cells).forEach(cell => {
+                const newCell = document.createElement(isHeader ? 'td' : 'th');
+                newCell.innerHTML = cell.innerHTML;
+                Array.from(cell.attributes).forEach(a => newCell.setAttribute(a.name, a.value));
+                cell.replaceWith(newCell);
+            });
+            // Wrap/unwrap in thead
+            if (!isHeader) {
+                const thead = document.createElement('thead');
+                thead.appendChild(firstRow);
+                _activeTable.insertBefore(thead, _activeTable.firstChild);
+            } else {
+                const thead = _activeTable.querySelector('thead');
+                if (thead) {
+                    _activeTable.insertBefore(firstRow, _activeTable.firstChild);
+                    thead.remove();
+                }
+            }
+        } else if (action === 'valignTop') {
+            _activeCell.style.verticalAlign = 'top';
+        } else if (action === 'valignMid') {
+            _activeCell.style.verticalAlign = 'middle';
+        } else if (action === 'valignBot') {
+            _activeCell.style.verticalAlign = 'bottom';
+        }
+
+        markDirty();
+    });
+
+    // Hide when clicking outside both editor and toolbar
+    document.addEventListener('mousedown', (e) => {
+        if (toolbar.hidden) return;
+        if (!editable.contains(e.target) && !toolbar.contains(e.target)) {
+            hideToolbar();
+        }
+    });
+})();
+
+// ── Insert Field dropdown ─────────────────────────────────────────────────────
+
+(function wireFieldDropdown() {
+    const dropdown = document.createElement('div');
+    dropdown.id = 'tb-field-dropdown';
+    dropdown.hidden = true;
+    dropdown.innerHTML = `
+        <input type="search" id="tb-field-search" placeholder="Search fields…" autocomplete="off">
+        <div id="tb-field-list"></div>`;
+    document.body.appendChild(dropdown);
+
+    function openDropdown() {
+        const btn = document.querySelector('[data-command="insertField"]') ??
+                    document.querySelector('[title="Insert Field"]');
+        if (btn) {
+            const r = btn.getBoundingClientRect();
+            dropdown.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+            dropdown.style.left = (r.left + window.scrollX) + 'px';
+            // Clamp to viewport right edge
+            const dropW = 220;
+            const maxLeft = window.innerWidth + window.scrollX - dropW - 4;
+            if (parseFloat(dropdown.style.left) > maxLeft) {
+                dropdown.style.left = maxLeft + 'px';
+            }
+        }
+        renderFieldList('');
+        dropdown.hidden = false;
+        document.getElementById('tb-field-search').value = '';
+        document.getElementById('tb-field-search').focus();
+    }
+
+    function closeDropdown() {
+        dropdown.hidden = true;
+    }
+
+    function renderFieldList(query) {
+        const list = document.getElementById('tb-field-list');
+        const cols = query
+            ? _currentColumns.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
+            : _currentColumns;
+        list.innerHTML = cols.map(c =>
+            `<div class="tb-field-item" data-field="${escapeHtml(c.name)}" tabindex="0">
+                ${escapeHtml(c.name)}<span class="tb-field-item-type">${escapeHtml(c.dataType)}</span>
+             </div>`
+        ).join('') || '<div style="padding:.25rem .5rem;font-size:.78rem;color:var(--text-muted)">No fields found</div>';
+    }
+
+    function insertFieldToken(fieldName) {
+        if (!_editor) return;
+        _editor.$.html.insert(
+            `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(fieldName)} }}</span>&nbsp;`
+        );
+        document.querySelector('.sun-editor-editable')?.focus();
+        markDirty();
+        closeDropdown();
+    }
+
+    document.getElementById('tb-field-search').addEventListener('input', (e) => {
+        renderFieldList(e.target.value);
+    });
+
+    document.body.addEventListener('click', (e) => {
+        const item = e.target.closest('.tb-field-item');
+        if (item && !dropdown.hidden) {
+            insertFieldToken(item.dataset.field);
+            return;
+        }
+        if (!dropdown.hidden && !dropdown.contains(e.target)) {
+            const btn = e.target.closest('[data-command="insertField"], [title="Insert Field"]');
+            if (!btn) closeDropdown();
+        }
+    });
+
+    dropdown.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { closeDropdown(); document.querySelector('.sun-editor-editable')?.focus(); return; }
+        const items = Array.from(dropdown.querySelectorAll('.tb-field-item'));
+        const idx = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            items[idx + 1 < items.length ? idx + 1 : 0]?.focus();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            items[idx - 1 >= 0 ? idx - 1 : items.length - 1]?.focus();
+        } else if (e.key === 'Enter') {
+            const focused = dropdown.querySelector('.tb-field-item:focus');
+            if (focused) insertFieldToken(focused.dataset.field);
+        } else if (e.key === 'Tab' && document.activeElement.id === 'tb-field-search') {
+            e.preventDefault();
+            items[0]?.focus();
+        }
+    });
+
+    window.toggleFieldDropdown = function() {
+        if (dropdown.hidden) openDropdown();
+        else closeDropdown();
+    };
+})();
+
+// ── Split view ────────────────────────────────────────────────────────────────
+
+function toggleSplitView() {
+    _splitActive = !_splitActive;
+    const grid = document.querySelector('.tb-editor-grid');
+    const controls = document.getElementById('split-controls');
+    const pane = document.getElementById('split-pane');
+    if (_splitActive) {
+        grid.classList.add('tb-split-active');
+        controls.hidden = false;
+        pane.hidden = false;
+        refreshSplitPreview();
+    } else {
+        grid.classList.remove('tb-split-active');
+        controls.hidden = true;
+        pane.hidden = true;
+    }
+}
+
+async function refreshSplitPreview() {
+    if (!_splitActive || !_editor || !templateId) return;
+    if (_splitFetchController) _splitFetchController.abort();
+    _splitFetchController = new AbortController();
+    const body = _editor.$.html.get();
+    try {
+        const res = await fetch(`/Templates/${templateId}/Preview`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ body, modelJson: '{}' }),
+            signal: _splitFetchController.signal
+        });
+        if (res.ok) {
+            const { html } = await res.json();
+            const frame = document.getElementById('split-frame');
+            if (frame) {
+                frame.style.maxWidth = _splitDeviceWidth;
+                frame.srcdoc = html;
+            }
+        }
+    } catch (e) {
+        if (e?.name !== 'AbortError') { /* silent fail — stale preview is acceptable */ }
+    }
+}
+
 // ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
 
 document.getElementById('view-selector')?.addEventListener('change', e => loadViewColumns(e.target.value));
@@ -424,6 +982,9 @@ document.getElementById('btn-history')?.addEventListener('click', openVersionHis
 document.getElementById('btn-preview')?.addEventListener('click', openPreview);
 document.getElementById('btn-save')?.addEventListener('click', saveVersion);
 document.getElementById('btn-render')?.addEventListener('click', renderPreview);
+document.getElementById('btn-validate-dismiss')?.addEventListener('click', () => {
+    document.getElementById('validate-panel').hidden = true;
+});
 
 document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -432,9 +993,102 @@ document.querySelectorAll('.modal-close').forEach(btn => {
     });
 });
 
+document.getElementById('btn-loop-insert')?.addEventListener('click', () => {
+    const collection = document.getElementById('loop-collection').value.trim();
+    const alias = document.getElementById('loop-alias').value.trim() || 'item';
+    const starter = document.querySelector('input[name="loop-starter"]:checked')?.value ?? 'empty';
+    const errorEl = document.getElementById('loop-error');
+    errorEl.style.display = 'none';
+
+    if (!collection) {
+        errorEl.textContent = 'Collection name is required.';
+        errorEl.style.display = 'block';
+        document.getElementById('loop-collection').focus();
+        return;
+    }
+
+    if (!_editor) { errorEl.textContent = 'Editor is still loading.'; errorEl.style.display = 'block'; return; }
+
+    const safeCol   = escapeHtml(collection);
+    const safeAlias = escapeHtml(alias);
+
+    let innerHtml = '';
+    if (starter === 'list') {
+        innerHtml = `<ul><li>{{ ${safeAlias}.FieldName }}</li></ul>`;
+    } else if (starter === 'table') {
+        innerHtml = `<table border="1" style="width:100%;border-collapse:collapse;"><thead><tr><th>Column1</th></tr></thead><tbody><tr><td>{{ ${safeAlias}.FieldName }}</td></tr></tbody></table>`;
+    }
+
+    _editor.$.html.insert(
+        `<div class="tb-loop"><div class="tb-loop-label" contenteditable="false">LOOP — ${safeCol}</div>` +
+        `{{ for ${safeAlias} in model.${safeCol} }}${innerHtml}{{ end }}</div>`
+    );
+    markDirty();
+    closeModal('loop-modal');
+    document.querySelector('.sun-editor-editable')?.focus();
+});
+
+document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
+    const field    = document.getElementById('cond-field').value.trim();
+    const operator = document.getElementById('cond-operator').value;
+    const value    = document.getElementById('cond-value').value.trim();
+    const includeElse = document.getElementById('cond-include-else').checked;
+    const errorEl  = document.getElementById('cond-error');
+    errorEl.style.display = 'none';
+
+    if (!field) {
+        errorEl.textContent = 'Field is required.';
+        errorEl.style.display = 'block';
+        document.getElementById('cond-field').focus();
+        return;
+    }
+
+    if (!_editor) {
+        errorEl.textContent = 'Editor is still loading.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const safeField = escapeHtml(field);
+    const safeValue = escapeHtml(value);
+
+    let condition;
+    if (operator === '!= null') {
+        condition = `${safeField} != null`;
+    } else if (operator === 'contains') {
+        condition = `${safeField} | string.contains "${safeValue}"`;
+    } else {
+        condition = `${safeField} ${operator} "${safeValue}"`;
+    }
+
+    let scaffold =
+        `{{ if ${condition} }}<p><!-- content here --></p>`;
+    if (includeElse) {
+        scaffold += `{{ else }}<p><!-- else content --></p>`;
+    }
+    scaffold += `{{ end }}`;
+
+    _editor.$.html.insert(scaffold);
+    markDirty();
+    closeModal('conditional-modal');
+    document.querySelector('.sun-editor-editable')?.focus();
+});
+
 ['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
+});
+
+document.getElementById('split-controls')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tb-device-btn');
+    if (!btn) return;
+    _splitDeviceWidth = btn.dataset.width;
+    document.querySelectorAll('.tb-device-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tb-device-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-pressed', 'true');
+    const frame = document.getElementById('split-frame');
+    if (frame) frame.style.maxWidth = _splitDeviceWidth;
 });
