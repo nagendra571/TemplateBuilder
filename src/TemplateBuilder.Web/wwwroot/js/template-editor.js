@@ -12,14 +12,6 @@ function markClean() { _isDirty = false; }
 
 let _currentColumns = [];
 
-let _splitActive = false;
-let _splitDebounce = null;
-let _splitFetchController = null;
-
-function debouncedSplitRefresh() {
-    clearTimeout(_splitDebounce);
-    _splitDebounce = setTimeout(refreshSplitPreview, 500);
-}
 
 window.addEventListener('beforeunload', (e) => {
     if (_isDirty) {
@@ -55,7 +47,7 @@ const pageBreakPlugin = {
     add: function(core) {},
     action: function() {
         if (!_editor) return;
-        _editor.$.html.insert('<div class="tb-page-break" contenteditable="false">— Page Break —</div>');
+        _editor.insertHTML('<div class="tb-page-break" contenteditable="false">— Page Break —</div>');
         markDirty();
     }
 };
@@ -69,7 +61,7 @@ function makeHrPlugin(name, title, iconStyle, suffix) {
         add: function(core) {},
         action: function() {
             if (!_editor) return;
-            _editor.$.html.insert(`<hr class="tb-hr tb-hr--${suffix}">`);
+            _editor.insertHTML(`<hr class="tb-hr tb-hr--${suffix}">`);
             markDirty();
         }
     };
@@ -119,14 +111,6 @@ const validatePlugin = {
     action: function() { if (!_editor) return; runValidate(); }
 };
 
-const splitViewPlugin = {
-    name: 'splitView',
-    display: 'command',
-    title: 'Toggle Split View',
-    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#x229F;</span>',
-    add: function(core) {},
-    action: function() { if (!_editor) return; toggleSplitView(); }
-};
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: [
@@ -137,7 +121,6 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         insertLoopPlugin,
         insertConditionalPlugin,
         validatePlugin,
-        splitViewPlugin,
     ],
     height: '100%',
     theme: 'dark',
@@ -155,7 +138,6 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['insertLoop'],
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
-        ['splitView'],
         ['validate'],
         ['codeView'],
     ],
@@ -171,7 +153,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         th:    'style|class|contenteditable|colspan|rowspan',
         all:   'data-*'
     },
-    onChange: function() { markDirty(); debouncedSplitRefresh(); },
+    onChange: markDirty,
     linkTargetNewWindow: true,
     imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
         const alt = (info?.altText ?? info?.alt ?? '').trim();
@@ -226,13 +208,13 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         }
 
         if (fieldName) {
-            _editor.$.html.insert(
+            _editor.insertHTML(
                 `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`
             );
         } else if (blockType === 'loop') {
             const view = document.getElementById('view-selector').value || 'Items';
             const safeView = escapeHtml(view);
-            _editor.$.html.insert(`
+            _editor.insertHTML(`
                 <div class="tb-loop">
                     <div class="tb-loop-label">LOOP — ${safeView}</div>
                     {{ for item in model.${safeView} }}<p><!-- drag fields here --></p>{{ end }}
@@ -240,7 +222,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         } else if (blockType === 'grid') {
             const view = document.getElementById('view-selector').value || 'Items';
             const safeView = escapeHtml(view);
-            _editor.$.html.insert(`
+            _editor.insertHTML(`
                 <table border="1" style="width:100%;border-collapse:collapse;">
                     <thead><tr><th>Column1</th><th>Column2</th></tr></thead>
                     <tbody>
@@ -314,7 +296,7 @@ document.getElementById('field-palette').addEventListener('click', (e) => {
     const btn = e.target.closest('.palette-insert-btn');
     if (!btn || !_editor) return;
     e.stopPropagation();
-    _editor.$.html.insert(
+    _editor.insertHTML(
         `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(btn.dataset.field)} }}</span>&nbsp;`
     );
     document.querySelector('.sun-editor-editable')?.focus();
@@ -334,7 +316,7 @@ async function saveVersion() {
         btn.disabled = false;
         return;
     }
-    const body = _editor.$.html.get();
+    const body = _editor.getContents();
     try {
         const res = await fetch(`/Templates/${templateId}/SaveVersion`, {
             method: 'POST',
@@ -434,7 +416,7 @@ async function renderPreview() {
         btn.disabled = false;
         return;
     }
-    const body = _editor.$.html.get();
+    const body = _editor.getContents();
     const modelJson = document.getElementById('preview-json').value;
     try {
         const res = await fetch(`/Templates/${templateId}/Preview`, {
@@ -470,7 +452,7 @@ async function runValidate() {
     if (!panel || !msgEl) return;
     panel.hidden = true;
 
-    const body = _editor.$.html.get();
+    const body = _editor.getContents();
     try {
         const res = await fetch(`/Templates/${templateId}/Validate`, {
             method: 'POST',
@@ -862,7 +844,7 @@ function showToast(msg) {
 
     function insertFieldToken(fieldName) {
         if (!_editor) return;
-        _editor.$.html.insert(
+        _editor.insertHTML(
             `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(fieldName)} }}</span>&nbsp;`
         );
         document.querySelector('.sun-editor-editable')?.focus();
@@ -911,51 +893,6 @@ function showToast(msg) {
     };
 })();
 
-// ── Split view ────────────────────────────────────────────────────────────────
-
-function toggleSplitView() {
-    _splitActive = !_splitActive;
-    const grid = document.querySelector('.tb-editor-grid');
-    const controls = document.getElementById('split-controls');
-    const pane = document.getElementById('split-pane');
-    if (_splitActive) {
-        grid.classList.add('tb-split-active');
-        controls.hidden = false;
-        pane.hidden = false;
-        refreshSplitPreview();
-    } else {
-        grid.classList.remove('tb-split-active');
-        controls.hidden = true;
-        pane.hidden = true;
-    }
-}
-
-async function refreshSplitPreview() {
-    if (!_splitActive || !_editor || !templateId) return;
-    if (_splitFetchController) _splitFetchController.abort();
-    _splitFetchController = new AbortController();
-    const body = _editor.$.html.get();
-    try {
-        const res = await fetch(`/Templates/${templateId}/Preview`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': _csrf
-            },
-            body: JSON.stringify({ body, modelJson: '{}' }),
-            signal: _splitFetchController.signal
-        });
-        if (res.ok) {
-            const { html } = await res.json();
-            const frame = document.getElementById('split-frame');
-            if (frame) {
-                frame.srcdoc = html;
-            }
-        }
-    } catch (e) {
-        if (e?.name !== 'AbortError') { /* silent fail — stale preview is acceptable */ }
-    }
-}
 
 // ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
 
@@ -1001,7 +938,7 @@ document.getElementById('btn-loop-insert')?.addEventListener('click', () => {
         innerHtml = `<table border="1" style="width:100%;border-collapse:collapse;"><thead><tr><th>Column1</th></tr></thead><tbody><tr><td>{{ ${safeAlias}.FieldName }}</td></tr></tbody></table>`;
     }
 
-    _editor.$.html.insert(
+    _editor.insertHTML(
         `<div class="tb-loop"><div class="tb-loop-label" contenteditable="false">LOOP — ${safeCol}</div>` +
         `{{ for ${safeAlias} in model.${safeCol} }}${innerHtml}{{ end }}</div>`
     );
@@ -1050,7 +987,7 @@ document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
     }
     scaffold += `{{ end }}`;
 
-    _editor.$.html.insert(scaffold);
+    _editor.insertHTML(scaffold);
     markDirty();
     closeModal('conditional-modal');
     document.querySelector('.sun-editor-editable')?.focus();
