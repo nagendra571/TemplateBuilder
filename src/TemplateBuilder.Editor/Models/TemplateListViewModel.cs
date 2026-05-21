@@ -1,6 +1,6 @@
 using TemplateBuilder.Domain.Entities;
 
-namespace TemplateBuilder.Web.ViewModels;
+namespace TemplateBuilder.Editor.Models;
 
 public class TemplateListViewModel
 {

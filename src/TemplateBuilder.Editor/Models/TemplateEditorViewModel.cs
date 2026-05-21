@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace TemplateBuilder.Web.ViewModels;
+namespace TemplateBuilder.Editor.Models;
 
 public class TemplateEditorViewModel
 {

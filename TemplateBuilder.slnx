@@ -3,6 +3,7 @@
     <Project Path="src/TemplateBuilder.Application/TemplateBuilder.Application.csproj" />
     <Project Path="src/TemplateBuilder.Core/TemplateBuilder.Core.csproj" />
     <Project Path="src/TemplateBuilder.Domain/TemplateBuilder.Domain.csproj" />
+    <Project Path="src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj" />
     <Project Path="src/TemplateBuilder.Infrastructure/TemplateBuilder.Infrastructure.csproj" />
     <Project Path="src/TemplateBuilder.Web/TemplateBuilder.Web.csproj" />
   </Folder>
@@ -10,6 +11,6 @@
     <Project Path="tests/TemplateBuilder.Application.Tests/TemplateBuilder.Application.Tests.csproj" />
     <Project Path="tests/TemplateBuilder.Domain.Tests/TemplateBuilder.Domain.Tests.csproj" />
     <Project Path="tests/TemplateBuilder.Infrastructure.Tests/TemplateBuilder.Infrastructure.Tests.csproj" />
-    <Project Path="tests/TemplateBuilder.Web.Tests/TemplateBuilder.Web.Tests.csproj" />
+    <Project Path="tests/TemplateBuilder.Editor.Tests/TemplateBuilder.Editor.Tests.csproj" />
   </Folder>
 </Solution>

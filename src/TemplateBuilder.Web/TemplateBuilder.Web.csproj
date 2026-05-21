@@ -1,8 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <ProjectReference Include="..\TemplateBuilder.Application\TemplateBuilder.Application.csproj" />
-    <ProjectReference Include="..\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj" />
+    <ProjectReference Include="..\TemplateBuilder.Editor\TemplateBuilder.Editor.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

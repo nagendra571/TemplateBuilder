@@ -1,4 +1,4 @@
-@model TemplateBuilder.Web.ViewModels.TemplateEditorViewModel
+@model TemplateBuilder.Editor.Models.TemplateEditorViewModel
 @{
     ViewData["Title"] = Model.Id.HasValue ? $"Edit — {Model.Name}" : "New Template";
     var isNew = !Model.Id.HasValue;
@@ -204,7 +204,7 @@
 
 @section Styles {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@2.47.10/dist/css/suneditor.min.css">
-<link rel="stylesheet" href="~/css/template-editor.css" asp-append-version="true">
+<link rel="stylesheet" href="/_content/TemplateBuilder.Editor/css/template-editor.css">
 }
 
 @section Scripts {
@@ -212,5 +212,5 @@
 <script>
     const templateId = @(Model.Id?.ToString() ?? "null");
 </script>
-<script src="~/js/template-editor.js" asp-append-version="true"></script>
+<script src="/_content/TemplateBuilder.Editor/js/template-editor.js"></script>
 }

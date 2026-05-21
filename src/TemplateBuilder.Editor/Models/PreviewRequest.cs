@@ -1,4 +1,4 @@
-namespace TemplateBuilder.Web.Models;
+namespace TemplateBuilder.Editor.Models;
 
 public record PreviewRequest(string Body, string? ModelJson);
 

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>TemplateBuilder.Editor</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>TemplateBuilder</Authors>
+    <Description>Full template management UI (create, edit, version history) as an embeddable Razor Class Library. Call AddTemplateBuilderEditor() then navigate to /Templates.</Description>
+    <Tags>template;scriban;html;editor;razor</Tags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TemplateBuilder.Application\TemplateBuilder.Application.csproj" />
+    <ProjectReference Include="..\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

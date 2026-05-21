@@ -1,4 +1,4 @@
-@model TemplateBuilder.Web.ViewModels.TemplateListViewModel
+@model TemplateBuilder.Editor.Models.TemplateListViewModel
 @{
     ViewData["Title"] = "Templates";
 }
@@ -24,7 +24,7 @@
                 <label for="type-filter" class="visually-hidden">Filter by type</label>
                 <select id="type-filter" name="type" style="width:160px;">
                     <option value="">All Types</option>
-                    @foreach (var t in TemplateBuilder.Web.ViewModels.TemplateListViewModel.KnownTypes)
+                    @foreach (var t in TemplateBuilder.Editor.Models.TemplateListViewModel.KnownTypes)
                     {
                         <option value="@t" selected="@(Model.TypeFilter == t)">@t</option>
                     }

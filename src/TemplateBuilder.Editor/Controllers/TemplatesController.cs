@@ -5,10 +5,9 @@ using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Exceptions;
 using TemplateBuilder.Domain.Interfaces;
-using TemplateBuilder.Web.Models;
-using TemplateBuilder.Web.ViewModels;
+using TemplateBuilder.Editor.Models;
 
-namespace TemplateBuilder.Web.Controllers;
+namespace TemplateBuilder.Editor.Controllers;
 
 public record ErrorResult(string Code, string Message);
 

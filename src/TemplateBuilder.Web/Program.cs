@@ -1,10 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using TemplateBuilder.Application.Options;
-using TemplateBuilder.Application.Services;
-using TemplateBuilder.Domain.Interfaces;
-using TemplateBuilder.Infrastructure.Data;
-using TemplateBuilder.Infrastructure.Repositories;
+using TemplateBuilder.Editor;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,39 +9,16 @@ var connectionString = builder.Configuration.GetConnectionString("TemplateDb")
         "Connection string 'TemplateDb' not found. " +
         "Verify appsettings.json or the CONNECTIONSTRINGS__TEMPLATEDB environment variable.");
 
-builder.Services.AddDbContext<TemplateBuilderDbContext>(options =>
-    options.UseSqlServer(connectionString, sqlOptions =>
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null)));
-
-builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
-builder.Services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
-
-// Bind TemplateBuilderOptions from config (uses defaults if section absent)
-builder.Services.Configure<TemplateBuilderOptions>(
-    builder.Configuration.GetSection("TemplateBuilder"));
-
-// Memory cache needed by TemplateEngine
-builder.Services.AddMemoryCache();
-
-// Template rendering engine
-builder.Services.AddScoped<ITemplateEngine, TemplateEngine>();
-
-// SQL view discovery — design-time only, not used at render time
-builder.Services.AddScoped<ISqlViewDiscoveryService>(sp =>
-    new SqlViewDiscoveryService(
-        connectionString,
-        sp.GetRequiredService<IOptions<TemplateBuilderOptions>>()));
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = connectionString;
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -62,7 +33,6 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Templates}/{action=Index}/{id?}");
 
-// Enables attribute-routed endpoints (e.g., /Templates/{id}/SaveVersion)
 app.MapControllers();
 
 app.Run();

@@ -4,10 +4,10 @@ using Moq;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Interfaces;
-using TemplateBuilder.Web.Controllers;
-using TemplateBuilder.Web.Models;
+using TemplateBuilder.Editor.Controllers;
+using TemplateBuilder.Editor.Models;
 
-namespace TemplateBuilder.Web.Tests.Controllers;
+namespace TemplateBuilder.Editor.Tests.Controllers;
 
 public class TemplatesControllerTests
 {
