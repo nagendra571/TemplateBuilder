@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\TemplateBuilder.Application\TemplateBuilder.Application.csproj" />
     <ProjectReference Include="..\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj" />
   </ItemGroup>
@@ -15,6 +19,7 @@
     <Description>Render TemplateBuilder templates to HTML strings. Call services.AddTemplateBuilder(...) then inject ITemplateEngine and call RenderAsync(templateId, model).</Description>
     <PackageTags>template;scriban;html;rendering</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
 </Project>
