@@ -75,26 +75,35 @@ dotnet nuget push ./nupkgs/TemplateBuilder.Editor.1.0.0.nupkg \
 
 ---
 
-## Consuming TemplateBuilder.Editor
+## Consuming TemplateBuilder.Editor — End to End
 
-### 1. Install the package
+### 1. Create a new ASP.NET Core MVC app
+
+```bash
+dotnet new mvc -n MyApp
+cd MyApp
+```
+
+### 2. Install the package
 
 ```bash
 dotnet add package TemplateBuilder.Editor
 ```
 
-### 2. Add a connection string
+### 3. Add a connection string
 
 ```json
 // appsettings.json
 {
   "ConnectionStrings": {
-    "TemplateDb": "Server=.;Database=TemplateBuilder;Trusted_Connection=True;"
+    "TemplateDb": "Server=.;Database=TemplateBuilder;Trusted_Connection=True;TrustServerCertificate=True;"
   }
 }
 ```
 
-### 3. Register services in Program.cs
+> Point this at any SQL Server instance you have. The database and schema are created automatically on first run.
+
+### 4. Register in Program.cs
 
 ```csharp
 using TemplateBuilder.Editor;
@@ -105,17 +114,24 @@ builder.Services.AddControllersWithViews();
 
 builder.Services.AddTemplateBuilderEditor(options =>
 {
-    options.ConnectionString = builder.Configuration.GetConnectionString("TemplateDb")!;
+    options.ConnectionString = builder.Configuration
+        .GetConnectionString("TemplateDb")!;
 });
 
 var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
-app.MapStaticAssets();  // required — serves /_content/TemplateBuilder.Editor/ assets
+app.MapStaticAssets(); // serves /_content/TemplateBuilder.Editor/ assets
 
 app.MapControllerRoute(
     name: "default",
@@ -124,30 +140,85 @@ app.MapControllerRoute(
 app.Run();
 ```
 
-### 4. Apply your layout to the editor views
+### 5. Add a Templates link to your layout
 
-The editor ships no `_ViewStart.cshtml`. Your app's existing `_ViewStart.cshtml` applies your layout automatically:
+Open `Views/Shared/_Layout.cshtml` and add a nav link:
+
+```html
+<li class="nav-item">
+    <a class="nav-link text-dark" asp-controller="Templates" asp-action="Index">
+        Templates
+    </a>
+</li>
+```
+
+The editor ships no `_ViewStart.cshtml` — your app's existing one applies your layout to the editor views automatically.
+
+### 6. Run the app
+
+```bash
+dotnet run
+```
+
+On first startup EF Core migrations run automatically, creating the `TemplateBuilder` database and all required tables. Navigate to `/Templates` — the full editor appears inside your app's layout.
+
+### 7. Create your first template
+
+1. Click **+ New Template**
+2. Enter a **Template Name** (e.g. `Welcome Email`) and select a **Type**
+3. Write the body using Scriban syntax:
+   ```html
+   <h1>Welcome, {{ model.FirstName }}!</h1>
+   <p>Thanks for signing up on {{ model.SignupDate }}.</p>
+   ```
+4. Click **Create Template**
+
+Use the **Preview** button to enter sample JSON and see the rendered output live.
+
+### 8. Render the template in your application code
+
+Inject `ITemplateEngine` into any service or controller:
 
 ```csharp
-// Views/_ViewStart.cshtml  (already present in most MVC apps)
-@{
-    Layout = "_Layout";
+using TemplateBuilder.Domain.Interfaces;
+
+public class WelcomeEmailService
+{
+    private readonly ITemplateEngine _engine;
+
+    public WelcomeEmailService(ITemplateEngine engine)
+    {
+        _engine = engine;
+    }
+
+    public async Task<string> BuildEmailAsync(string firstName, DateTime signupDate)
+    {
+        var model = new { FirstName = firstName, SignupDate = signupDate };
+
+        // Name matches exactly what you entered in the editor UI
+        return await _engine.RenderByNameAsync("Welcome Email", model);
+    }
 }
 ```
 
-Add a "Templates" link to your nav in `_Layout.cshtml`:
+Register it in `Program.cs`:
 
-```html
-<a asp-controller="Templates" asp-action="Index">Templates</a>
+```csharp
+builder.Services.AddScoped<WelcomeEmailService>();
 ```
 
-### 5. Database setup
+### What you get
 
-`AddTemplateBuilderEditor()` registers a hosted service that runs EF Core migrations on startup. The schema is created or updated automatically — no manual steps required.
+| Capability | How |
+|---|---|
+| Create / edit templates | Navigate to `/Templates` in your browser |
+| Version history & restore | Click **History** on the Edit page |
+| Live preview with sample data | Click **Preview** → enter JSON → **Render** |
+| Render to HTML in code | Inject `ITemplateEngine`, call `RenderByNameAsync` |
+| Database schema | Created and migrated automatically on startup |
+| Static assets | Served from `/_content/TemplateBuilder.Editor/` automatically |
 
-### 6. Navigate to the editor
-
-Start your app and go to `/Templates`. The full editor is now embedded in your site.
+> **Note:** `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
 
 ---
 
