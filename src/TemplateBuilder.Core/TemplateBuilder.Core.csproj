@@ -20,6 +20,11 @@
     <PackageTags>template;scriban;html;rendering</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/nagendra571/TemplateBuilder</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/nagendra571/TemplateBuilder</PackageProjectUrl>
+    <Copyright>Copyright © 2026 Nagendra Chinnam</Copyright>
   </PropertyGroup>
 
 </Project>
