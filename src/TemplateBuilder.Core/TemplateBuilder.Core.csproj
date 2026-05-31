@@ -1,12 +1,16 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TemplateBuilder.Application\TemplateBuilder.Application.csproj" />
-    <ProjectReference Include="..\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj" />
+    <ProjectReference Include="..\TemplateBuilder.Application\TemplateBuilder.Application.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+    <ProjectReference Include="..\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
   </ItemGroup>
 
   <PropertyGroup>
@@ -14,7 +18,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>TemplateBuilder.Core</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Authors>TemplateBuilder</Authors>
     <Description>Render TemplateBuilder templates to HTML strings. Call services.AddTemplateBuilder(...) then inject ITemplateEngine and call RenderAsync(templateId, model).</Description>
     <PackageTags>template;scriban;html;rendering</PackageTags>
@@ -26,5 +30,19 @@
     <PackageProjectUrl>https://github.com/nagendra571/TemplateBuilder</PackageProjectUrl>
     <Copyright>Copyright © 2026 Nagendra Chinnam</Copyright>
   </PropertyGroup>
+
+  <!-- Bundle internal assemblies directly into the lib folder so consumers
+       don't need TemplateBuilder.Application / .Infrastructure / .Domain
+       as separate NuGet packages. -->
+  <Target Name="BundleInternalAssemblies" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <None Include="$(OutputPath)TemplateBuilder.Domain.dll"
+            Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+      <None Include="$(OutputPath)TemplateBuilder.Application.dll"
+            Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+      <None Include="$(OutputPath)TemplateBuilder.Infrastructure.dll"
+            Pack="true" PackagePath="lib\$(TargetFramework)\" Visible="false" />
+    </ItemGroup>
+  </Target>
 
 </Project>
