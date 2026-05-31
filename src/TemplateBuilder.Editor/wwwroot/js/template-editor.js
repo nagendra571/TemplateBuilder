@@ -419,7 +419,7 @@ async function renderPreview() {
     const body = _editor.getContents();
     const modelJson = document.getElementById('preview-json').value;
     try {
-        const res = await fetch(`/Templates/${templateId}/Preview`, {
+        const res = await fetch(`/Templates/${templateId ?? 0}/Preview`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -992,6 +992,9 @@ document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
     closeModal('conditional-modal');
     document.querySelector('.sun-editor-editable')?.focus();
 });
+
+// Suppress the beforeunload guard when the Create form is submitted normally.
+document.getElementById('editor-form')?.addEventListener('submit', () => markClean());
 
 ['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
     const el = document.getElementById(id);
