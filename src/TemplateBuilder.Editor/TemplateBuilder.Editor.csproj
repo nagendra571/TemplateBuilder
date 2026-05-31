@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>TemplateBuilder.Editor</PackageId>
-    <Version>1.1.7</Version>
+    <Version>1.1.8</Version>
     <Authors>TemplateBuilder</Authors>
     <Description>Full template management UI (create, edit, version history) as an embeddable Razor Class Library. Call AddTemplateBuilderEditor() then navigate to /Templates.</Description>
     <Tags>template;scriban;html;editor;razor</Tags>

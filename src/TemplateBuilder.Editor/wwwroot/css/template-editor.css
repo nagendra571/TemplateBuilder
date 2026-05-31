@@ -47,6 +47,42 @@
 .tb-theme-toggle:hover { color: var(--text); border-color: var(--accent); }
 
 /* ==========================================
+   Scoped base styles — only apply inside the
+   editor host so they don't touch the consumer's page.
+   ========================================== */
+
+#tb-editor-host { color: var(--text); }
+
+#tb-editor-host label {
+    display: block;
+    margin-bottom: .3rem;
+    font-size: .8rem;
+    color: var(--text-muted);
+}
+
+#tb-editor-host input,
+#tb-editor-host select,
+#tb-editor-host textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: .45rem .7rem;
+    font-size: .875rem;
+    width: 100%;
+    transition: border-color .15s;
+    box-sizing: border-box;
+}
+
+#tb-editor-host input:focus,
+#tb-editor-host select:focus,
+#tb-editor-host textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+
+/* ==========================================
    Template Editor — 3-panel layout
    ========================================== */
 
