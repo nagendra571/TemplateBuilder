@@ -15,7 +15,7 @@ public class TemplateEditorViewModel
     [StringLength(500)]
     public string? Description { get; set; }
 
-    public string Body { get; set; } = string.Empty;
+    public string? Body { get; set; }
     public int? CurrentVersionId { get; set; }
     public int CurrentVersionNumber { get; set; }
     public List<string> AvailableViews { get; set; } = new();
