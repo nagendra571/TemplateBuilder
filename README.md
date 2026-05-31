@@ -2,95 +2,25 @@
 
 A Scriban-powered HTML template management system for .NET. Ships two independent NuGet packages:
 
-| Package | Purpose |
-|---|---|
-| `TemplateBuilder.Core` | Render templates to HTML strings — lightweight, no UI |
-| `TemplateBuilder.Editor` | Full management UI (create, edit, version history, preview) embedded in your app via a Razor Class Library |
+| Package | Version | Purpose |
+|---|---|---|
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.1.7 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
+
+> `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
 
 ---
 
-## Packages
+## Consuming TemplateBuilder.Editor
 
-### TemplateBuilder.Editor
-
-Embed the full template editor into any .NET 10 web application. Install the package, register services, and navigate to `/Templates` — the editor appears wrapped in your own layout.
-
-### TemplateBuilder.Core
-
-Render a saved template to an HTML string from any .NET project (web, worker, console). No UI dependencies.
-
----
-
-## Packaging
-
-### Prerequisites
-
-- .NET 10 SDK
-- (For publishing) a NuGet API key from [nuget.org](https://www.nuget.org)
-
-### Pack locally
+### 1. Create an ASP.NET Core MVC app
 
 ```bash
-# Pack TemplateBuilder.Editor
-dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj \
-  --configuration Release \
-  --output ./nupkgs
-
-# Pack TemplateBuilder.Core
-dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj \
-  --configuration Release \
-  --output ./nupkgs
+dotnet new mvc -n MyApp && cd MyApp
+dotnet add package TemplateBuilder.Editor --version 1.1.7
 ```
 
-The `.nupkg` files appear in `./nupkgs/`.
-
-### Bump the version before publishing
-
-Edit the `<Version>` element in the `.csproj` before packing:
-
-```xml
-<!-- src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -->
-<Version>1.1.0</Version>
-```
-
-### Publish to NuGet.org
-
-```bash
-dotnet nuget push ./nupkgs/TemplateBuilder.Editor.1.0.0.nupkg \
-  --api-key <YOUR_NUGET_API_KEY> \
-  --source https://api.nuget.org/v3/index.json
-
-dotnet nuget push ./nupkgs/TemplateBuilder.Core.1.0.0.nupkg \
-  --api-key <YOUR_NUGET_API_KEY> \
-  --source https://api.nuget.org/v3/index.json
-```
-
-### Publish to a private feed (Azure Artifacts / GitHub Packages)
-
-```bash
-dotnet nuget push ./nupkgs/TemplateBuilder.Editor.1.0.0.nupkg \
-  --api-key <YOUR_API_KEY> \
-  --source https://pkgs.dev.azure.com/<org>/<project>/_packaging/<feed>/nuget/v3/index.json
-```
-
----
-
-## Consuming TemplateBuilder.Editor — End to End
-
-### 1. Create a new ASP.NET Core MVC app
-
-```bash
-dotnet new mvc -n MyApp
-cd MyApp
-```
-
-### 2. Install the package
-
-```bash
-dotnet add package TemplateBuilder.Editor
-```
-
-### 3. Add a connection string
+### 2. Add a connection string
 
 ```json
 // appsettings.json
@@ -101,21 +31,22 @@ dotnet add package TemplateBuilder.Editor
 }
 ```
 
-> Point this at any SQL Server instance you have. The database and schema are created automatically on first run.
-
-### 4. Register in Program.cs
+### 3. Register in Program.cs
 
 ```csharp
 using TemplateBuilder.Editor;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(o =>
+{
+    // Required: prevents empty template body from silently failing on Create
+    o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+});
 
 builder.Services.AddTemplateBuilderEditor(options =>
 {
-    options.ConnectionString = builder.Configuration
-        .GetConnectionString("TemplateDb")!;
+    options.ConnectionString = builder.Configuration.GetConnectionString("TemplateDb")!;
 });
 
 var app = builder.Build();
@@ -127,12 +58,11 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+app.UseStaticFiles();       // serves /_content/TemplateBuilder.Editor/ assets
 app.UseRouting();
 app.UseAuthorization();
 
-app.MapStaticAssets(); // serves /_content/TemplateBuilder.Editor/ assets
-
+app.MapControllers();       // registers attribute-routed endpoints (Edit, Preview, etc.)
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -140,146 +70,150 @@ app.MapControllerRoute(
 app.Run();
 ```
 
-### 5. Add a Templates link to your layout
+### 4. Wire up the layout
 
-Open `Views/Shared/_Layout.cshtml` and add a nav link:
+In `Views/Shared/_Layout.cshtml`, add the two section hooks:
 
 ```html
-<li class="nav-item">
-    <a class="nav-link text-dark" asp-controller="Templates" asp-action="Index">
-        Templates
-    </a>
-</li>
+<head>
+    ...
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    ...
+    @RenderBody()
+    ...
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
 ```
 
-The editor ships no `_ViewStart.cshtml` — your app's existing one applies your layout to the editor views automatically.
+Add a nav link to the editor:
 
-### 6. Run the app
-
-```bash
-dotnet run
+```html
+<a asp-controller="Templates" asp-action="Index">Templates</a>
 ```
 
-On first startup EF Core migrations run automatically, creating the `TemplateBuilder` database and all required tables. Navigate to `/Templates` — the full editor appears inside your app's layout.
+### 5. Verify the setup
 
-### 7. Create your first template
+Start the app and navigate to **`/Templates/_setup`**.
 
-1. Click **+ New Template**
-2. Enter a **Template Name** (e.g. `Welcome Email`) and select a **Type**
-3. Write the body using Scriban syntax:
-   ```html
-   <h1>Welcome, {{ model.FirstName }}!</h1>
-   <p>Thanks for signing up on {{ model.SignupDate }}.</p>
-   ```
-4. Click **Create Template**
+This diagnostic page checks every integration requirement and shows a clear fix for each failure — database connection, migrations, routing, static assets, and layout configuration. It returns 404 in Production.
 
-Use the **Preview** button to enter sample JSON and see the rendered output live.
+### 6. Create your first template
 
-### 8. Render the template in your application code
+Navigate to `/Templates` → **+ New Template** → enter a name and body:
 
-Inject `ITemplateEngine` into any service or controller:
+```html
+<h1>Hello, {{ model.FirstName }}!</h1>
+<p>Your order <strong>#{{ model.OrderId }}</strong> is confirmed.</p>
+```
+
+Click **Create Template**, then use the **Preview** button with sample JSON to see the live output.
+
+### 7. Render templates in code
+
+Inject `ITemplateEngine` anywhere:
 
 ```csharp
 using TemplateBuilder.Domain.Interfaces;
 
-public class WelcomeEmailService
+public class OrderEmailService(ITemplateEngine engine)
 {
-    private readonly ITemplateEngine _engine;
-
-    public WelcomeEmailService(ITemplateEngine engine)
-    {
-        _engine = engine;
-    }
-
-    public async Task<string> BuildEmailAsync(string firstName, DateTime signupDate)
-    {
-        var model = new { FirstName = firstName, SignupDate = signupDate };
-
-        // Name matches exactly what you entered in the editor UI
-        return await _engine.RenderByNameAsync("Welcome Email", model);
-    }
+    public Task<string> BuildAsync(int orderId, string firstName) =>
+        engine.RenderByNameAsync("Order Confirmation", new { OrderId = orderId, FirstName = firstName });
 }
 ```
 
-Register it in `Program.cs`:
+Register in `Program.cs`:
 
 ```csharp
-builder.Services.AddScoped<WelcomeEmailService>();
+builder.Services.AddScoped<OrderEmailService>();
 ```
-
-### What you get
-
-| Capability | How |
-|---|---|
-| Create / edit templates | Navigate to `/Templates` in your browser |
-| Version history & restore | Click **History** on the Edit page |
-| Live preview with sample data | Click **Preview** → enter JSON → **Render** |
-| Render to HTML in code | Inject `ITemplateEngine`, call `RenderByNameAsync` |
-| Database schema | Created and migrated automatically on startup |
-| Static assets | Served from `/_content/TemplateBuilder.Editor/` automatically |
-
-> **Note:** `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
 
 ---
 
 ## Consuming TemplateBuilder.Core
 
-### 1. Install the package
+Use this when you only need to render templates in code (no editor UI).
 
 ```bash
-dotnet add package TemplateBuilder.Core
+dotnet add package TemplateBuilder.Core --version 1.0.3
 ```
 
-### 2. Register services in Program.cs
-
 ```csharp
-using TemplateBuilder.Core;
+using TemplateBuilder.Core.Extensions;
 
-builder.Services.AddTemplateBuilderCore(options =>
+builder.Services.AddTemplateBuilder(options =>
 {
     options.ConnectionString = builder.Configuration.GetConnectionString("TemplateDb")!;
 });
 ```
 
-### 3. Render a template
-
 ```csharp
-public class InvoiceService
+public class InvoiceService(ITemplateEngine engine)
 {
-    private readonly ITemplateEngine _engine;
-    private readonly ITemplateRepository _repo;
-
-    public InvoiceService(ITemplateEngine engine, ITemplateRepository repo)
-    {
-        _engine = engine;
-        _repo = repo;
-    }
-
-    public async Task<string> RenderInvoiceAsync(InvoiceModel invoice)
-    {
-        var template = await _repo.GetByNameAsync("Invoice Email");
-        return await _engine.RenderAsync(template!, invoice);
-    }
+    public Task<string> RenderAsync(InvoiceModel invoice) =>
+        engine.RenderByNameAsync("Invoice", invoice);
 }
 ```
 
+Both packages share the same database schema — point them at the same connection string.
+
 ---
 
-## Updating to a new version
+## What You Get
 
-When a new version of `TemplateBuilder.Editor` is published:
+| Capability | Detail |
+|---|---|
+| **Create / edit** | Navigate to `/Templates` |
+| **Version history & restore** | Click **History** on the Edit page |
+| **Live preview** | Click **Preview** → enter JSON → **Render** |
+| **Dark / Light theme** | Toggle in the CANVAS panel heading, persisted in localStorage |
+| **Render in code** | Inject `ITemplateEngine`, call `RenderByNameAsync` |
+| **Auto-migrations** | Database schema created and updated on startup |
+| **Setup diagnostic** | `/Templates/_setup` — checks all integration requirements |
+| **Scriban syntax** | `{{ model.X }}`, loops, conditionals, filters |
 
-```bash
-dotnet add package TemplateBuilder.Editor --version <new-version>
+---
+
+## Integration Checklist
+
+| Requirement | Why |
+|---|---|
+| `app.MapControllers()` before `MapControllerRoute` | Registers attribute-routed endpoints (Edit, Preview, SaveVersion) |
+| `SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true` | Allows creating templates with an empty body |
+| `@await RenderSectionAsync("Styles", required: false)` in `<head>` | Loads SunEditor CSS and editor stylesheet |
+| `@await RenderSectionAsync("Scripts", required: false)` before `</body>` | Loads SunEditor JS and editor initialisation script |
+| `app.UseStaticFiles()` or `app.MapStaticAssets()` | Serves `/_content/TemplateBuilder.Editor/` static files |
+
+Run `/Templates/_setup` to validate all of these automatically.
+
+---
+
+## Template Syntax
+
+Templates use [Scriban](https://github.com/scriban/scriban). Model properties are accessed case-insensitively via `model.*`:
+
+```html
+<p>Hello <strong>{{ model.FirstName }}</strong>,</p>
+
+{{ for item in model.Items }}
+  <tr>
+    <td>{{ item.Name }}</td>
+    <td>{{ item.Price | math.format "C" }}</td>
+  </tr>
+{{ end }}
+
+{{ if model.IsPremium }}
+  <p>Premium member discount applied.</p>
+{{ end }}
 ```
-
-EF migrations are bundled in the package — schema changes are applied automatically on next startup.
 
 ---
 
 ## Development
 
-### Run the thin host (dev/demo app)
+### Run the thin host
 
 ```bash
 dotnet run --project src/TemplateBuilder.Web
@@ -287,10 +221,25 @@ dotnet run --project src/TemplateBuilder.Web
 
 Navigate to `https://localhost:7275/Templates`.
 
-### Run all tests
+### Run tests
 
 ```bash
 dotnet test
+```
+
+### Pack and publish
+
+```bash
+# Pack
+dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
+dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
+
+# Publish
+dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.1.7.nupkg \
+  --api-key <KEY> --source https://api.nuget.org/v3/index.json
+
+dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \
+  --api-key <KEY> --source https://api.nuget.org/v3/index.json
 ```
 
 ### Solution structure
@@ -299,7 +248,7 @@ dotnet test
 src/
 ├── TemplateBuilder.Domain/          # Entities, interfaces
 ├── TemplateBuilder.Infrastructure/  # EF Core DbContext, migrations, repositories
-├── TemplateBuilder.Application/     # Scriban engine, services
+├── TemplateBuilder.Application/     # Scriban engine, HTML sanitizer, services
 ├── TemplateBuilder.Core/            # NuGet: render-only
 ├── TemplateBuilder.Editor/          # NuGet: full management UI (RCL)
 └── TemplateBuilder.Web/             # Thin dev/demo host

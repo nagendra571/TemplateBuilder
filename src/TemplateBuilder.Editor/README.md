@@ -1,19 +1,25 @@
 # TemplateBuilder.Editor
 
-Embed a full Scriban-powered HTML template management UI into any ASP.NET Core 10 web application. Install the package, call one method, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
+**Current version: 1.1.7**
+
+Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
+
+---
 
 ## Requirements
 
 - .NET 10
-- ASP.NET Core MVC (`AddControllersWithViews()`)
+- ASP.NET Core MVC
 - SQL Server
+
+---
 
 ## Quick Start
 
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor
+dotnet add package TemplateBuilder.Editor --version 1.1.7
 ```
 
 ### 2. Add a connection string
@@ -22,7 +28,7 @@ dotnet add package TemplateBuilder.Editor
 // appsettings.json
 {
   "ConnectionStrings": {
-    "TemplateDb": "Server=.;Database=TemplateBuilder;Trusted_Connection=True;"
+    "TemplateDb": "Server=.;Database=TemplateBuilder;Trusted_Connection=True;TrustServerCertificate=True;"
   }
 }
 ```
@@ -32,26 +38,62 @@ dotnet add package TemplateBuilder.Editor
 ```csharp
 using TemplateBuilder.Editor;
 
-builder.Services.AddControllersWithViews();
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllersWithViews(o =>
+{
+    // Required: prevents empty template body from silently failing on Create
+    o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+});
 
 builder.Services.AddTemplateBuilderEditor(options =>
 {
     options.ConnectionString = builder.Configuration.GetConnectionString("TemplateDb")!;
 });
 
-// ...
+var app = builder.Build();
 
-app.UseStaticFiles();
-app.MapStaticAssets(); // serves /_content/TemplateBuilder.Editor/ assets
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+}
 
+app.UseHttpsRedirection();
+app.UseStaticFiles();       // required — serves /_content/TemplateBuilder.Editor/ assets
+app.UseRouting();
+app.UseAuthorization();
+
+app.MapControllers();       // required — registers attribute-routed endpoints (Edit, Preview, etc.)
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Run();
 ```
+
+> **Two things that are easy to miss:**
+> - `app.MapControllers()` must appear before `MapControllerRoute`. Without it, Edit, Preview, SaveVersion, and Versions routes return 404.
+> - `SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true` is needed to allow creating templates with an empty body.
 
 ### 4. Wire up the layout
 
-The editor views use your app's existing `_ViewStart.cshtml` — no extra configuration needed. Add a link to your nav:
+Add `@await RenderSectionAsync("Styles", required: false)` inside `<head>` and `@await RenderSectionAsync("Scripts", required: false)` before `</body>` in your `Views/Shared/_Layout.cshtml`:
+
+```html
+<head>
+    ...
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    ...
+    @RenderBody()
+    ...
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+```
+
+Add a nav link to the editor:
 
 ```html
 <a asp-controller="Templates" asp-action="Index">Templates</a>
@@ -59,41 +101,62 @@ The editor views use your app's existing `_ViewStart.cshtml` — no extra config
 
 ### 5. Run
 
-Start your app and navigate to `/Templates`.
+```bash
+dotnet run
+```
 
-## What's Included
+EF Core migrations run automatically on first startup — the database and schema are created for you. Navigate to `/Templates`.
+
+---
+
+## Setup Diagnostic Page
+
+After installation, navigate to **`/Templates/_setup`** in Development to verify every integration requirement at once:
+
+| Check | What it detects |
+|---|---|
+| Database connection | SQL Server reachable with the configured connection string |
+| Migrations applied | All EF Core schema migrations are current |
+| `app.MapControllers()` registered | Attribute-routed endpoints are accessible |
+| `SuppressImplicitRequired` | Empty template body won't silently fail |
+| Static assets | `/_content/TemplateBuilder.Editor/` is being served |
+| `@section Styles` | `RenderSectionAsync("Styles")` is in your layout `<head>` |
+| `@section Scripts` | `RenderSectionAsync("Scripts")` is in your layout before `</body>` |
+| CSS/JS files loaded | `template-editor.css` and `template-editor.js` are linked |
+
+Every failing check shows a one-line fix. The page returns 404 in non-Development environments.
+
+---
+
+## Features
 
 | Feature | Route |
 |---|---|
 | Template list | `GET /Templates` |
-| Create template | `GET /Templates/Create` |
+| Create template | `GET/POST /Templates/Create` |
 | Edit template | `GET /Templates/{id}/Edit` |
 | Save version | `POST /Templates/{id}/SaveVersion` |
-| Version history | `GET /Templates/{id}/VersionHistory` |
-| Restore version | `POST /Templates/{id}/Restore/{versionId}` |
-| Preview (live render) | `POST /Templates/{id}/Preview` |
+| Version history | `GET /Templates/{id}/Versions` |
+| Restore version | `POST /Templates/{id}/Restore/{versionId}/{sourceVersionNumber}` |
+| Live preview | `POST /Templates/{id}/Preview` |
 | Duplicate | `POST /Templates/{id}/Duplicate` |
 | Validate syntax | `POST /Templates/{id}/Validate` |
-| Enable / Disable | `POST /Templates/{id}/Enable` / `Disable` |
+| Toggle active | `POST /Templates/{id}/ToggleActive` |
+| Setup check | `GET /Templates/_setup` *(Development only)* |
 
-## Database
+---
 
-`AddTemplateBuilderEditor()` registers an `IHostedService` that runs EF Core migrations on startup. The schema is created or updated automatically — no manual steps required.
+## Theming
 
-## Static Assets
+The editor ships with a **dark theme** by default. A **☀ Light / 🌙 Dark** toggle button appears in the CANVAS panel heading and persists the preference in `localStorage`.
 
-CSS and JS are served from:
+The editor's styles are fully scoped to `#tb-editor-host` — they do not affect the rest of your application. The editing canvas is always white (document-like) regardless of the selected theme.
 
-```
-/_content/TemplateBuilder.Editor/css/template-editor.css
-/_content/TemplateBuilder.Editor/js/template-editor.js
-```
-
-Your app must call `app.UseStaticFiles()` and `app.MapStaticAssets()` (both standard in ASP.NET Core MVC apps).
+---
 
 ## Template Syntax
 
-Templates use [Scriban](https://github.com/scriban/scriban) syntax:
+Templates use [Scriban](https://github.com/scriban/scriban) — access model properties via `model.*`:
 
 ```html
 <p>Hello <strong>{{ model.FirstName }}</strong>,</p>
@@ -107,17 +170,42 @@ Templates use [Scriban](https://github.com/scriban/scriban) syntax:
 {{ end }}
 ```
 
-## Rendering Templates in Code
+---
 
-To render a saved template to an HTML string (e.g. for sending emails), install the companion package:
+## Render Templates in Code
 
-```bash
-dotnet add package TemplateBuilder.Core
-```
+`TemplateBuilder.Editor` includes the rendering engine. Inject `ITemplateEngine` anywhere:
 
 ```csharp
-var html = await templateEngine.RenderAsync(template, myModel);
+using TemplateBuilder.Domain.Interfaces;
+
+public class WelcomeEmailService(ITemplateEngine engine)
+{
+    public Task<string> BuildAsync(string firstName) =>
+        engine.RenderByNameAsync("Welcome Email", new { FirstName = firstName });
+}
 ```
+
+---
+
+## Database
+
+`AddTemplateBuilderEditor()` registers a hosted service that runs EF Core migrations on startup. No manual migration steps are required.
+
+---
+
+## Static Assets
+
+CSS and JS are served automatically from:
+
+```
+/_content/TemplateBuilder.Editor/css/template-editor.css
+/_content/TemplateBuilder.Editor/js/template-editor.js
+```
+
+Your `Program.cs` must call `app.UseStaticFiles()` (or `app.MapStaticAssets()`). After upgrading to a new package version, do a hard refresh (Ctrl+Shift+R) to clear cached assets.
+
+---
 
 ## Updating
 

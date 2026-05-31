@@ -1,20 +1,26 @@
 # TemplateBuilder.Core
 
+**Current version: 1.0.3**
+
 Render Scriban-powered HTML templates to strings in any .NET 10 application. Lightweight, no UI — just service registration and injection.
 
 To create and manage templates, install the companion package [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor).
+
+---
 
 ## Requirements
 
 - .NET 10
 - SQL Server
 
+---
+
 ## Quick Start
 
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Core
+dotnet add package TemplateBuilder.Core --version 1.0.3
 ```
 
 ### 2. Add a connection string
@@ -23,7 +29,7 @@ dotnet add package TemplateBuilder.Core
 // appsettings.json
 {
   "ConnectionStrings": {
-    "TemplateDb": "Server=.;Database=TemplateBuilder;Trusted_Connection=True;"
+    "TemplateDb": "Server=.;Database=TemplateBuilder;Trusted_Connection=True;TrustServerCertificate=True;"
   }
 }
 ```
@@ -42,37 +48,33 @@ builder.Services.AddTemplateBuilder(options =>
 ### 4. Inject and render
 
 ```csharp
-public class EmailService
+using TemplateBuilder.Domain.Interfaces;
+
+public class EmailService(ITemplateEngine engine)
 {
-    private readonly ITemplateEngine _engine;
-
-    public EmailService(ITemplateEngine engine)
-    {
-        _engine = engine;
-    }
-
-    // Render by template ID
-    public Task<string> RenderByIdAsync(int templateId, object model, CancellationToken ct = default)
-        => _engine.RenderAsync(templateId, model, ct);
-
-    // Render by template name
+    // Render by template name (as entered in the editor UI)
     public Task<string> RenderByNameAsync(string name, object model, CancellationToken ct = default)
-        => _engine.RenderByNameAsync(name, model, ct);
+        => engine.RenderByNameAsync(name, model, ct);
+
+    // Render by template database ID
+    public Task<string> RenderByIdAsync(int id, object model, CancellationToken ct = default)
+        => engine.RenderAsync(id, model, ct);
 }
 ```
+
+---
 
 ## API Reference
 
 ### `AddTemplateBuilder(options)`
 
-Registers all TemplateBuilder services. Must be called once in `Program.cs`.
+Registers all TemplateBuilder services. Call once in `Program.cs`.
 
-```csharp
-builder.Services.AddTemplateBuilder(options =>
-{
-    options.ConnectionString = "...";
-});
-```
+| Option | Default | Description |
+|---|---|---|
+| `ConnectionString` | *(required)* | SQL Server connection string |
+| `EnableCaching` | `true` | Cache rendered template bodies in memory |
+| `CacheDurationMinutes` | `60` | How long to cache a template version |
 
 ### `ITemplateEngine`
 
@@ -82,7 +84,7 @@ The primary rendering interface. Inject into any service or controller.
 // Render a template by its database ID
 Task<string> RenderAsync(int templateId, object model, CancellationToken ct = default);
 
-// Render a template by its name
+// Render a template by its name (must be active)
 Task<string> RenderByNameAsync(string templateName, object model, CancellationToken ct = default);
 
 // Render an arbitrary Scriban body string directly (no DB lookup)
@@ -91,7 +93,7 @@ Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = d
 
 ### `ITemplateRepository`
 
-Direct access to template data. Inject when you need metadata or version history.
+Direct access to template data.
 
 ```csharp
 Task<Template?> GetByIdAsync(int id, CancellationToken ct = default);
@@ -100,9 +102,11 @@ Task<IReadOnlyList<Template>> GetAllAsync(CancellationToken ct = default);
 Task<IReadOnlyList<TemplateVersion>> GetVersionHistoryAsync(int templateId, CancellationToken ct = default);
 ```
 
+---
+
 ## Template Syntax
 
-Templates use [Scriban](https://github.com/scriban/scriban) syntax. Pass any object as the model — properties are accessed via `model.*`:
+Templates use [Scriban](https://github.com/scriban/scriban). Model properties are accessed via `model.*`:
 
 ```html
 <p>Hello <strong>{{ model.FirstName }}</strong>,</p>
@@ -116,27 +120,22 @@ Templates use [Scriban](https://github.com/scriban/scriban) syntax. Pass any obj
 {{ end }}
 ```
 
+Model property lookup is **case-insensitive** — `{{ model.firstname }}` and `{{ model.FirstName }}` resolve to the same value.
+
+---
+
 ## Example: Sending a Rendered Email
 
 ```csharp
-public class InvoiceEmailSender
+public class InvoiceEmailSender(ITemplateEngine engine, IEmailClient emailClient)
 {
-    private readonly ITemplateEngine _engine;
-    private readonly IEmailClient _emailClient;
-
-    public InvoiceEmailSender(ITemplateEngine engine, IEmailClient emailClient)
-    {
-        _engine = engine;
-        _emailClient = emailClient;
-    }
-
     public async Task SendAsync(InvoiceModel invoice, CancellationToken ct = default)
     {
-        var html = await _engine.RenderByNameAsync("Invoice Email", invoice, ct);
+        var html = await engine.RenderByNameAsync("Invoice Email", invoice, ct);
 
-        await _emailClient.SendAsync(new EmailMessage
+        await emailClient.SendAsync(new EmailMessage
         {
-            To = invoice.CustomerEmail,
+            To      = invoice.CustomerEmail,
             Subject = $"Invoice #{invoice.Number}",
             HtmlBody = html
         }, ct);
@@ -144,12 +143,22 @@ public class InvoiceEmailSender
 }
 ```
 
+---
+
 ## Managing Templates
 
-Templates are stored in SQL Server and managed through `TemplateBuilder.Editor`. Install it in any ASP.NET Core app to get the full create/edit/version UI:
+Templates are stored in SQL Server and managed through [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor). Install it in any ASP.NET Core app to get the full create/edit/version UI:
 
 ```bash
 dotnet add package TemplateBuilder.Editor
 ```
 
-Both packages share the same database schema — point them at the same connection string.
+Both packages share the same database schema — point them at the same connection string. If you already have `TemplateBuilder.Editor` installed you do **not** need `TemplateBuilder.Core` separately; Editor includes the rendering engine.
+
+---
+
+## Updating
+
+```bash
+dotnet add package TemplateBuilder.Core --version <new-version>
+```
