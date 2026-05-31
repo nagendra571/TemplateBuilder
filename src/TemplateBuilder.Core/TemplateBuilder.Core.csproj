@@ -4,6 +4,8 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <!-- Internal projects — DLLs bundled into lib via BundleInternalAssemblies below;
+       PrivateAssets=all suppresses them from appearing as package dependencies. -->
   <ItemGroup>
     <ProjectReference Include="..\TemplateBuilder.Application\TemplateBuilder.Application.csproj">
       <PrivateAssets>all</PrivateAssets>
@@ -11,6 +13,17 @@
     <ProjectReference Include="..\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj">
       <PrivateAssets>all</PrivateAssets>
     </ProjectReference>
+  </ItemGroup>
+
+  <!-- Runtime dependencies of the bundled assemblies — must be declared explicitly
+       because PrivateAssets=all on ProjectReferences suppresses transitive packages. -->
+  <ItemGroup>
+    <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.8" />
+    <PackageReference Include="Scriban" Version="7.2.0" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -31,9 +44,6 @@
     <Copyright>Copyright © 2026 Nagendra Chinnam</Copyright>
   </PropertyGroup>
 
-  <!-- Bundle internal assemblies directly into the lib folder so consumers
-       don't need TemplateBuilder.Application / .Infrastructure / .Domain
-       as separate NuGet packages. -->
   <Target Name="BundleInternalAssemblies" BeforeTargets="_GetPackageFiles">
     <ItemGroup>
       <None Include="$(OutputPath)TemplateBuilder.Domain.dll"
