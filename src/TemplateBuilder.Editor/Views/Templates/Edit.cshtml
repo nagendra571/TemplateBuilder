@@ -4,6 +4,7 @@
     var isNew = !Model.Id.HasValue;
 }
 
+<div id="tb-editor-host">
 <form id="editor-form" asp-action="@(isNew ? "Create" : "")" method="post">
     @Html.AntiForgeryToken()
     <div class="tb-editor-grid">
@@ -35,7 +36,10 @@
 
         <!-- CENTER: Canvas -->
         <div class="tb-panel-center">
-            <div class="tb-panel-heading">CANVAS</div>
+            <div class="tb-panel-heading">
+                CANVAS
+                <button type="button" id="btn-theme-toggle" class="tb-theme-toggle" aria-label="Toggle theme"></button>
+            </div>
             <div id="validate-panel" class="tb-validate-panel" hidden>
                 <span id="validate-msg"></span>
                 <button type="button" id="btn-validate-dismiss" class="tb-validate-dismiss" aria-label="Dismiss">&#x2715;</button>
@@ -201,6 +205,8 @@
         </div>
     </div>
 </div>
+
+</div>@* /tb-editor-host *@
 
 @section Styles {
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/suneditor@2.47.10/dist/css/suneditor.min.css">

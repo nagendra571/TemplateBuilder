@@ -1,5 +1,10 @@
 const _csrf = document.querySelector('input[name=__RequestVerificationToken]')?.value ?? '';
 
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const _host = document.getElementById('tb-editor-host');
+const _theme = localStorage.getItem('tb-theme') || 'dark';
+if (_theme === 'light') _host?.classList.add('tb-theme-light');
+
 function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -123,7 +128,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         validatePlugin,
     ],
     height: '100%',
-    theme: 'dark',
+    theme: _theme === 'dark' ? 'dark' : undefined,
     buttonList: [
         ['undo', 'redo'],
         ['bold', 'italic', 'underline', 'strike'],
@@ -992,6 +997,22 @@ document.getElementById('btn-cond-insert')?.addEventListener('click', () => {
     closeModal('conditional-modal');
     document.querySelector('.sun-editor-editable')?.focus();
 });
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+
+function toggleTheme() {
+    const isLight = _host.classList.toggle('tb-theme-light');
+    localStorage.setItem('tb-theme', isLight ? 'light' : 'dark');
+    // Reload so SunEditor reinitialises with the correct toolbar theme
+    window.location.reload();
+}
+
+(function applyThemeButton() {
+    const btn = document.getElementById('btn-theme-toggle');
+    if (!btn) return;
+    btn.textContent = _theme === 'light' ? '🌙 Dark' : '☀ Light';
+    btn.addEventListener('click', toggleTheme);
+})();
 
 // Suppress the beforeunload guard when the Create form is submitted normally.
 document.getElementById('editor-form')?.addEventListener('submit', () => markClean());

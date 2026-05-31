@@ -1,9 +1,9 @@
 /* ==========================================
-   Design tokens — defined here so the package
-   is self-contained. Consumers can override
-   any of these in their own :root block.
+   Design tokens — scoped to #tb-editor-host so
+   they never leak into the consumer's page.
+   Dark theme is the default; light is opt-in.
    ========================================== */
-:root {
+#tb-editor-host {
     --bg: #0f0f14;
     --surface: #1a1a24;
     --surface2: #22223a;
@@ -17,7 +17,34 @@
     --danger: #ef4444;
     --radius: 8px;
     --radius-lg: 12px;
+    color-scheme: dark;
 }
+
+/* Light theme overrides */
+#tb-editor-host.tb-theme-light {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --surface2: #ebebf0;
+    --border: #d0d0e0;
+    --text: #1a1a2e;
+    --text-muted: #55557a;
+    color-scheme: light;
+}
+
+/* Theme toggle button */
+.tb-theme-toggle {
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: var(--radius);
+    padding: 1px 8px;
+    font-size: .8rem;
+    cursor: pointer;
+    line-height: 1.6;
+    transition: border-color .15s, color .15s;
+}
+.tb-theme-toggle:hover { color: var(--text); border-color: var(--accent); }
 
 /* ==========================================
    Template Editor — 3-panel layout
@@ -60,6 +87,8 @@
     font-weight: 600;
     color: var(--text-muted);
     letter-spacing: .05em;
+    display: flex;
+    align-items: center;
 }
 
 /* ==========================================
@@ -260,6 +289,9 @@
 /* ==========================================
    SunEditor overrides
    ========================================== */
+
+/* Canvas is always white — represents the rendered document regardless of shell theme */
+#tb-editor-host .sun-editor-editable { background: #ffffff !important; color: #1a1a1a !important; }
 
 .tb-main { padding: 0 !important; max-width: 100% !important; }
 
