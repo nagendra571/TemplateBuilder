@@ -6,11 +6,12 @@
     <Project Path="src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj" />
     <Project Path="src/TemplateBuilder.Infrastructure/TemplateBuilder.Infrastructure.csproj" />
     <Project Path="src/TemplateBuilder.Web/TemplateBuilder.Web.csproj" />
+    <Project Path="TemplateBuilder.Client/TemplateBuilder.Client.csproj" Id="a36e5c36-dbd3-408a-9960-1e85b98ea956" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/TemplateBuilder.Application.Tests/TemplateBuilder.Application.Tests.csproj" />
     <Project Path="tests/TemplateBuilder.Domain.Tests/TemplateBuilder.Domain.Tests.csproj" />
-    <Project Path="tests/TemplateBuilder.Infrastructure.Tests/TemplateBuilder.Infrastructure.Tests.csproj" />
     <Project Path="tests/TemplateBuilder.Editor.Tests/TemplateBuilder.Editor.Tests.csproj" />
+    <Project Path="tests/TemplateBuilder.Infrastructure.Tests/TemplateBuilder.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>
