@@ -1,0 +1,19 @@
+@* Intentionally no Layout = null — uses the consumer's layout so we can
+   detect whether @section Styles and @section Scripts are configured. *@
+
+<div id="tb-probe"
+     data-scripts-ok="false"
+     style="display:none;"></div>
+
+@section Styles {
+<meta name="tb-styles-present" content="true">
+}
+
+@section Scripts {
+<script>
+(function () {
+    var el = document.getElementById('tb-probe');
+    if (el) el.setAttribute('data-scripts-ok', 'true');
+})();
+</script>
+}

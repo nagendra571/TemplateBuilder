@@ -1,0 +1,214 @@
+@model List<SetupCheckResult>
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TemplateBuilder — Setup Check</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.6;
+       background: #f5f5f7; color: #1a1a2e; min-height: 100vh; }
+.page { max-width: 760px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+header { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #6366f1; }
+header h1 { font-size: 1.3rem; color: #6366f1; font-weight: 700; }
+header p  { color: #555; margin-top: .25rem; font-size: .88rem; }
+.warning  { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
+            padding: .75rem 1rem; margin-bottom: 1.5rem; font-size: .85rem; color: #664d03; }
+section   { margin-bottom: 2rem; }
+section h2 { font-size: .75rem; font-weight: 700; letter-spacing: .08em;
+             color: #888; text-transform: uppercase; margin-bottom: .75rem; }
+.check    { background: #fff; border: 1px solid #e0e0e8; border-radius: 10px;
+            padding: .85rem 1rem; margin-bottom: .6rem; display: grid;
+            grid-template-columns: 1.5rem 1fr; gap: 0 .75rem; align-items: start; }
+.check.pass    { border-left: 4px solid #22c55e; }
+.check.fail    { border-left: 4px solid #ef4444; }
+.check.pending { border-left: 4px solid #94a3b8; }
+.icon       { font-size: 1rem; line-height: 1.6; }
+.check-name { font-weight: 600; font-size: .88rem; }
+.check-desc { font-size: .8rem; color: #555; margin-top: .1rem; }
+.fix-hint   { font-size: .8rem; background: #fef2f2; color: #b91c1c; border-radius: 6px;
+              padding: .4rem .7rem; margin-top: .5rem; font-family: monospace; white-space: pre-wrap; }
+.detail     { font-size: .75rem; color: #888; margin-top: .3rem; font-family: monospace; }
+.check-body { min-width: 0; }
+.refresh    { display: inline-block; margin-top: 1.5rem; padding: .5rem 1.2rem;
+              background: #6366f1; color: #fff; border-radius: 8px; text-decoration: none;
+              font-size: .85rem; font-weight: 600; }
+.refresh:hover { background: #4f52e0; }
+.summary    { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+.stat       { background: #fff; border: 1px solid #e0e0e8; border-radius: 10px;
+              padding: .75rem 1.25rem; text-align: center; flex: 1; }
+.stat-num   { font-size: 1.6rem; font-weight: 700; }
+.green      { color: #22c55e; }
+.red        { color: #ef4444; }
+.stat-label { font-size: .75rem; color: #888; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>TemplateBuilder — Setup Check</h1>
+    <p>Verifies your integration is correctly configured. Only available in the Development environment.</p>
+  </header>
+
+  <div class="warning">
+    ⚠ This page is for developers only and is automatically disabled (returns 404) in non-Development environments.
+  </div>
+
+  @{
+    var passed = Model.Count(c => c.Passed);
+    var failed = Model.Count(c => !c.Passed);
+  }
+
+  <div class="summary">
+    <div class="stat">
+      <div class="stat-num green">@passed</div>
+      <div class="stat-label">Server passed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num @(failed > 0 ? "red" : "green")">@failed</div>
+      <div class="stat-label">Server failed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="client-summary" style="color:#94a3b8">—</div>
+      <div class="stat-label">Client checks</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>Server-side checks</h2>
+    @foreach (var check in Model)
+    {
+      <div class="check @(check.Passed ? "pass" : "fail")">
+        <div class="icon">@(check.Passed ? "✅" : "❌")</div>
+        <div class="check-body">
+          <div class="check-name">@check.Name</div>
+          <div class="check-desc">@check.Description</div>
+          @if (!check.Passed)
+          {
+            <div class="fix-hint">@check.FixHint</div>
+          }
+          @if (check.Detail is not null)
+          {
+            <div class="detail">@check.Detail</div>
+          }
+        </div>
+      </div>
+    }
+  </section>
+
+  <section>
+    <h2>Client-side checks</h2>
+    <div id="client-checks">
+      <div class="check pending">
+        <div class="icon">⏳</div>
+        <div class="check-body">
+          <div class="check-name">Loading layout probe…</div>
+          <div class="check-desc">Checking your _Layout.cshtml via a hidden iframe.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <a class="refresh" href="/Templates/_setup">↻ Re-run checks</a>
+
+</div>
+
+<iframe id="probe-frame" src="/Templates/_setup/layout-probe"
+        style="display:none;" title="Layout probe"></iframe>
+
+<script>
+(function () {
+  var CHECKS_DATA = {
+    styles: {
+      name: 'section Styles configured',
+      desc: 'RenderSectionAsync("Styles") is called in your layout head.',
+      fix:  'Add @@@@ await RenderSectionAsync("Styles", required: false) inside &lt;head&gt; in _Layout.cshtml.'
+    },
+    scripts: {
+      name: 'section Scripts configured',
+      desc: 'RenderSectionAsync("Scripts") is called before </body> in your layout.',
+      fix:  'Add @@@@ await RenderSectionAsync("Scripts", required: false) before &lt;/body&gt; in _Layout.cshtml.'
+    },
+    css: {
+      name: 'template-editor.css loaded',
+      desc: 'The editor stylesheet link is present in the page.',
+      fix:  'Ensure Styles section is configured and app.UseStaticFiles() or app.MapStaticAssets() is called.'
+    },
+    js: {
+      name: 'template-editor.js loaded',
+      desc: 'The editor script tag is present in the page.',
+      fix:  'Ensure Scripts section is configured.'
+    }
+  };
+
+  function buildRow(name, desc, passed, fix, pending) {
+    var cls  = pending ? 'pending' : (passed ? 'pass' : 'fail');
+    var icon = pending ? '&#x23F3;' : (passed ? '&#x2705;' : '&#x274C;');
+    var fixHtml = (!passed && !pending && fix)
+      ? '<div class="fix-hint">' + fix + '</div>'
+      : '';
+    return '<div class="check ' + cls + '">'
+      + '<div class="icon">' + icon + '</div>'
+      + '<div class="check-body">'
+        + '<div class="check-name">' + name + '</div>'
+        + '<div class="check-desc">' + desc + '</div>'
+        + fixHtml
+      + '</div></div>';
+  }
+
+  function showPending() {
+    var html = '';
+    for (var key in CHECKS_DATA) {
+      var c = CHECKS_DATA[key];
+      html += buildRow(c.name, c.desc, false, '', true);
+    }
+    document.getElementById('client-checks').innerHTML = html;
+  }
+
+  function showResults(results) {
+    var html = '';
+    var okCount = 0;
+    for (var key in results) {
+      var c = CHECKS_DATA[key];
+      var ok = results[key];
+      if (ok) okCount++;
+      html += buildRow(c.name, c.desc, ok, ok ? '' : c.fix, false);
+    }
+    document.getElementById('client-checks').innerHTML = html;
+    document.getElementById('client-summary').textContent =
+      okCount + '/' + Object.keys(results).length;
+    document.getElementById('client-summary').className =
+      'stat-num ' + (okCount === Object.keys(results).length ? 'green' : 'red');
+  }
+
+  showPending();
+
+  var frame = document.getElementById('probe-frame');
+  var timeout = setTimeout(function () {
+    showResults({ styles: false, scripts: false, css: false, js: false });
+  }, 8000);
+
+  frame.addEventListener('load', function () {
+    clearTimeout(timeout);
+    try {
+      var doc = frame.contentDocument || frame.contentWindow.document;
+      showResults({
+        styles:  !!doc.querySelector('meta[name="tb-styles-present"]'),
+        scripts: (doc.getElementById('tb-probe') || {}).getAttribute('data-scripts-ok') === 'true',
+        css:     !!doc.querySelector('link[href*="template-editor.css"]'),
+        js:      !!doc.querySelector('script[src*="template-editor.js"]')
+      });
+    } catch (e) {
+      document.getElementById('client-checks').innerHTML =
+        buildRow('Layout probe error', String(e), false,
+          'Check the browser console for errors loading /Templates/_setup/layout-probe.', false);
+      document.getElementById('client-summary').textContent = '!';
+    }
+  });
+})();
+</script>
+</body>
+</html>
