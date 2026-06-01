@@ -144,7 +144,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
         ['validate'],
-        ['codeView'],
+        ['codeView', 'fullScreen'],
     ],
     font: ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman', 'Tahoma', 'Impact'],
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
