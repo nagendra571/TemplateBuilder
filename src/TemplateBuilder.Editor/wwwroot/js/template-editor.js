@@ -266,6 +266,92 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     }, 500); // wait for editor DOM to be ready
 })();
 
+// ── Clean paste from Word / Outlook ──────────────────────────────────────────
+
+(function wireCleanPaste() {
+    function isWordHtml(html) {
+        return /class="?Mso|mso-[a-z]|xmlns:w=|urn:schemas-microsoft-com|WordDocument/i.test(html);
+    }
+
+    function cleanStyle(style) {
+        const KEEP = new Set([
+            'font-weight', 'font-style', 'text-decoration', 'text-align',
+            'vertical-align', 'list-style-type', 'border-collapse', 'border-spacing', 'width'
+        ]);
+        return style.split(';')
+            .map(r => r.trim())
+            .filter(r => {
+                const prop = r.split(':')[0]?.trim().toLowerCase();
+                if (!prop) return false;
+                if (prop.startsWith('mso-') || prop.startsWith('-compat-')) return false;
+                return KEEP.has(prop);
+            })
+            .join('; ');
+    }
+
+    function cleanWordHtml(raw) {
+        // Strip conditional comments and fragment markers at string level
+        const html = raw
+            .replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '')
+            .replace(/<!--(?:Start|End)Fragment-->/gi, '');
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        // Remove elements that have no place in editor content
+        doc.querySelectorAll('style,meta,link,xml,script,head').forEach(el => el.remove());
+
+        // Unwrap Office / VML namespace elements (o:p, v:shape, w:sdt, etc.)
+        doc.body.querySelectorAll('*').forEach(el => {
+            if (el.tagName.includes(':')) el.replaceWith(...el.childNodes);
+        });
+
+        // Unwrap legacy <font> tags
+        doc.body.querySelectorAll('font').forEach(el => el.replaceWith(...el.childNodes));
+
+        // Clean all remaining elements
+        doc.body.querySelectorAll('*').forEach(el => {
+            ['class', 'lang', 'dir', 'id', 'name', 'xmlns'].forEach(a => el.removeAttribute(a));
+            const style = el.getAttribute('style');
+            if (style !== null) {
+                const kept = cleanStyle(style);
+                if (kept) el.setAttribute('style', kept);
+                else el.removeAttribute('style');
+            }
+        });
+
+        // Unwrap spans that lost all attributes (pure decoration, no semantic value)
+        doc.body.querySelectorAll('span').forEach(el => {
+            if (!el.hasAttributes()) el.replaceWith(...el.childNodes);
+        });
+
+        // Remove empty paragraphs/divs (Word inserts many &nbsp;-only paragraphs)
+        doc.body.querySelectorAll('p,div').forEach(el => {
+            if (!el.textContent.replace(/ |\s/g, '') && !el.querySelector('img,table,br'))
+                el.remove();
+        });
+
+        return doc.body.innerHTML;
+    }
+
+    // Intercept in capture phase — runs before SunEditor's own paste handler
+    document.addEventListener('paste', e => {
+        const editable = document.querySelector('.sun-editor-editable');
+        if (!editable) return;
+        if (!editable.contains(document.activeElement) && document.activeElement !== editable) return;
+
+        const html = e.clipboardData?.getData('text/html') ?? '';
+        if (!html || !isWordHtml(html)) return; // let SunEditor handle normal pastes untouched
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        if (!_editor) return;
+        _editor.insertHTML(cleanWordHtml(html));
+        markDirty();
+        showToast('Word formatting removed');
+    }, true);
+})();
+
 document.addEventListener('dragstart', (e) => {
     const field = e.target.closest('[data-field]');
     const block = e.target.closest('[data-block]');
