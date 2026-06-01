@@ -159,7 +159,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         th:    'style|class|contenteditable|colspan|rowspan',
         all:   'data-*'
     },
-    onChange: markDirty,
+    onChange: () => { markDirty(); updateWordCount(); },
     linkTargetNewWindow: true,
     imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
         const alt = (info?.altText ?? info?.alt ?? '').trim();
@@ -608,6 +608,26 @@ function showToast(msg) {
     }, 2500);
 }
 
+// ── Word / character count ────────────────────────────────────────────────────
+
+function updateWordCount() {
+    const raw = _editor?.getContents() ?? '';
+    const stripped = raw
+        .replace(/\{\{[\s\S]*?\}\}/g, '')  // remove Scriban tokens
+        .replace(/<[^>]+>/g, ' ')           // strip HTML tags
+        .replace(/&[a-z#0-9]+;/gi, ' ');   // strip HTML entities
+    const words  = stripped.trim() === '' ? 0 : stripped.trim().split(/\s+/).length;
+    const chars  = stripped.length;
+    const nospace = stripped.replace(/\s/g, '').length;
+    const fmt = n => n.toLocaleString();
+    const wEl = document.getElementById('wc-words');
+    const cEl = document.getElementById('wc-chars');
+    const nEl = document.getElementById('wc-nospace');
+    if (wEl) wEl.textContent = fmt(words);
+    if (cEl) cEl.textContent = fmt(chars);
+    if (nEl) nEl.textContent = fmt(nospace);
+}
+
 // ── SunEditor UI fixes ────────────────────────────────────────────────────────
 
 // Fix SunEditor v3 code view: inject CSS so the wrapper expands to fill the canvas.
@@ -1025,4 +1045,7 @@ document.getElementById('editor-form')?.addEventListener('submit', () => markCle
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
 });
+
+// Initialize word count once SunEditor has rendered its content
+setTimeout(updateWordCount, 400);
 

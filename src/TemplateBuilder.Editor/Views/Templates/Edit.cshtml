@@ -47,6 +47,13 @@
             <div class="tb-canvas-body">
                 <textarea id="template-body" name="Body">@Model.Body</textarea>
             </div>
+            <div id="tb-word-count" class="tb-word-count" aria-live="polite">
+                <span>Words: <strong id="wc-words">0</strong></span>
+                <span class="tb-wc-sep">·</span>
+                <span>Characters: <strong id="wc-chars">0</strong></span>
+                <span class="tb-wc-sep">·</span>
+                <span>No spaces: <strong id="wc-nospace">0</strong></span>
+            </div>
         </div>
 
         <!-- RIGHT: Properties -->

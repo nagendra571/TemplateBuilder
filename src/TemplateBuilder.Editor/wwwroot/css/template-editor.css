@@ -557,3 +557,27 @@
 
 .tb-validate-dismiss:hover { opacity: 1; }
 
+/* ── Word / character count bar ─────────────────────────────────────────────── */
+
+#tb-editor-host .tb-word-count {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+#tb-editor-host .tb-word-count strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+#tb-editor-host .tb-wc-sep {
+    color: var(--border);
+    user-select: none;
+}
+
