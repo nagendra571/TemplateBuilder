@@ -20,3 +20,4 @@ packages/
 # wwwroot vendor libraries
 wwwroot/lib/
 /.playwright-mcp
+/.superpowers/brainstorm
