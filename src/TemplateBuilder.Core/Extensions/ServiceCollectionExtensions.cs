@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
         });
 
         services.TryAddScoped<ITemplateRepository, TemplateRepository>();
+        services.TryAddScoped<ISnippetRepository, SnippetRepository>();
         services.AddMemoryCache();
         services.TryAddScoped<ITemplateEngine, TemplateEngine>();
 

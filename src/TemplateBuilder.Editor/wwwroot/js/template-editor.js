@@ -125,6 +125,15 @@ const findReplacePlugin = {
     action: function() { window._openFindReplace?.(); }
 };
 
+const saveSnippetPlugin = {
+    name: 'saveSnippet',
+    display: 'command',
+    title: 'Save selection as snippet',
+    innerHTML: '<span style="font-size:.82rem;">📌</span>',
+    add: function(core) {},
+    action: function() { window._openSaveSnippetModal?.(); }
+};
+
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: [
@@ -136,6 +145,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         insertConditionalPlugin,
         validatePlugin,
         findReplacePlugin,
+        saveSnippetPlugin,
     ],
     height: '100%',
     theme: _theme === 'dark' ? 'dark' : undefined,
@@ -153,7 +163,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['insertLoop'],
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
-        ['validate', 'findReplace'],
+        ['validate', 'findReplace', 'saveSnippet'],
         ['codeView', 'fullScreen'],
     ],
     font: ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman', 'Tahoma', 'Impact'],
@@ -679,7 +689,7 @@ function closeModal(id) {
 
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    ['version-modal', 'preview-modal', 'loop-modal', 'conditional-modal'].forEach(id => {
+    ['version-modal', 'preview-modal', 'loop-modal', 'conditional-modal', 'save-snippet-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el?.classList.contains('open')) closeModal(id);
     });
@@ -1312,6 +1322,166 @@ document.getElementById('editor-form')?.addEventListener('submit', () => markCle
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
 });
+
+// ── Snippets ──────────────────────────────────────────────────────────────────
+
+(function wireSnippets() {
+    let _pendingSnippetBody = '';
+
+    // ── Render ───────────────────────────────────────────────────────────────
+
+    function renderSnippets(snippets) {
+        const list = document.getElementById('snippet-list');
+        if (!list) return;
+        if (!snippets.length) {
+            list.innerHTML = '<div class="tb-palette-msg">No snippets yet — select content and click 📌</div>';
+            return;
+        }
+        list.innerHTML = snippets.map(s => `
+            <div class="tb-snippet-item">
+                <span class="tb-snippet-name" title="${escapeHtml(s.description || s.name)}">${escapeHtml(s.name)}</span>
+                <div class="tb-snippet-actions">
+                    <button type="button" class="tb-snippet-insert" data-snippet-id="${s.id}" aria-label="Insert ${escapeHtml(s.name)}">Insert</button>
+                    <button type="button" class="tb-snippet-delete" data-snippet-id="${s.id}" aria-label="Delete ${escapeHtml(s.name)}">✕</button>
+                </div>
+            </div>`).join('');
+    }
+
+    // ── Load ─────────────────────────────────────────────────────────────────
+
+    async function loadSnippets() {
+        const list = document.getElementById('snippet-list');
+        if (!list) return;
+        try {
+            const res = await fetch('/Templates/Api/Snippets');
+            if (!res.ok) throw new Error('Failed');
+            renderSnippets(await res.json());
+        } catch {
+            list.innerHTML = '<div class="tb-palette-msg tb-palette-msg--error">Failed to load snippets</div>';
+        }
+    }
+
+    // ── Save ─────────────────────────────────────────────────────────────────
+
+    function openSaveSnippetModal() {
+        // Capture selection HTML while focus is still in the editor
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+            const container = document.createElement('div');
+            container.appendChild(sel.getRangeAt(0).cloneContents());
+            _pendingSnippetBody = container.innerHTML;
+        } else {
+            _pendingSnippetBody = '';
+        }
+
+        if (!_pendingSnippetBody.replace(/\s|&nbsp;/g, '').trim()) {
+            showToast('Select some content in the editor first');
+            return;
+        }
+
+        document.getElementById('snippet-name').value = '';
+        document.getElementById('snippet-desc').value = '';
+        document.getElementById('snippet-error').style.display = 'none';
+        const modal = document.getElementById('save-snippet-modal');
+        modal.classList.add('open');
+        trapFocus(modal);
+        document.getElementById('snippet-name').focus();
+    }
+
+    async function saveSnippet() {
+        const nameEl  = document.getElementById('snippet-name');
+        const descEl  = document.getElementById('snippet-desc');
+        const errorEl = document.getElementById('snippet-error');
+        const saveBtn = document.getElementById('btn-snippet-save');
+        errorEl.style.display = 'none';
+
+        const name = nameEl.value.trim();
+        if (!name) {
+            errorEl.textContent = 'Snippet name is required.';
+            errorEl.style.display = 'block';
+            nameEl.focus();
+            return;
+        }
+
+        saveBtn.disabled = true;
+        try {
+            const res = await fetch('/Templates/Api/Snippets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': _csrf },
+                body: JSON.stringify({ name, description: descEl.value.trim() || null, body: _pendingSnippetBody })
+            });
+            if (res.ok) {
+                closeModal('save-snippet-modal');
+                showToast(`Snippet "${name}" saved`);
+                await loadSnippets();
+            } else {
+                const data = await res.json().catch(() => null);
+                errorEl.textContent = data?.message ?? 'Failed to save snippet.';
+                errorEl.style.display = 'block';
+            }
+        } catch {
+            errorEl.textContent = 'Network error — please try again.';
+            errorEl.style.display = 'block';
+        } finally {
+            saveBtn.disabled = false;
+        }
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    async function deleteSnippet(id) {
+        if (!confirm('Delete this snippet? This cannot be undone.')) return;
+        try {
+            const res = await fetch(`/Templates/Api/Snippets/${id}`, {
+                method: 'DELETE',
+                headers: { 'RequestVerificationToken': _csrf }
+            });
+            if (res.ok || res.status === 204) {
+                showToast('Snippet deleted');
+                await loadSnippets();
+            } else {
+                showToast('Failed to delete snippet');
+            }
+        } catch {
+            showToast('Network error — please try again');
+        }
+    }
+
+    // ── Event wiring ──────────────────────────────────────────────────────────
+
+    // Insert / Delete via event delegation on snippet list
+    document.getElementById('snippet-list')?.addEventListener('click', async e => {
+        const insertBtn = e.target.closest('.tb-snippet-insert');
+        const deleteBtn = e.target.closest('.tb-snippet-delete');
+        if (insertBtn) {
+            const id = Number(insertBtn.dataset.snippetId);
+            try {
+                const res = await fetch('/Templates/Api/Snippets');
+                const snippets = await res.json();
+                const snippet = snippets.find(s => s.id === id);
+                if (snippet && _editor) {
+                    _editor.insertHTML(snippet.body);
+                    document.querySelector('.sun-editor-editable')?.focus();
+                    markDirty();
+                }
+            } catch { showToast('Failed to insert snippet'); }
+        }
+        if (deleteBtn) await deleteSnippet(Number(deleteBtn.dataset.snippetId));
+    });
+
+    // Save-snippet modal buttons
+    document.getElementById('btn-save-snippet')?.addEventListener('mousedown', e => {
+        e.preventDefault(); // prevent editor losing focus/selection
+    });
+    document.getElementById('btn-save-snippet')?.addEventListener('click', openSaveSnippetModal);
+    document.getElementById('btn-snippet-save')?.addEventListener('click', saveSnippet);
+
+    // Expose for toolbar plugin
+    window._openSaveSnippetModal = openSaveSnippetModal;
+
+    // Load snippets on page init
+    loadSnippets();
+})();
 
 // ── Find & Replace ────────────────────────────────────────────────────────────
 

@@ -9,6 +9,7 @@ public class TemplateBuilderDbContext : DbContext
 
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<TemplateVersion> TemplateVersions => Set<TemplateVersion>();
+    public DbSet<Snippet> Snippets => Set<Snippet>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

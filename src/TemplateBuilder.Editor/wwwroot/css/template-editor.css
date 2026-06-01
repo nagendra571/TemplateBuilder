@@ -644,6 +644,80 @@
     opacity: .8;
 }
 
+/* ── Snippets section in left panel ─────────────────────────────────────────── */
+
+#tb-editor-host .tb-snippets-section {
+    border-top: 1px solid var(--border);
+    padding-top: .5rem;
+    margin-top: .5rem;
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+}
+
+#tb-editor-host .tb-snippet-item {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .3rem .5rem;
+    border-radius: var(--radius);
+    transition: background .12s;
+}
+
+#tb-editor-host .tb-snippet-item:hover { background: var(--surface2); }
+
+#tb-editor-host .tb-snippet-name {
+    flex: 1;
+    font-size: .78rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+#tb-editor-host .tb-snippet-actions { display: flex; gap: .25rem; flex-shrink: 0; }
+
+#tb-editor-host .tb-snippet-insert {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 2px 8px;
+    font-size: .7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .12s;
+}
+#tb-editor-host .tb-snippet-insert:hover { background: var(--accent-hover); }
+
+#tb-editor-host .tb-snippet-delete {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: .75rem;
+    padding: 2px 4px;
+    border-radius: var(--radius);
+    transition: color .12s;
+}
+#tb-editor-host .tb-snippet-delete:hover { color: var(--danger); }
+
+#tb-editor-host .tb-snippet-save-btn {
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: .73rem;
+    padding: .35rem .5rem;
+    text-align: left;
+    width: 100%;
+    transition: border-color .15s, color .15s;
+    margin-top: .25rem;
+}
+#tb-editor-host .tb-snippet-save-btn:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── Find & Replace floating panel ──────────────────────────────────────────── */
 
 #tb-editor-host .tb-find-replace {

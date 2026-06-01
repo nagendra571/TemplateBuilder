@@ -32,6 +32,16 @@
                     <div class="palette-block" draggable="true" data-block="grid">Grid Block</div>
                 </div>
             </div>
+            <div class="tb-snippets-section">
+                <div class="tb-section-label">SNIPPETS</div>
+                <div id="snippet-list" aria-live="polite">
+                    <div class="tb-palette-msg">Loading snippets…</div>
+                </div>
+                <button type="button" id="btn-save-snippet" class="tb-snippet-save-btn"
+                        title="Save selected editor content as a reusable snippet">
+                    📌 Save selection as snippet…
+                </button>
+            </div>
         </div>
 
         <!-- CENTER: Canvas -->
@@ -220,6 +230,30 @@
             <div id="cond-error" class="tb-error-msg" role="alert" style="display:none;"></div>
             <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
                 <button type="button" id="btn-cond-insert" class="btn btn-primary">Insert</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Snippet Modal -->
+<div class="modal-overlay" id="save-snippet-modal" role="dialog" aria-modal="true" aria-labelledby="save-snippet-modal-title">
+    <div class="modal modal--narrow">
+        <div class="modal-header">
+            <span id="save-snippet-modal-title" class="modal-title">Save as Snippet</span>
+            <button class="modal-close" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tb-form-row">
+                <label for="snippet-name">Name</label>
+                <input type="text" id="snippet-name" placeholder="e.g. Standard Footer" maxlength="100">
+            </div>
+            <div class="tb-form-row">
+                <label for="snippet-desc">Description (optional)</label>
+                <input type="text" id="snippet-desc" placeholder="e.g. Address and disclaimer block" maxlength="300">
+            </div>
+            <div id="snippet-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+                <button type="button" id="btn-snippet-save" class="btn btn-primary">Save Snippet</button>
             </div>
         </div>
     </div>
