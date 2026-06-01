@@ -116,6 +116,15 @@ const validatePlugin = {
     action: function() { if (!_editor) return; runValidate(); }
 };
 
+const findReplacePlugin = {
+    name: 'findReplace',
+    display: 'command',
+    title: 'Find & Replace (Ctrl+H)',
+    innerHTML: '<span style="font-size:.82rem;font-weight:600;">⌕</span>',
+    add: function(core) {},
+    action: function() { window._openFindReplace?.(); }
+};
+
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: [
@@ -126,6 +135,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         insertLoopPlugin,
         insertConditionalPlugin,
         validatePlugin,
+        findReplacePlugin,
     ],
     height: '100%',
     theme: _theme === 'dark' ? 'dark' : undefined,
@@ -143,7 +153,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['insertLoop'],
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
-        ['validate'],
+        ['validate', 'findReplace'],
         ['codeView', 'fullScreen'],
     ],
     font: ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman', 'Tahoma', 'Impact'],
@@ -589,6 +599,7 @@ document.addEventListener('keydown', e => {
     });
     const fd = document.getElementById('tb-field-dropdown');
     if (fd && !fd.hidden) fd.hidden = true;
+    if (window._isFindReplaceOpen?.()) window._closeFindReplace?.();
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1047,6 +1058,189 @@ document.getElementById('editor-form')?.addEventListener('submit', () => markCle
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
 });
+
+// ── Find & Replace ────────────────────────────────────────────────────────────
+
+(function wireFindReplace() {
+    const panel = document.getElementById('find-replace-panel');
+    if (!panel) return;
+
+    const findInput    = document.getElementById('fr-find');
+    const replaceInput = document.getElementById('fr-replace');
+    const matchCount   = document.getElementById('fr-match-count');
+    const caseCb       = document.getElementById('fr-case-sensitive');
+    const wordCb       = document.getElementById('fr-whole-word');
+
+    let _matches = [];
+    let _idx     = -1;
+    let _debounce = null;
+
+    // Walk editable text nodes, skipping contenteditable="false" subtrees
+    function getTextNodes() {
+        const editable = document.querySelector('.sun-editor-editable');
+        if (!editable) return [];
+        const nodes = [];
+        const walker = document.createTreeWalker(editable, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                let p = node.parentElement;
+                while (p && p !== editable) {
+                    if (p.getAttribute('contenteditable') === 'false') return NodeFilter.FILTER_REJECT;
+                    p = p.parentElement;
+                }
+                return node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+            }
+        });
+        let n;
+        while ((n = walker.nextNode())) nodes.push(n);
+        return nodes;
+    }
+
+    function buildRegex() {
+        const q = findInput.value;
+        if (!q) return null;
+        try {
+            let pat = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            if (wordCb.checked) pat = `\\b${pat}\\b`;
+            return new RegExp(pat, caseCb.checked ? 'g' : 'gi');
+        } catch { return null; }
+    }
+
+    function clearMarks() {
+        const editable = document.querySelector('.sun-editor-editable');
+        if (!editable) return;
+        editable.querySelectorAll('mark.tb-find-match').forEach(mk => {
+            const p = mk.parentNode;
+            if (!p) return;
+            while (mk.firstChild) p.insertBefore(mk.firstChild, mk);
+            p.removeChild(mk);
+        });
+        editable.normalize();
+        _matches = [];
+        _idx = -1;
+    }
+
+    function highlightAll(regex) {
+        const allMarks = [];
+        getTextNodes().forEach(textNode => {
+            const text = textNode.nodeValue;
+            regex.lastIndex = 0;
+            const local = [];
+            let m;
+            while ((m = regex.exec(text)) !== null) local.push([m.index, regex.lastIndex, m[0]]);
+            if (!local.length) return;
+
+            const frag = document.createDocumentFragment();
+            let last = 0;
+            local.forEach(([start, end, matched]) => {
+                if (start > last) frag.appendChild(document.createTextNode(text.slice(last, start)));
+                const mk = document.createElement('mark');
+                mk.className = 'tb-find-match';
+                mk.textContent = matched;
+                frag.appendChild(mk);
+                allMarks.push(mk);
+                last = end;
+            });
+            if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+            textNode.parentNode.replaceChild(frag, textNode);
+        });
+        return allMarks;
+    }
+
+    function updateCount() {
+        if (!matchCount) return;
+        if (!_matches.length) {
+            matchCount.textContent = findInput.value ? 'No matches' : '';
+            matchCount.className   = findInput.value ? 'tb-fr-count tb-fr-count--none' : 'tb-fr-count';
+        } else {
+            matchCount.textContent = `${_idx + 1} of ${_matches.length}`;
+            matchCount.className   = 'tb-fr-count';
+        }
+    }
+
+    function activate(index) {
+        _matches.forEach((mk, i) => mk.classList.toggle('tb-find-match--active', i === index));
+        _idx = index;
+        _matches[index]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        updateCount();
+    }
+
+    function runSearch() {
+        clearMarks();
+        const regex = buildRegex();
+        if (!regex) { updateCount(); return; }
+        _matches = highlightAll(regex);
+        if (_matches.length) activate(0);
+        else updateCount();
+    }
+
+    function navigate(dir) {
+        if (!_matches.length) return;
+        activate((_idx + dir + _matches.length) % _matches.length);
+    }
+
+    function replaceCurrent() {
+        if (_idx < 0 || !_matches[_idx]?.parentNode) return;
+        _matches[_idx].parentNode.replaceChild(document.createTextNode(replaceInput.value), _matches[_idx]);
+        document.querySelector('.sun-editor-editable')?.normalize();
+        markDirty();
+        runSearch();
+    }
+
+    function replaceAll() {
+        const count = _matches.length;
+        if (!count) return;
+        const val = replaceInput.value;
+        _matches.forEach(mk => { if (mk.parentNode) mk.parentNode.replaceChild(document.createTextNode(val), mk); });
+        document.querySelector('.sun-editor-editable')?.normalize();
+        _matches = []; _idx = -1;
+        updateCount();
+        markDirty();
+        showToast(`Replaced ${count} occurrence${count === 1 ? '' : 's'}`);
+    }
+
+    function openFindReplace() {
+        panel.hidden = false;
+        findInput.focus();
+        findInput.select();
+        if (findInput.value) runSearch();
+    }
+
+    function closeFindReplace() {
+        clearMarks();
+        panel.hidden = true;
+        document.querySelector('.sun-editor-editable')?.focus();
+    }
+
+    // Input events
+    findInput.addEventListener('input', () => {
+        clearTimeout(_debounce);
+        _debounce = setTimeout(runSearch, 220);
+    });
+    findInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); navigate(e.shiftKey ? -1 : 1); }
+    });
+    [caseCb, wordCb].forEach(cb => cb?.addEventListener('change', runSearch));
+
+    // Button events
+    document.getElementById('btn-fr-close')?.addEventListener('click', closeFindReplace);
+    document.getElementById('btn-fr-prev')?.addEventListener('click', () => navigate(-1));
+    document.getElementById('btn-fr-next')?.addEventListener('click', () => navigate(1));
+    document.getElementById('btn-fr-replace')?.addEventListener('click', replaceCurrent);
+    document.getElementById('btn-fr-replace-all')?.addEventListener('click', replaceAll);
+
+    // Global Ctrl+H shortcut
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+            e.preventDefault();
+            openFindReplace();
+        }
+    });
+
+    // Expose to toolbar plugin + Escape handler
+    window._openFindReplace   = openFindReplace;
+    window._closeFindReplace  = closeFindReplace;
+    window._isFindReplaceOpen = () => !panel.hidden;
+})();
 
 // ── Auto-save draft (localStorage only — no server writes) ───────────────────
 

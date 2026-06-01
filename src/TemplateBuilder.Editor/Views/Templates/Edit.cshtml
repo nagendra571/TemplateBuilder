@@ -225,6 +225,35 @@
     </div>
 </div>
 
+<!-- Find & Replace floating panel (non-blocking — no overlay) -->
+<div id="find-replace-panel" class="tb-find-replace" hidden role="dialog" aria-label="Find and Replace">
+    <div class="tb-fr-header">
+        <span class="tb-fr-title">Find &amp; Replace</span>
+        <button type="button" id="btn-fr-close" class="tb-fr-close" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="tb-fr-body">
+        <div class="tb-fr-row">
+            <label for="fr-find" class="tb-fr-label">Find</label>
+            <input type="search" id="fr-find" class="tb-fr-input" autocomplete="off" placeholder="Search…">
+        </div>
+        <div id="fr-match-count" class="tb-fr-count"></div>
+        <div class="tb-fr-row">
+            <label for="fr-replace" class="tb-fr-label">Replace</label>
+            <input type="text" id="fr-replace" class="tb-fr-input" autocomplete="off" placeholder="Replace with…">
+        </div>
+        <div class="tb-fr-options">
+            <label class="tb-fr-check"><input type="checkbox" id="fr-case-sensitive"> Case sensitive</label>
+            <label class="tb-fr-check"><input type="checkbox" id="fr-whole-word"> Whole word</label>
+        </div>
+        <div class="tb-fr-actions">
+            <button type="button" id="btn-fr-prev" class="btn btn-sm btn-secondary">◀ Prev</button>
+            <button type="button" id="btn-fr-next" class="btn btn-sm btn-secondary">Next ▶</button>
+            <button type="button" id="btn-fr-replace" class="btn btn-sm btn-secondary">Replace</button>
+            <button type="button" id="btn-fr-replace-all" class="btn btn-sm btn-primary">Replace All</button>
+        </div>
+    </div>
+</div>
+
 </div>@* /tb-editor-host *@
 
 @section Styles {

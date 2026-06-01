@@ -644,3 +644,103 @@
     opacity: .8;
 }
 
+/* ── Find & Replace floating panel ──────────────────────────────────────────── */
+
+#tb-editor-host .tb-find-replace {
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    z-index: 300;
+    width: 315px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0,0,0,.55);
+}
+
+#tb-editor-host .tb-fr-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .55rem .85rem .4rem;
+    border-bottom: 1px solid var(--border);
+}
+
+#tb-editor-host .tb-fr-title { font-size: .8rem; font-weight: 600; color: var(--text); }
+
+#tb-editor-host .tb-fr-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: .9rem; padding: 0 .2rem; line-height: 1;
+}
+#tb-editor-host .tb-fr-close:hover { color: var(--text); }
+
+#tb-editor-host .tb-fr-body { padding: .6rem .85rem .75rem; }
+
+#tb-editor-host .tb-fr-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .35rem;
+}
+
+#tb-editor-host .tb-fr-label {
+    font-size: .73rem;
+    color: var(--text-muted);
+    width: 48px;
+    flex-shrink: 0;
+}
+
+#tb-editor-host .tb-fr-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: .8rem;
+    padding: .28rem .5rem;
+}
+#tb-editor-host .tb-fr-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+
+#tb-editor-host .tb-fr-count {
+    font-size: .71rem;
+    color: var(--text-muted);
+    min-height: .9rem;
+    padding-left: 52px;
+    margin-bottom: .3rem;
+}
+#tb-editor-host .tb-fr-count--none { color: var(--danger); }
+
+#tb-editor-host .tb-fr-options {
+    display: flex;
+    gap: .85rem;
+    margin: .4rem 0 .6rem;
+}
+
+#tb-editor-host .tb-fr-check {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    font-size: .73rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+#tb-editor-host .tb-fr-check input { accent-color: var(--accent); cursor: pointer; }
+
+#tb-editor-host .tb-fr-actions { display: flex; gap: .35rem; flex-wrap: wrap; }
+
+/* Match highlights in the editor canvas */
+.sun-editor-editable mark.tb-find-match {
+    background: rgba(253,224,71,.18);
+    outline: 1px solid rgba(253,224,71,.45);
+    border-radius: 2px;
+    color: inherit;
+}
+.sun-editor-editable mark.tb-find-match--active {
+    background: rgba(253,224,71,.6);
+    outline-color: rgba(253,224,71,.95);
+}
+
