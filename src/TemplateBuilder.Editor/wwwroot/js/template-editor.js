@@ -342,6 +342,7 @@ async function saveVersion() {
             const data = await res.json();
             document.getElementById('version-display').textContent = `v${data.versionNumber}`;
             document.getElementById('save-comment').value = '';
+            clearDraft();
             markClean();
             showToast('Version saved');
         } else {
@@ -388,6 +389,7 @@ async function restoreVersion(btn, versionId, sourceVersionNumber) {
             headers: { 'RequestVerificationToken': _csrf }
         });
         if (res.ok) {
+            clearDraft();
             window.location.reload();
         } else {
             const err = await res.json().catch(() => null);
@@ -1045,6 +1047,96 @@ document.getElementById('editor-form')?.addEventListener('submit', () => markCle
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
 });
+
+// ── Auto-save draft (localStorage only — no server writes) ───────────────────
+
+const DRAFT_KEY         = `tb-draft-${templateId}`;
+const AUTOSAVE_PREF_KEY = 'tb-autosave-enabled';
+const AUTOSAVE_INTERVAL = 60_000;
+
+function isAutoSaveEnabled() {
+    return localStorage.getItem(AUTOSAVE_PREF_KEY) !== 'false';
+}
+
+function updateAutoSaveToggle() {
+    const btn = document.getElementById('btn-autosave-toggle');
+    if (!btn) return;
+    const on = isAutoSaveEnabled();
+    btn.textContent = on ? '⏳ Auto-save: ON' : '⏳ Auto-save: OFF';
+    btn.title = on ? 'Auto-save is on — click to disable' : 'Auto-save is off — click to enable';
+    btn.classList.toggle('tb-autosave-on',  on);
+    btn.classList.toggle('tb-autosave-off', !on);
+}
+
+function updateDraftStatus() {
+    const el = document.getElementById('wc-draft-status');
+    if (!el) return;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) { el.textContent = ''; return; }
+    try {
+        const { timestamp } = JSON.parse(raw);
+        const mins = Math.round((Date.now() - timestamp) / 60000);
+        el.textContent = mins < 1 ? 'Draft saved just now' : `Draft saved ${mins}m ago`;
+    } catch { el.textContent = ''; }
+}
+
+function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+    const el = document.getElementById('wc-draft-status');
+    if (el) el.textContent = '';
+}
+
+function saveDraft() {
+    if (!_isDirty || !isAutoSaveEnabled() || !_editor) return;
+    try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            body: _editor.getContents(),
+            timestamp: Date.now(),
+            versionNumber: currentVersionNumber
+        }));
+        updateDraftStatus();
+    } catch { /* storage quota exceeded — silently skip */ }
+}
+
+function loadDraft() {
+    if (templateId === null) return;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    try {
+        const draft = JSON.parse(raw);
+        if (draft.versionNumber !== currentVersionNumber) { clearDraft(); return; }
+        const banner = document.getElementById('tb-draft-banner');
+        if (!banner) return;
+        const ageEl = document.getElementById('draft-age');
+        if (ageEl) {
+            const mins = Math.round((Date.now() - draft.timestamp) / 60000);
+            ageEl.textContent = mins < 1 ? 'just now' : `${mins} min ago`;
+        }
+        banner.hidden = false;
+        document.getElementById('btn-draft-restore')?.addEventListener('click', () => {
+            _editor.setContents(draft.body);
+            markDirty();
+            updateWordCount();
+            clearDraft();
+            banner.hidden = true;
+            showToast('Draft restored — remember to save when ready');
+        }, { once: true });
+        document.getElementById('btn-draft-discard')?.addEventListener('click', () => {
+            clearDraft();
+            banner.hidden = true;
+        }, { once: true });
+    } catch { clearDraft(); }
+}
+
+document.getElementById('btn-autosave-toggle')?.addEventListener('click', () => {
+    localStorage.setItem(AUTOSAVE_PREF_KEY, isAutoSaveEnabled() ? 'false' : 'true');
+    updateAutoSaveToggle();
+    showToast(isAutoSaveEnabled() ? 'Auto-save enabled' : 'Auto-save disabled');
+});
+
+updateAutoSaveToggle();
+setInterval(saveDraft, AUTOSAVE_INTERVAL);
+setTimeout(loadDraft, 500);
 
 // Initialize word count once SunEditor has rendered its content
 setTimeout(updateWordCount, 400);
