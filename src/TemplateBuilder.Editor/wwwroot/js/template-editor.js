@@ -783,6 +783,9 @@ function updateWordCount() {
         <button type="button" data-tt="valignMid"    title="Align middle">↕</button>
         <button type="button" data-tt="valignBot"    title="Align bottom">↓</button>
         <span class="tt-sep"></span>
+        <button type="button" data-tt="mergeCells" title="Merge selected cells (Shift+click to select)" disabled>⊞ Merge</button>
+        <button type="button" data-tt="splitCell"  title="Split merged cell" disabled>⊟ Split</button>
+        <span class="tt-sep"></span>
         <div class="tt-style-wrap">
             <button type="button" data-tt="styleToggle" title="Table style">Style ▾</button>
             <div class="tt-style-menu" hidden>
@@ -796,6 +799,7 @@ function updateWordCount() {
     let _activeCell = null;
     let _activeTable = null;
     let _positioned = false;
+    let _selEnd = null;      // shift-clicked cell for multi-cell merge selection
 
     function getCell(node) {
         return node?.closest('td, th');
@@ -821,6 +825,7 @@ function updateWordCount() {
     }
 
     function hideToolbar() {
+        clearCellSel();
         toolbar.hidden = true;
         toolbar.style.visibility = 'hidden';
         _activeCell = null;
@@ -828,11 +833,171 @@ function updateWordCount() {
         toolbar.querySelector('.tt-style-menu').hidden = true;
     }
 
+    // ── Cell map utilities ─────────────────────────────────────────────────────
+
+    // Build a 2-D visual grid: map[r][c] = the cell occupying that slot (handles spans)
+    function buildCellMap(table) {
+        const rows = table.rows.length;
+        const map  = Array.from({ length: rows }, () => []);
+        for (let r = 0; r < rows; r++) {
+            let col = 0;
+            for (let ci = 0; ci < table.rows[r].cells.length; ci++) {
+                const cell = table.rows[r].cells[ci];
+                const rs = cell.rowSpan || 1, cs = cell.colSpan || 1;
+                while (map[r][col]) col++;
+                for (let dr = 0; dr < rs; dr++) {
+                    if (!map[r + dr]) map[r + dr] = [];
+                    for (let dc = 0; dc < cs; dc++) map[r + dr][col + dc] = cell;
+                }
+                col += cs;
+            }
+        }
+        return map;
+    }
+
+    // Return visual top-left {r, c} of a cell (its first appearance in the map)
+    function cellCoords(map, cell) {
+        for (let r = 0; r < map.length; r++)
+            for (let c = 0; c < (map[r]?.length || 0); c++)
+                if (map[r][c] === cell) return { r, c };
+        return null;
+    }
+
+    function clearCellSel() {
+        _selEnd = null;
+        _activeTable?.querySelectorAll('.tb-cell-sel').forEach(el => el.classList.remove('tb-cell-sel'));
+    }
+
+    function updateMergeSplitBtns() {
+        const mergeBtn = toolbar.querySelector('[data-tt="mergeCells"]');
+        const splitBtn = toolbar.querySelector('[data-tt="splitCell"]');
+        if (!mergeBtn || !splitBtn) return;
+        mergeBtn.disabled = !(_selEnd && _selEnd !== _activeCell);
+        splitBtn.disabled = !((_activeCell?.colSpan || 1) > 1 || (_activeCell?.rowSpan || 1) > 1);
+    }
+
+    function doMergeCells() {
+        if (!_activeCell || !_selEnd || !_activeTable) return;
+        const map = buildCellMap(_activeTable);
+        const ac  = cellCoords(map, _activeCell);
+        const ec  = cellCoords(map, _selEnd);
+        if (!ac || !ec) return;
+
+        const minR = Math.min(ac.r, ec.r), maxR = Math.max(ac.r, ec.r);
+        const minC = Math.min(ac.c, ec.c), maxC = Math.max(ac.c, ec.c);
+
+        const inRect = new Set();
+        for (let r = minR; r <= maxR; r++)
+            for (let c = minC; c <= maxC; c++)
+                if (map[r]?.[c]) inRect.add(map[r][c]);
+
+        // Validate every cell in the rectangle is fully contained
+        for (const cell of inRect) {
+            const cc = cellCoords(map, cell);
+            if (!cc) continue;
+            const rs = cell.rowSpan || 1, cs = cell.colSpan || 1;
+            if (cc.r < minR || cc.r + rs - 1 > maxR || cc.c < minC || cc.c + cs - 1 > maxC) {
+                showToast('Cannot merge: a cell spans outside the selected area');
+                return;
+            }
+        }
+
+        const topLeft = map[minR][minC];
+        const extra   = [];
+        for (const cell of inRect)
+            if (cell !== topLeft && cell.innerHTML.replace(/&nbsp;|\s/g, '').trim())
+                extra.push(cell.innerHTML);
+        if (extra.length) topLeft.innerHTML += ' ' + extra.join(' ');
+
+        topLeft.colSpan = maxC - minC + 1;
+        topLeft.rowSpan = maxR - minR + 1;
+        for (const cell of inRect) if (cell !== topLeft) cell.remove();
+
+        clearCellSel();
+        _activeCell = topLeft;
+        markDirty();
+        showToolbar(topLeft);
+        updateMergeSplitBtns();
+    }
+
+    function doSplitCell() {
+        if (!_activeCell || !_activeTable) return;
+        const cs = _activeCell.colSpan || 1, rs = _activeCell.rowSpan || 1;
+        if (cs === 1 && rs === 1) { showToast('Cell is not merged'); return; }
+
+        const map    = buildCellMap(_activeTable);
+        const coords = cellCoords(map, _activeCell);
+        if (!coords) return;
+        const { r: startR, c: startC } = coords;
+        const tag = _activeCell.tagName.toLowerCase();
+
+        _activeCell.colSpan = 1;
+        _activeCell.rowSpan = 1;
+
+        // Re-insert (cs-1) cells after the anchor in its own row
+        const anchorRow = _activeCell.closest('tr');
+        for (let dc = 1; dc < cs; dc++) {
+            const nc  = document.createElement(tag);
+            nc.innerHTML = ' ';
+            const prev = anchorRow.cells[_activeCell.cellIndex + dc - 1];
+            prev?.nextElementSibling
+                ? anchorRow.insertBefore(nc, prev.nextElementSibling)
+                : anchorRow.appendChild(nc);
+        }
+
+        // Re-insert cs cells in each of the (rs-1) rows spanned below
+        for (let dr = 1; dr < rs; dr++) {
+            const targetRow = _activeTable.rows[startR + dr];
+            if (!targetRow) continue;
+            // Find first DOM cell in targetRow whose visual col >= startC + cs
+            let insertBefore = null;
+            for (let c = startC + cs; c < (map[startR + dr]?.length || 0); c++) {
+                const cand = map[startR + dr][c];
+                if (cand && cand.parentElement === targetRow) { insertBefore = cand; break; }
+            }
+            for (let dc = 0; dc < cs; dc++) {
+                const nc = document.createElement(tag);
+                nc.innerHTML = ' ';
+                insertBefore
+                    ? targetRow.insertBefore(nc, insertBefore)
+                    : targetRow.appendChild(nc);
+                if (insertBefore) insertBefore = nc.nextElementSibling || null;
+            }
+        }
+
+        clearCellSel();
+        markDirty();
+        showToolbar(_activeCell);
+        updateMergeSplitBtns();
+    }
+
     // Show on click inside a table cell
     editable.addEventListener('mousedown', (e) => {
         const cell = getCell(e.target);
-        if (cell) { showToolbar(cell); }
-        else if (!toolbar.contains(e.target)) { hideToolbar(); }
+        if (cell) {
+            const table = cell.closest('table');
+            if (e.shiftKey && _activeCell && table === _activeTable) {
+                // Extend selection — prevent text selection behaviour
+                e.preventDefault();
+                _selEnd = cell;
+                const map = buildCellMap(_activeTable);
+                _activeTable.querySelectorAll('td,th').forEach(c => c.classList.remove('tb-cell-sel'));
+                const ac = cellCoords(map, _activeCell), ec = cellCoords(map, _selEnd);
+                if (ac && ec) {
+                    const minR = Math.min(ac.r, ec.r), maxR = Math.max(ac.r, ec.r);
+                    const minC = Math.min(ac.c, ec.c), maxC = Math.max(ac.c, ec.c);
+                    for (let r = minR; r <= maxR; r++)
+                        for (let c = minC; c <= maxC; c++)
+                            if (map[r]?.[c]) map[r][c].classList.add('tb-cell-sel');
+                }
+            } else {
+                clearCellSel();
+                showToolbar(cell);
+            }
+            updateMergeSplitBtns();
+        } else if (!toolbar.contains(e.target)) {
+            hideToolbar();
+        }
     });
 
     // Table operations
@@ -857,6 +1022,9 @@ function updateWordCount() {
             markDirty();
             return;
         }
+
+        if (action === 'mergeCells') { doMergeCells(); return; }
+        if (action === 'splitCell')  { doSplitCell();  return; }
 
         const row = _activeCell.closest('tr');
         const rowIndex = row.rowIndex;  // 0-based in the table
