@@ -1159,6 +1159,56 @@ function updateWordCount() {
     });
 })();
 
+// ── List style dropdown ───────────────────────────────────────────────────────
+
+(function wireListStyleMenu() {
+    const menu = document.createElement('div');
+    menu.id = 'tb-list-style-menu';
+    menu.hidden = true;
+    menu.innerHTML = `
+        <button type="button" data-ls="disc">● Disc</button>
+        <button type="button" data-ls="circle">○ Circle</button>
+        <button type="button" data-ls="square">▪ Square</button>
+        <div class="tb-ls-sep"></div>
+        <button type="button" data-ls="decimal">1. Decimal</button>
+        <button type="button" data-ls="upper-alpha">A. Upper Alpha</button>
+        <button type="button" data-ls="lower-roman">i. Lower Roman</button>`;
+    document.body.appendChild(menu);
+
+    function openMenu() {
+        const btn = document.querySelector('[data-command="listStyle"]') ??
+                    document.querySelector('[title="List Style ▾"]');
+        if (btn) {
+            const r = btn.getBoundingClientRect();
+            menu.style.top  = (r.bottom + window.scrollY + 4) + 'px';
+            menu.style.left = (r.left  + window.scrollX) + 'px';
+        }
+        menu.hidden = false;
+    }
+
+    function closeMenu() { menu.hidden = true; }
+
+    menu.addEventListener('click', e => {
+        const btn = e.target.closest('[data-ls]');
+        if (!btn) return;
+        const sel = window.getSelection();
+        const anchor = sel?.anchorNode;
+        const list = anchor
+            ? (anchor.nodeType === 3 ? anchor.parentElement : anchor)?.closest('ul, ol')
+            : null;
+        closeMenu();
+        if (!list) { showToast('Place cursor inside a list first'); return; }
+        list.style.listStyleType = btn.dataset.ls;
+        markDirty();
+    });
+
+    document.addEventListener('mousedown', e => {
+        if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+    });
+
+    window._toggleListStyleMenu = () => menu.hidden ? openMenu() : closeMenu();
+})();
+
 // ── Insert Field dropdown ─────────────────────────────────────────────────────
 
 (function wireFieldDropdown() {
