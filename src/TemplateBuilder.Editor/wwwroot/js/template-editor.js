@@ -153,7 +153,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['undo', 'redo'],
         ['bold', 'italic', 'underline', 'strike'],
         ['subscript', 'superscript'],
-        ['formatBlock', 'font', 'fontSize'],
+        ['formatBlock', 'font', 'fontSize', 'lineHeight'],
         ['fontColor', 'hiliteColor'],
         ['align'],
         ['list', 'hrThin', 'hrThick', 'hrSpaced'],
@@ -168,6 +168,14 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     ],
     font: ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman', 'Tahoma', 'Impact'],
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
+    lineHeights: [
+        { text: '1.0',  value: '1'    },
+        { text: '1.15', value: '1.15' },
+        { text: '1.5',  value: '1.5'  },
+        { text: '2.0',  value: '2'    },
+        { text: '2.5',  value: '2.5'  },
+        { text: '3.0',  value: '3'    },
+    ],
     addTagsWhitelist: 'span|div|img|hr|blockquote',
     attributesWhitelist: {
         span:  'class|style|contenteditable',
