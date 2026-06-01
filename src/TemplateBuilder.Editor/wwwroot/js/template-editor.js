@@ -133,7 +133,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['undo', 'redo'],
         ['bold', 'italic', 'underline', 'strike'],
         ['subscript', 'superscript'],
-        ['formatBlock', 'fontSize'],
+        ['formatBlock', 'font', 'fontSize'],
         ['fontColor', 'hiliteColor'],
         ['align'],
         ['list', 'hrThin', 'hrThick', 'hrSpaced'],
@@ -146,6 +146,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['validate'],
         ['codeView'],
     ],
+    font: ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman', 'Tahoma', 'Impact'],
     fontSize: [10, 12, 14, 16, 18, 20, 24, 28, 32, 36],
     addTagsWhitelist: 'span|div|img|hr|blockquote',
     attributesWhitelist: {
@@ -626,7 +627,8 @@ function showToast(msg) {
         '  height:100%!important;box-sizing:border-box!important;padding:.75rem!important;',
         '  background:#1e1e1e!important;color:#c9d1d9!important;',
         '  font-family:Consolas,"Courier New",monospace!important;font-size:.82rem!important;}',
-        '.__se__font_size{width:65px!important;min-width:0!important;}'
+        '.__se__font_size{width:65px!important;min-width:0!important;}',
+        '.__se__font{width:120px!important;min-width:0!important;}'
     ].join('');
     document.head.appendChild(style);
 
