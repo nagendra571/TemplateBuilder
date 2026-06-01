@@ -293,6 +293,18 @@
     </div>
 </div>
 
+<!-- Special Characters floating panel (non-blocking — no overlay) -->
+<div id="special-chars-panel" class="tb-special-chars" hidden role="dialog" aria-label="Special Characters">
+    <div class="tb-sc-header">
+        <span class="tb-sc-title">Special Characters</span>
+        <button type="button" id="btn-sc-close" class="tb-sc-close" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="tb-sc-search-row">
+        <input type="search" id="sc-search" class="tb-sc-search" placeholder="Search…" autocomplete="off">
+    </div>
+    <div id="sc-groups" class="tb-sc-groups"></div>
+</div>
+
 </div>@* /tb-editor-host *@
 
 @section Styles {

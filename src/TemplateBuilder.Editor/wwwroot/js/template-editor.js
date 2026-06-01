@@ -756,6 +756,7 @@ document.addEventListener('keydown', e => {
     const fd = document.getElementById('tb-field-dropdown');
     if (fd && !fd.hidden) fd.hidden = true;
     if (window._isFindReplaceOpen?.()) window._closeFindReplace?.();
+    if (window._isSpecialCharsOpen?.()) window._closeSpecialChars?.();
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1594,6 +1595,79 @@ document.getElementById('editor-form')?.addEventListener('submit', () => {
 
     // Load snippets on page init
     loadSnippets();
+})();
+
+// ── Special characters picker ─────────────────────────────────────────────────
+
+(function wireSpecialChars() {
+    const SC_GROUPS = [
+        { label: 'Currency',   chars: ['$','£','€','¥','₹','₩','¢'] },
+        { label: 'Legal',      chars: ['©','®','™','§','¶','°'] },
+        { label: 'Math',       chars: ['±','×','÷','≠','≤','≥','∞','√','∑','≈'] },
+        { label: 'Arrows',     chars: ['→','←','↑','↓','↔','⇒','⇐','↗','↘'] },
+        { label: 'Typography', chars: ['…','—','–','“','”','‘','’','·','•','†','‡','½','¼','¾'] },
+    ];
+
+    const SC_NAMES = {
+        '$':'Dollar','£':'Pound','€':'Euro','¥':'Yen','₹':'Rupee','₩':'Won','¢':'Cent',
+        '©':'Copyright','®':'Registered','™':'Trademark','§':'Section','¶':'Paragraph','°':'Degree',
+        '±':'Plus Minus','×':'Multiply','÷':'Divide','≠':'Not Equal','≤':'Less Equal','≥':'Greater Equal',
+        '∞':'Infinity','√':'Square Root','∑':'Sigma','≈':'Approximately',
+        '→':'Right Arrow','←':'Left Arrow','↑':'Up Arrow','↓':'Down Arrow','↔':'Left Right Arrow',
+        '⇒':'Double Right Arrow','⇐':'Double Left Arrow','↗':'Up Right Arrow','↘':'Down Right Arrow',
+        '…':'Ellipsis','—':'Em Dash','–':'En Dash','“':'Left Double Quote','”':'Right Double Quote',
+        '‘':'Left Single Quote','’':'Right Single Quote','·':'Middle Dot','•':'Bullet',
+        '†':'Dagger','‡':'Double Dagger','½':'One Half','¼':'One Quarter','¾':'Three Quarters',
+    };
+
+    const panel    = document.getElementById('special-chars-panel');
+    const searchEl = document.getElementById('sc-search');
+    const groupsEl = document.getElementById('sc-groups');
+    if (!panel) return;
+
+    function renderGroups(query) {
+        const q = query.trim().toLowerCase();
+        groupsEl.innerHTML = SC_GROUPS.map(g => {
+            const visible = q
+                ? g.chars.filter(c => (SC_NAMES[c] || '').toLowerCase().includes(q) || c === q)
+                : g.chars;
+            if (!visible.length) return '';
+            return `<div class="tb-sc-group">
+                <div class="tb-sc-group-label">${g.label}</div>
+                <div class="tb-sc-chars">${visible.map(c =>
+                    `<button type="button" class="tb-sc-char" title="${escapeHtml(SC_NAMES[c] || c)}" data-char="${escapeHtml(c)}">${c}</button>`
+                ).join('')}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function openPanel() {
+        renderGroups('');
+        searchEl.value = '';
+        panel.hidden = false;
+        searchEl.focus();
+    }
+
+    function closePanel() {
+        panel.hidden = true;
+        document.querySelector('.sun-editor-editable')?.focus();
+    }
+
+    searchEl.addEventListener('input', e => renderGroups(e.target.value));
+
+    groupsEl.addEventListener('click', e => {
+        const btn = e.target.closest('.tb-sc-char');
+        if (!btn || !_editor) return;
+        _editor.insertText(btn.dataset.char);
+        markDirty();
+        closePanel();
+    });
+
+    document.getElementById('btn-sc-close')?.addEventListener('click', closePanel);
+
+    window._openSpecialChars   = openPanel;
+    window._closeSpecialChars  = closePanel;
+    window._isSpecialCharsOpen = () => !panel.hidden;
 })();
 
 // ── Find & Replace ────────────────────────────────────────────────────────────
