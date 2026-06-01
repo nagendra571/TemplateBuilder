@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.1.7**
+**Current version: 1.3.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.1.7
+dotnet add package TemplateBuilder.Editor --version 1.3.0
 ```
 
 ### 2. Add a connection string
@@ -128,6 +128,24 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ---
 
+## What's New
+
+### v1.3.0
+- **Reusable Content Snippets** — Save any selection as a named snippet and insert it into any template from the Snippets panel. Full CRUD API (`GET/POST/DELETE /Templates/Api/Snippets`).
+
+### v1.2.1
+- **Merge & Split Table Cells** — Multi-cell selection with colspan/rowspan support via the floating table toolbar.
+
+### v1.2.0
+- **Font Family Selection** — Choose from common web-safe and system font families in the toolbar.
+- **Fullscreen Editing** — Toggle distraction-free fullscreen mode.
+- **Word & Character Count** — Live count displayed in the editor status bar.
+- **Auto-save Drafts** — Unsaved changes are preserved across page reloads.
+- **Find & Replace** — Floating panel (Ctrl+H) with highlight, navigation, and bulk replace.
+- **Clean Paste from Word/Outlook** — Strips proprietary formatting on paste, preserving semantic structure.
+
+---
+
 ## Features
 
 | Feature | Route |
@@ -142,6 +160,9 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 | Duplicate | `POST /Templates/{id}/Duplicate` |
 | Validate syntax | `POST /Templates/{id}/Validate` |
 | Toggle active | `POST /Templates/{id}/ToggleActive` |
+| List snippets | `GET /Templates/Api/Snippets` |
+| Create snippet | `POST /Templates/Api/Snippets` |
+| Delete snippet | `DELETE /Templates/Api/Snippets/{id}` |
 | Setup check | `GET /Templates/_setup` *(Development only)* |
 
 ---
