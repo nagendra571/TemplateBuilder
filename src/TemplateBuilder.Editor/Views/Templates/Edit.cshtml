@@ -85,6 +85,7 @@
                 <div>
                     <label for="prop-name">Template Name</label>
                     <input asp-for="Name" id="prop-name" />
+                    <span asp-validation-for="Name" class="tb-field-error"></span>
                 </div>
                 <div>
                     <label for="prop-type">Type</label>
@@ -116,6 +117,10 @@
             </div>
             <div class="tb-props-footer">
                 <div id="save-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+                @if (isNew)
+                {
+                    <div asp-validation-summary="ModelOnly" class="tb-error-msg tb-validation-summary"></div>
+                }
                 <button type="button" id="btn-preview" class="btn btn-secondary">Preview</button>
                 @if (!isNew)
                 {

@@ -272,6 +272,9 @@
     color: var(--danger);
     font-size: .78rem;
 }
+.tb-validation-summary:empty { display: none; }
+.tb-validation-summary ul { margin: 0; padding: 0 0 0 1.1rem; }
+.tb-field-error { display: block; color: var(--danger); font-size: .75rem; margin-top: .2rem; }
 
 #restore-error { margin: .5rem .75rem 0; font-size: .82rem; }
 

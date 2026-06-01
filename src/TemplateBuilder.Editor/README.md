@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.3.0**
+**Current version: 1.3.1**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.3.0
+dotnet add package TemplateBuilder.Editor --version 1.3.1
 ```
 
 ### 2. Add a connection string
@@ -129,6 +129,11 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v1.3.1
+- **Fix**: SunEditor content no longer lost when Create form fails validation — body is now synced to the form before submission.
+- **Fix**: Validation errors (e.g. missing template name) are now shown inline on the Create form instead of silently resetting the page.
+- **Fix**: Body content entered on the Create screen is now saved as v1 when the template is created, so the Edit screen opens with content intact.
 
 ### v1.3.0
 - **Reusable Content Snippets** — Save any selection as a named snippet and insert it into any template from the Snippets panel. Full CRUD API (`GET/POST/DELETE /Templates/Api/Snippets`).

@@ -70,6 +70,18 @@ public class TemplatesController : Controller
                 TemplateType = model.TemplateType,
                 Description = model.Description
             }, ct);
+
+            if (!string.IsNullOrWhiteSpace(model.Body))
+            {
+                await _repository.PublishVersionAsync(template.Id, new TemplateVersion
+                {
+                    TemplateId = template.Id,
+                    VersionNumber = 1,
+                    Body = model.Body,
+                    ChangeComment = "Initial version"
+                }, ct);
+            }
+
             return RedirectToAction(nameof(Edit), new { id = template.Id });
         }
         catch (DbUpdateException)

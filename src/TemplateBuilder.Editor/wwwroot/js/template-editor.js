@@ -1313,8 +1313,11 @@ function toggleTheme() {
     btn.addEventListener('click', toggleTheme);
 })();
 
-// Suppress the beforeunload guard when the Create form is submitted normally.
-document.getElementById('editor-form')?.addEventListener('submit', () => markClean());
+// Sync SunEditor back to the hidden textarea and suppress the beforeunload guard.
+document.getElementById('editor-form')?.addEventListener('submit', () => {
+    if (_editor) _editor.save();
+    markClean();
+});
 
 ['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
     const el = document.getElementById(id);
