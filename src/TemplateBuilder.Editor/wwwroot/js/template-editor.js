@@ -134,6 +134,54 @@ const saveSnippetPlugin = {
     action: function() { window._openSaveSnippetModal?.(); }
 };
 
+const printPlugin = {
+    name: 'print',
+    display: 'command',
+    title: 'Print',
+    innerHTML: '<span style="font-size:.82rem">🖨</span>',
+    add: function(core) {},
+    action: function() { window.print(); }
+};
+
+const listStylePlugin = {
+    name: 'listStyle',
+    display: 'command',
+    title: 'List Style ▾',
+    innerHTML: '<span style="font-size:.7rem;font-weight:600">≡▾</span>',
+    add: function(core) {},
+    action: function() { window._toggleListStyleMenu?.(); }
+};
+
+const anchorPlugin = {
+    name: 'anchor',
+    display: 'command',
+    title: 'Insert Anchor',
+    innerHTML: '<span style="font-size:.82rem">⚓</span>',
+    add: function(core) {},
+    action: function() {
+        if (!_editor) return;
+        const raw = prompt('Anchor name (used as #name in links):');
+        if (!raw?.trim()) return;
+        const name = raw.trim().toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '');
+        if (!name) { showToast('Invalid anchor name — use letters, numbers, and hyphens only'); return; }
+        _editor.insertHTML(
+            `<a name="${name}" class="tb-anchor" contenteditable="false" title="#${name}">⚓ ${name}</a>&nbsp;`
+        );
+        markDirty();
+    }
+};
+
+const specialCharsPlugin = {
+    name: 'specialChars',
+    display: 'command',
+    title: 'Special Characters',
+    innerHTML: '<span style="font-size:.88rem;font-weight:600">Ω</span>',
+    add: function(core) {},
+    action: function() { window._openSpecialChars?.(); }
+};
+
 
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: [
@@ -146,6 +194,10 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         validatePlugin,
         findReplacePlugin,
         saveSnippetPlugin,
+        printPlugin,
+        listStylePlugin,
+        anchorPlugin,
+        specialCharsPlugin,
     ],
     height: '100%',
     theme: _theme === 'dark' ? 'dark' : undefined,
@@ -156,14 +208,14 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['formatBlock', 'font', 'fontSize', 'lineHeight'],
         ['fontColor', 'hiliteColor'],
         ['align'],
-        ['list', 'hrThin', 'hrThick', 'hrSpaced'],
+        ['list', 'listStyle', 'hrThin', 'hrThick', 'hrSpaced'],
         ['pageBreak'],
-        ['link', 'table', 'image'],
+        ['link', 'table', 'image', 'anchor'],
         ['insertField'],
         ['insertLoop'],
         ['insertConditional'],
         ['blockquote', 'removeFormat'],
-        ['validate', 'findReplace', 'saveSnippet'],
+        ['validate', 'findReplace', 'saveSnippet', 'specialChars', 'print'],
         ['codeView', 'fullScreen'],
     ],
     font: ['Arial', 'Georgia', 'Courier New', 'Trebuchet MS', 'Verdana', 'Times New Roman', 'Tahoma', 'Impact'],
