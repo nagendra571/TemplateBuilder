@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.1.7 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.3 | Full management UI — create, edit, version, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.1.7
+dotnet add package TemplateBuilder.Editor --version 1.3.3
 ```
 
 ### 2. Add a connection string
@@ -173,6 +173,16 @@ Both packages share the same database schema — point them at the same connecti
 | **Auto-migrations** | Database schema created and updated on startup |
 | **Setup diagnostic** | `/Templates/_setup` — checks all integration requirements |
 | **Scriban syntax** | `{{ model.X }}`, loops, conditionals, filters |
+| **Reusable snippets** | Save any selection as a named snippet, insert into any template |
+| **Table toolbar** | Add/remove rows & columns, merge/split cells, header toggle, vertical align, style presets |
+| **Find & Replace** | Floating panel (Ctrl+H) with highlight, navigation, and bulk replace |
+| **Auto-save drafts** | Unsaved changes preserved in localStorage across page reloads |
+| **Clean paste** | Strips Word/Outlook formatting on paste, preserves semantic structure |
+| **Line height** | Dropdown (1.0 – 3.0) in the font toolbar group |
+| **Custom list styles** | Apply disc/circle/square/decimal/upper-alpha/lower-roman to any list |
+| **Special characters** | Floating picker (~80 chars across 5 groups) with live search |
+| **Anchor links** | Insert named anchor chips; link to them via `#name` in the link dialog |
+| **Print** | One-click browser print from the toolbar |
 
 ---
 
@@ -211,6 +221,36 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ---
 
+## Release History
+
+### TemplateBuilder.Editor
+
+**v1.3.3**
+- **Fix**: Editor canvas no longer blank on load — the custom anchor plugin was renamed to avoid colliding with SunEditor's internal `core.context.anchor` context used by the link plugin.
+
+**v1.3.2**
+- **Line Height** — dropdown (1.0–3.0) in the font toolbar group.
+- **Special Characters** — floating Ω picker with 5 groups (~80 chars) and live search.
+- **Print** — 🖨 toolbar button triggers browser print dialog.
+- **Custom List Styles** — dropdown applies disc/circle/square/decimal/upper-alpha/lower-roman to the active list.
+- **Anchor Links** — ⚓ toolbar button inserts a named anchor chip; link to it via `#name` in the standard link dialog.
+
+**v1.3.1**
+- **Fix**: SunEditor content no longer lost when Create form fails validation.
+- **Fix**: Validation errors shown inline on the Create form instead of silently resetting the page.
+- **Fix**: Body content entered on Create is saved as v1 so the Edit screen opens with content intact.
+
+**v1.3.0**
+- **Reusable Content Snippets** — save any selection as a named snippet and insert it into any template from the Snippets panel. Full CRUD API (`GET/POST/DELETE /Templates/Api/Snippets`).
+
+**v1.2.1**
+- **Merge & Split Table Cells** — multi-cell selection with colspan/rowspan support via the floating table toolbar.
+
+**v1.2.0**
+- **Font Family Selection**, **Fullscreen Editing**, **Word & Character Count**, **Auto-save Drafts**, **Find & Replace** (Ctrl+H), **Clean Paste from Word/Outlook**.
+
+---
+
 ## Development
 
 ### Run the thin host
@@ -235,7 +275,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.1.7.nupkg \
+dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.3.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \
