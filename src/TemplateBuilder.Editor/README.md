@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.3.2**
+**Current version: 1.3.3**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.3.2
+dotnet add package TemplateBuilder.Editor --version 1.3.3
 ```
 
 ### 2. Add a connection string
@@ -129,6 +129,9 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v1.3.3
+- **Fix**: Editor canvas no longer blank on load — the custom anchor plugin was renamed from `anchor` to `insertAnchor` to avoid colliding with SunEditor's internal `core.context.anchor` context used by the built-in link plugin.
 
 ### v1.3.2
 - **Line Height** — line height dropdown (1.0–3.0) in the font toolbar group.
