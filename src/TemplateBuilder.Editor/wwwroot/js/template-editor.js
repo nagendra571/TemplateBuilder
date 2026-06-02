@@ -153,7 +153,7 @@ const listStylePlugin = {
 };
 
 const anchorPlugin = {
-    name: 'anchor',
+    name: 'insertAnchor',
     display: 'command',
     title: 'Insert Anchor',
     innerHTML: '<span style="font-size:.82rem">⚓</span>',
@@ -210,7 +210,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         ['align'],
         ['list', 'listStyle', 'hrThin', 'hrThick', 'hrSpaced'],
         ['pageBreak'],
-        ['link', 'table', 'image', 'anchor'],
+        ['link', 'table', 'image', 'insertAnchor'],
         ['insertField'],
         ['insertLoop'],
         ['insertConditional'],
