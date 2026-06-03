@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
                     errorNumbersToAdd: null)));
 
         services.AddScoped<ITemplateRepository, TemplateRepository>();
+        services.AddScoped<ISnippetRepository, SnippetRepository>();
         services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
 
         services.AddOptions<TemplateBuilderOptions>();

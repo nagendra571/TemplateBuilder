@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.3 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.4 | Full management UI — create, edit, version, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.3.3
+dotnet add package TemplateBuilder.Editor --version 1.3.4
 ```
 
 ### 2. Add a connection string
@@ -225,6 +225,9 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.3.4**
+- **Fix**: Snippets panel now loads correctly — `ISnippetRepository` was missing from `AddTemplateBuilderEditor()` DI registrations, causing a 500 on `GET /Templates/Api/Snippets`.
+
 **v1.3.3**
 - **Fix**: Editor canvas no longer blank on load — the custom anchor plugin was renamed to avoid colliding with SunEditor's internal `core.context.anchor` context used by the link plugin.
 
@@ -275,7 +278,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.3.nupkg \
+dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.4.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \
