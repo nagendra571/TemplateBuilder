@@ -2,7 +2,7 @@ const _csrf = document.querySelector('input[name=__RequestVerificationToken]')?.
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const _host = document.getElementById('tb-editor-host');
-const _theme = localStorage.getItem('tb-theme') || 'dark';
+const _theme = localStorage.getItem('tb-theme') || 'light';
 if (_theme === 'light') _host?.classList.add('tb-theme-light');
 
 function escapeHtml(str) {
@@ -1860,7 +1860,7 @@ const AUTOSAVE_PREF_KEY = 'tb-autosave-enabled';
 const AUTOSAVE_INTERVAL = 60_000;
 
 function isAutoSaveEnabled() {
-    return localStorage.getItem(AUTOSAVE_PREF_KEY) !== 'false';
+    return localStorage.getItem(AUTOSAVE_PREF_KEY) === 'true';
 }
 
 function updateAutoSaveToggle() {
