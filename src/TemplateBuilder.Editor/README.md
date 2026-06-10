@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.3.4**
+**Current version: 1.3.5**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.3.4
+dotnet add package TemplateBuilder.Editor --version 1.3.5
 ```
 
 ### 2. Add a connection string
@@ -129,6 +129,9 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v1.3.5
+- **Fix**: Editor canvas now scrolls to show full template content — `.tb-canvas-body` was clipping overflow instead of scrolling, hiding everything below the initial viewport height.
 
 ### v1.3.4
 - **Fix**: Snippets panel now loads correctly — `ISnippetRepository` was missing from `AddTemplateBuilderEditor()` DI registrations, causing a 500 on `GET /Templates/Api/Snippets`.
