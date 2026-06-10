@@ -96,6 +96,7 @@
 }
 
 .tb-panel-left {
+    border-left: 1px solid var(--border);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -110,6 +111,7 @@
 
 .tb-panel-right {
     border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
