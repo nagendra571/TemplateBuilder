@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.5 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.6 | Full management UI — create, edit, version, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.3.5
+dotnet add package TemplateBuilder.Editor --version 1.3.6
 ```
 
 ### 2. Add a connection string
@@ -225,6 +225,11 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.3.6**
+- **Style**: Outer borders added to Field Palette (left) and Properties (right) panels.
+- **Default**: Editor opens in light mode for new users (was dark).
+- **Default**: Auto-save defaults to OFF for new users (was ON).
+
 **v1.3.5**
 - **Fix**: Editor canvas now scrolls to show full template content — `.tb-canvas-body` had `overflow: hidden`, clipping everything below the initial viewport height.
 
@@ -281,7 +286,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.5.nupkg \
+dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.6.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \
