@@ -468,14 +468,36 @@ async function loadViewColumns(viewName) {
 function _tbGenerateSampleFromTemplate() {
     if (!_editor) return '{}';
     const html = _editor.getContents();
-    const pattern = /\{\{-?\s*model\.(\w+)\s*-?\}\}/g;
-    const fields = new Set();
-    let m;
-    while ((m = pattern.exec(html)) !== null) fields.add(m[1]);
-    if (fields.size === 0) return '{}';
     const obj = {};
-    for (const f of fields) obj[f] = `Sample ${f}`;
-    return JSON.stringify(obj, null, 2);
+
+    // Pass 1 — top-level scalars: {{ model.FieldName }}
+    const scalarPat = /\{\{-?\s*model\.(\w+)\s*-?\}\}/g;
+    let m;
+    while ((m = scalarPat.exec(html)) !== null)
+        if (!(m[1] in obj)) obj[m[1]] = `Sample ${m[1]}`;
+
+    // Pass 2 — loop declarations: {{ for alias in model.Collection }}
+    const loopPat = /\{\{-?\s*for\s+(\w+)\s+in\s+model\.(\w+)\s*-?\}\}/g;
+    const aliasMap = {};
+    while ((m = loopPat.exec(html)) !== null) aliasMap[m[1]] = m[2];
+
+    // Pass 3 — item fields: {{ alias.FieldName }}
+    const itemPat = /\{\{-?\s*(\w+)\.(\w+)\s*-?\}\}/g;
+    const colFields = {};
+    while ((m = itemPat.exec(html)) !== null) {
+        if (!(m[1] in aliasMap)) continue;
+        const col = aliasMap[m[1]];
+        (colFields[col] ??= new Set()).add(m[2]);
+    }
+
+    // Build 2-item arrays for each collection (overwrites any same-named scalar)
+    for (const [col, fields] of Object.entries(colFields)) {
+        const row1 = {}, row2 = {};
+        for (const f of fields) { row1[f] = `Sample ${f}`; row2[f] = `Sample ${f} 2`; }
+        obj[col] = [row1, row2];
+    }
+
+    return Object.keys(obj).length ? JSON.stringify(obj, null, 2) : '{}';
 }
 
 // Keyboard insert — event delegation on the palette container
