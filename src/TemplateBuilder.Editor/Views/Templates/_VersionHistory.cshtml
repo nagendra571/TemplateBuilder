@@ -1,29 +1,25 @@
 @model (List<TemplateBuilder.Domain.Entities.TemplateVersion> Versions, int? CurrentVersionId)
-<div style="display:flex;flex-direction:column;gap:.5rem;">
+<div style="display:flex;flex-direction:column;gap:6px;">
     @foreach (var v in Model.Versions)
     {
         var isCurrent = v.Id == Model.CurrentVersionId;
-        <div style="background:var(--bg);border:@(isCurrent ? "2px solid var(--accent)" : "1px solid var(--border)");border-radius:var(--radius);padding:.6rem .9rem;display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:.5rem;">
-            <div>
-                <span style="font-weight:600;">v@(v.VersionNumber)</span>
-                @if (!string.IsNullOrWhiteSpace(v.ChangeComment))
-                {
-                    <span style="color:var(--text-muted);font-size:.82rem;margin-left:.5rem;">— @v.ChangeComment</span>
-                }
+        <div class="tb-version-card @(isCurrent ? "is-current" : "")">
+            <div class="tb-version-header">
+                <span class="tb-version-num">v@(v.VersionNumber)</span>
                 @if (isCurrent)
                 {
-                    <span class="badge badge-email" style="margin-left:.5rem;">Current</span>
+                    <span class="tb-version-badge">Current</span>
+                }
+                @if (!isCurrent)
+                {
+                    <button class="btn btn-sm btn-secondary" onclick="restoreVersion(this, @v.Id, @v.VersionNumber)">Restore</button>
                 }
             </div>
-            <span style="color:var(--text-muted);font-size:.78rem;">@v.CreatedAt.ToString("dd MMM yyyy HH:mm")</span>
-            @if (!isCurrent)
+            @if (!string.IsNullOrWhiteSpace(v.ChangeComment))
             {
-                <button class="btn btn-sm btn-secondary" onclick="restoreVersion(this, @v.Id, @v.VersionNumber)">Restore</button>
+                <div class="tb-version-comment">@v.ChangeComment</div>
             }
-            @if (v.Id == Model.CurrentVersionId)
-            {
-                <span></span>
-            }
+            <div class="tb-version-meta">@v.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
         </div>
     }
 </div>

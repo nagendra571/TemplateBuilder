@@ -11,7 +11,7 @@
 
         <!-- LEFT: Field Palette -->
         <div class="tb-panel-left">
-            <div class="tb-panel-heading" id="palette-heading">FIELD PALETTE</div>
+            <div class="tb-panel-heading" id="palette-heading"><span class="tb-heading-icon">⊞</span> FIELD PALETTE</div>
             <div class="tb-view-selector-row">
                 <label for="view-selector">SQL View</label>
                 <select id="view-selector">
@@ -39,7 +39,7 @@
                 </div>
                 <button type="button" id="btn-save-snippet" class="tb-snippet-save-btn"
                         title="Save selected editor content as a reusable snippet">
-                    📌 Save selection as snippet…
+                    <span aria-hidden="true">⊕</span> Save selection as snippet…
                 </button>
             </div>
         </div>
@@ -47,7 +47,7 @@
         <!-- CENTER: Canvas -->
         <div class="tb-panel-center">
             <div class="tb-panel-heading">
-                CANVAS
+                <span class="tb-heading-icon">✏</span> CANVAS
                 <div class="tb-heading-actions">
                     <button type="button" id="btn-autosave-toggle" class="tb-autosave-toggle" aria-label="Toggle auto-save"></button>
                     <button type="button" id="btn-theme-toggle" class="tb-theme-toggle" aria-label="Toggle theme"></button>
@@ -80,7 +80,7 @@
 
         <!-- RIGHT: Properties -->
         <div class="tb-panel-right">
-            <div class="tb-panel-heading">PROPERTIES</div>
+            <div class="tb-panel-heading"><span class="tb-heading-icon">⚙</span> PROPERTIES</div>
             <div class="tb-props-body">
                 <div>
                     <label for="prop-name">Template Name</label>
@@ -194,7 +194,7 @@
                 </div>
             </div>
             <div id="loop-error" class="tb-error-msg" role="alert" style="display:none;"></div>
-            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+            <div class="tb-modal-actions">
                 <button type="button" id="btn-loop-insert" class="btn btn-primary">Insert</button>
             </div>
         </div>
@@ -233,7 +233,7 @@
                 <label><input type="checkbox" id="cond-include-else"> Include else branch</label>
             </div>
             <div id="cond-error" class="tb-error-msg" role="alert" style="display:none;"></div>
-            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+            <div class="tb-modal-actions">
                 <button type="button" id="btn-cond-insert" class="btn btn-primary">Insert</button>
             </div>
         </div>
@@ -257,7 +257,7 @@
                 <input type="text" id="snippet-desc" placeholder="e.g. Address and disclaimer block" maxlength="300">
             </div>
             <div id="snippet-error" class="tb-error-msg" role="alert" style="display:none;"></div>
-            <div class="tb-props-footer" style="border:none;padding:0;margin-top:.75rem;">
+            <div class="tb-modal-actions">
                 <button type="button" id="btn-snippet-save" class="btn btn-primary">Save Snippet</button>
             </div>
         </div>

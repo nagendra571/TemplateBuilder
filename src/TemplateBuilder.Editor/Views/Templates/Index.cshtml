@@ -4,131 +4,133 @@
 }
 @Html.AntiForgeryToken()
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
-    <div>
-        <h1 style="font-size:1.4rem;font-weight:700;">Templates</h1>
-        <p style="color:var(--text-muted);font-size:.85rem;margin-top:.2rem;">Manage your reusable document templates</p>
-    </div>
-    <a class="btn btn-primary" asp-action="Create">+ New Template</a>
-</div>
+<div id="tb-editor-host" class="tb-theme-light tb-index-page">
+<div class="tb-page-content">
 
-<div style="display:grid;grid-template-columns:1fr 280px;gap:1.25rem;">
-    <div>
-        <!-- Search + Filter -->
-        <form method="get" style="display:flex;gap:.6rem;margin-bottom:1rem;" role="search">
-            <div style="flex:1;">
-                <label for="search-input" class="visually-hidden">Search templates</label>
-                <input type="search" id="search-input" name="search" value="@Model.Search" placeholder="Search templates…" style="flex:1;width:100%;" />
-            </div>
-            <div>
-                <label for="type-filter" class="visually-hidden">Filter by type</label>
-                <select id="type-filter" name="type" style="width:160px;">
-                    <option value="">All Types</option>
-                    @foreach (var t in TemplateBuilder.Editor.Models.TemplateListViewModel.KnownTypes)
-                    {
-                        <option value="@t" selected="@(Model.TypeFilter == t)">@t</option>
-                    }
-                </select>
-            </div>
-            <button type="submit" class="btn btn-secondary">Filter</button>
-        </form>
-
-        <!-- Template Table -->
-        @if (!Model.Templates.Any())
-        {
-            <div class="card" style="text-align:center;padding:3rem;color:var(--text-muted);">
-                <p style="font-size:1.1rem;margin-bottom:.5rem;">No templates yet</p>
-                <a class="btn btn-primary" asp-action="Create" style="margin-top:.5rem;">Create your first template</a>
-            </div>
-        }
-        else
-        {
-            <div class="card">
-                <table style="width:100%;border-collapse:collapse;" role="table" aria-label="Template list">
-                    <thead>
-                        <tr style="border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text-muted);">
-                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Name</th>
-                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Type</th>
-                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Version</th>
-                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Updated</th>
-                            <th scope="col" style="padding:.6rem 1rem;text-align:left;">Status</th>
-                            <th scope="col" style="padding:.6rem 1rem;text-align:right;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var t in Model.Templates)
-                        {
-                            <tr style="border-bottom:1px solid var(--border);" id="row-@t.Id">
-                                <td style="padding:.65rem 1rem;font-weight:500;">@t.Name</td>
-                                <td style="padding:.65rem 1rem;">
-                                    <span class="badge badge-@t.TemplateType.ToLower()">@t.TemplateType</span>
-                                </td>
-                                <td style="padding:.65rem 1rem;color:var(--text-muted);font-size:.82rem;">
-                                    v@(t.CurrentVersion?.VersionNumber ?? 0)
-                                </td>
-                                <td style="padding:.65rem 1rem;color:var(--text-muted);font-size:.82rem;">
-                                    @t.UpdatedAt.ToString("dd MMM yyyy")
-                                </td>
-                                <td style="padding:.65rem 1rem;">
-                                    <span style="color:@(t.IsActive ? "var(--success)" : "var(--text-muted)");font-size:.82rem;"
-                                          id="status-@t.Id">
-                                        @(t.IsActive ? "Active" : "Inactive")
-                                    </span>
-                                </td>
-                                <td style="padding:.65rem 1rem;text-align:right;">
-                                    <div style="display:flex;gap:.4rem;justify-content:flex-end;">
-                                        <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@t.Id">Edit</a>
-                                        <button class="btn btn-sm btn-secondary"
-                                                onclick="openDuplicateModal(@t.Id, '@Html.Raw(t.Name.Replace("'", "\\'"))')">Duplicate</button>
-                                        <button class="btn btn-sm btn-secondary"
-                                                id="toggle-btn-@t.Id"
-                                                onclick="toggleActive(@t.Id, this)">
-                                            @(t.IsActive ? "Disable" : "Enable")
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+    <!-- Page Header -->
+    <div class="tb-page-header">
+        <div>
+            <h1 class="tb-page-title">Templates</h1>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:2px;">Manage your reusable document templates</p>
+        </div>
+        <a class="btn btn-primary" asp-action="Create">+ New Template</a>
     </div>
 
-    <!-- Stats Sidebar -->
-    <div class="card" style="height:fit-content;">
-        <div class="card-header">Quick Stats</div>
-        <div class="card-body">
-            <div style="display:flex;flex-direction:column;gap:.6rem;font-size:.85rem;">
-                <div style="display:flex;justify-content:space-between;">
-                    <span style="color:var(--text-muted);">Total</span>
-                    <strong>@Model.Templates.Count</strong>
+    <!-- Layout: main list + stats sidebar -->
+    <div class="tb-list-layout">
+        <div class="tb-list-main">
+
+            <!-- Search + Filter -->
+            <form method="get" class="tb-search-row" role="search">
+                <div style="flex:1;max-width:320px;">
+                    <label for="search-input" class="visually-hidden">Search templates</label>
+                    <input type="search" id="search-input" name="search" value="@Model.Search" placeholder="Search templates…" />
                 </div>
+                <div>
+                    <label for="type-filter" class="visually-hidden">Filter by type</label>
+                    <select id="type-filter" name="type" style="width:160px;">
+                        <option value="">All Types</option>
+                        @foreach (var t in TemplateBuilder.Editor.Models.TemplateListViewModel.KnownTypes)
+                        {
+                            <option value="@t" selected="@(Model.TypeFilter == t)">@t</option>
+                        }
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-secondary">Filter</button>
+            </form>
+
+            <!-- Template Table -->
+            @if (!Model.Templates.Any())
+            {
+                <div class="card tb-empty-state">
+                    <p>No templates yet</p>
+                    <a class="btn btn-primary" asp-action="Create">Create your first template</a>
+                </div>
+            }
+            else
+            {
+                <div class="card" style="overflow:hidden;">
+                    <table class="tb-list-table" role="table" aria-label="Template list">
+                        <thead>
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Type</th>
+                                <th scope="col">Version</th>
+                                <th scope="col">Updated</th>
+                                <th scope="col">Status</th>
+                                <th scope="col" style="text-align:right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in Model.Templates)
+                            {
+                                <tr id="row-@t.Id">
+                                    <td class="tb-col-name">@t.Name</td>
+                                    <td>
+                                        <span class="tb-badge tb-badge-@t.TemplateType.ToLower()">@t.TemplateType</span>
+                                    </td>
+                                    <td class="tb-col-meta">v@(t.CurrentVersion?.VersionNumber ?? 0)</td>
+                                    <td class="tb-col-meta">@t.UpdatedAt.ToString("dd MMM yyyy")</td>
+                                    <td>
+                                        <span id="status-@t.Id"
+                                              class="tb-badge @(t.IsActive ? "tb-badge-live" : "tb-badge-draft")">
+                                            @(t.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td class="tb-col-actions">
+                                        <div style="display:flex;gap:4px;justify-content:flex-end;">
+                                            <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@t.Id">Edit</a>
+                                            <button class="btn btn-sm btn-secondary"
+                                                    onclick="openDuplicateModal(@t.Id, '@Html.Raw(t.Name.Replace("'", "\\'"))')">Duplicate</button>
+                                            <button class="btn btn-sm btn-secondary"
+                                                    id="toggle-btn-@t.Id"
+                                                    onclick="toggleActive(@t.Id, this)">
+                                                @(t.IsActive ? "Disable" : "Enable")
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <!-- Stats Sidebar -->
+        <div class="card tb-stats-sidebar">
+            <div style="padding:14px 16px 6px;border-bottom:1px solid var(--border);">
+                <h3 style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;">Quick Stats</h3>
+            </div>
+            <div style="padding:10px 16px 14px;">
+                <div class="tb-stat-total">@Model.Templates.Count</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;">Total templates</div>
                 @foreach (var kvp in Model.CountByType)
                 {
-                    <div style="display:flex;justify-content:space-between;">
-                        <span style="color:var(--text-muted);">@kvp.Key</span>
-                        <strong>@kvp.Value</strong>
+                    <div class="tb-stat-row">
+                        <span class="tb-stat-label">@kvp.Key</span>
+                        <span class="tb-stat-value">@kvp.Value</span>
                     </div>
                 }
             </div>
         </div>
     </div>
+
 </div>
 
 <!-- Duplicate Modal -->
 <div class="modal-overlay" id="duplicate-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-modal-title">
-    <div class="modal" style="max-width:420px;">
+    <div class="modal modal--narrow">
         <div class="modal-header">
-            <span id="duplicate-modal-title" style="font-weight:600;">Duplicate Template</span>
-            <button class="modal-close" aria-label="Close" onclick="closeDuplicateModal()">x</button>
+            <span id="duplicate-modal-title" class="modal-title">Duplicate Template</span>
+            <button class="modal-close" aria-label="Close" onclick="closeDuplicateModal()">&#x2715;</button>
         </div>
         <div class="modal-body">
-            <div style="margin-bottom:.75rem;">
+            <div class="tb-form-row">
                 <label for="duplicate-name-input">New Template Name</label>
-                <input type="text" id="duplicate-name-input" style="margin-top:.3rem;" autocomplete="off" />
+                <input type="text" id="duplicate-name-input" autocomplete="off" />
             </div>
-            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+            <div class="tb-modal-actions">
                 <button class="btn btn-secondary" onclick="closeDuplicateModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="confirmDuplicate()">Duplicate</button>
             </div>
@@ -136,10 +138,16 @@
     </div>
 </div>
 
-@section Scripts {
+</div>@* /tb-editor-host *@
+
+@section Styles {
+<link rel="stylesheet" href="/_content/TemplateBuilder.Editor/css/template-editor.css">
 <style>
     .visually-hidden { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
 </style>
+}
+
+@section Scripts {
 <script>
     const _csrf = document.querySelector('input[name=__RequestVerificationToken]')?.value ?? '';
 
@@ -153,7 +161,7 @@
         if (res.ok) {
             const data = await res.json();
             const statusEl = document.getElementById(`status-${id}`);
-            statusEl.style.color = data.isActive ? 'var(--success)' : 'var(--text-muted)';
+            statusEl.className = `tb-badge ${data.isActive ? 'tb-badge-live' : 'tb-badge-draft'}`;
             statusEl.textContent = data.isActive ? 'Active' : 'Inactive';
             btn.textContent = data.isActive ? 'Disable' : 'Enable';
         } else {
