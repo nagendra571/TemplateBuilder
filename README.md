@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.6 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.7 | Full management UI — create, edit, version, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.3.6
+dotnet add package TemplateBuilder.Editor --version 1.3.7
 ```
 
 ### 2. Add a connection string
@@ -132,6 +132,66 @@ builder.Services.AddScoped<OrderEmailService>();
 
 ---
 
+## Securing the Editor
+
+By default the editor is **open to all users**. Configure `options.Authorization` to restrict access.
+
+### Anonymous (default)
+
+No configuration needed — existing integrations work unchanged.
+
+### Authenticated users only
+
+```csharp
+using TemplateBuilder.Editor.Authorization;
+
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.Mode = TemplateBuilderAuthorizationMode.Authenticated;
+});
+```
+
+### Role-based access
+
+A user in **any** of the listed roles is granted access.
+
+```csharp
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.Mode = TemplateBuilderAuthorizationMode.Role;
+    options.Authorization.RoleNames = ["Admin", "Supervisor", "SuperAdmin"];
+});
+```
+
+### Custom policy (escape hatch)
+
+Register your own named ASP.NET Core policy and point the editor at it:
+
+```csharp
+builder.Services.AddAuthorization(o =>
+    o.AddPolicy("TemplateEditorAccess", pb =>
+        pb.RequireAuthenticatedUser().RequireClaim("department", "Engineering")));
+
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.PolicyName = "TemplateEditorAccess";
+});
+```
+
+For any secured mode, add both auth middlewares to your pipeline **before** `MapControllers`:
+
+```csharp
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+All editor routes — including the snippets API and the `/Templates/_setup` diagnostic page — are covered automatically.
+
+---
+
 ## Consuming TemplateBuilder.Core
 
 Use this when you only need to render templates in code (no editor UI).
@@ -225,6 +285,9 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.3.7**
+- **Access Control** — Configure authorization via `options.Authorization` in `AddTemplateBuilderEditor()`: `Anonymous` (default), `Authenticated`, `Role` (supports multiple roles with OR logic), or a custom named ASP.NET Core policy. Fully backward compatible — existing installations require no changes.
+
 **v1.3.6**
 - **Style**: Outer borders added to Field Palette (left) and Properties (right) panels.
 - **Default**: Editor opens in light mode for new users (was dark).
@@ -286,7 +349,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.6.nupkg \
+dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.7.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \

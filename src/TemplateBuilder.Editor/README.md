@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.3.6**
+**Current version: 1.3.7**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.3.6
+dotnet add package TemplateBuilder.Editor --version 1.3.7
 ```
 
 ### 2. Add a connection string
@@ -109,6 +109,98 @@ EF Core migrations run automatically on first startup — the database and schem
 
 ---
 
+## Access Control
+
+By default the editor is **open to all users** — no authentication is required. To restrict access, configure `options.Authorization` inside `AddTemplateBuilderEditor()`.
+
+### Anonymous (default — no change required)
+
+```csharp
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    // options.Authorization.Mode defaults to Anonymous
+});
+```
+
+### Authenticated users only
+
+Any signed-in user can access the editor.
+
+```csharp
+using TemplateBuilder.Editor.Authorization;
+
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.Mode = TemplateBuilderAuthorizationMode.Authenticated;
+});
+```
+
+### Role-based access
+
+A user in **any** of the listed roles is granted access (OR logic).
+
+```csharp
+using TemplateBuilder.Editor.Authorization;
+
+// Single role
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.Mode = TemplateBuilderAuthorizationMode.Role;
+    options.Authorization.RoleNames = ["Admin"];
+});
+
+// Multiple roles — user only needs one
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.Mode = TemplateBuilderAuthorizationMode.Role;
+    options.Authorization.RoleNames = ["Admin", "Supervisor", "SuperAdmin"];
+});
+```
+
+### Custom policy (escape hatch)
+
+For advanced scenarios (claims-based, multi-tenant, composite rules) — register a named ASP.NET Core authorization policy yourself and hand its name to the editor:
+
+```csharp
+// 1. Register your own policy
+builder.Services.AddAuthorization(o =>
+    o.AddPolicy("TemplateEditorAccess", pb =>
+        pb.RequireAuthenticatedUser()
+          .RequireClaim("department", "Engineering", "Content")));
+
+// 2. Point the editor at it
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = ...;
+    options.Authorization.PolicyName = "TemplateEditorAccess";
+});
+```
+
+### Middleware prerequisite
+
+For any mode other than Anonymous your pipeline must include both auth middlewares, in this order:
+
+```csharp
+app.UseAuthentication(); // must come before UseAuthorization
+app.UseAuthorization();
+```
+
+### What is protected
+
+The authorization convention is applied at the assembly level — every editor route is covered:
+
+| Route group | Protected |
+|---|---|
+| `/Templates/*` (list, create, edit, versions, preview, duplicate, validate, toggle) | Yes |
+| `/Templates/Api/Snippets` (GET / POST / DELETE) | Yes |
+| `/Templates/_setup` (Development diagnostic) | Yes |
+
+---
+
 ## Setup Diagnostic Page
 
 After installation, navigate to **`/Templates/_setup`** in Development to verify every integration requirement at once:
@@ -129,6 +221,9 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v1.3.7
+- **Access Control** — Configure authorization mode via `options.Authorization` in `AddTemplateBuilderEditor()`. Four modes supported: `Anonymous` (default, fully backward compatible), `Authenticated` (any signed-in user), `Role` (one or more roles — OR logic), and `PolicyName` escape hatch (delegate to any named ASP.NET Core policy). All editor routes including the snippets API are covered automatically via an assembly-scoped `IControllerModelConvention` — no controller source changes required.
 
 ### v1.3.6
 - **Style**: Outer borders added to Field Palette (left) and Properties (right) panels, framing the 3-panel layout symmetrically.
