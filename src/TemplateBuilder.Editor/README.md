@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.3.7**
+**Current version: 1.4.2**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.3.7
+dotnet add package TemplateBuilder.Editor --version 1.4.2
 ```
 
 ### 2. Add a connection string
@@ -222,6 +222,22 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
+### v1.4.2
+- **Fix**: Draft banner ("Unsaved draft found") no longer appears on page load when there is no saved draft — CSS specificity bug caused `display:flex` to override the `[hidden]` attribute. Dismiss (Restore / Discard) buttons work correctly when a real draft exists.
+- **Fix**: Validate panel no longer appears on page load — same CSS `[hidden]` specificity fix.
+- **Preview auto-fill**: "⚡ Auto-fill from template" button parses `{{ model.X }}` placeholders directly from the current editor content and fills the JSON textarea with sample string values (`"Sample FieldName"`). Works for every template regardless of SQL view usage — button is always enabled.
+
+### v1.4.1
+- **Fix**: Special Characters floating panel (Ω) no longer visible on page load; close button now functions correctly.
+- **Fix**: Find & Replace floating panel no longer visible on page load — same CSS `[hidden]` specificity fix applied.
+
+### v1.4.0
+- **Modern SaaS UI redesign** — New design token system with Inter font and CSS custom properties for color, shadow, and radius, all scoped to `#tb-editor-host`. Refined light and dark themes with consistent tokens across all panels.
+- **Card-style Field Palette** — SQL view columns displayed as cards with a hover-reveal Insert button and data type label.
+- **Badge system** — Type badges (Email, Report, Notice, Custom) and status badges (Active/Inactive) with matching light/dark variants on the template list page.
+- **Version History polish** — Version entries rendered as cards with a "Current" indicator and per-entry Restore buttons.
+- **Panel heading icons** — Visual icons on Field Palette (⊞), Canvas (✏), and Properties (⚙) panel headings.
+
 ### v1.3.7
 - **Access Control** — Configure authorization mode via `options.Authorization` in `AddTemplateBuilderEditor()`. Four modes supported: `Anonymous` (default, fully backward compatible), `Authenticated` (any signed-in user), `Role` (one or more roles — OR logic), and `PolicyName` escape hatch (delegate to any named ASP.NET Core policy). All editor routes including the snippets API are covered automatically via an assembly-scoped `IControllerModelConvention` — no controller source changes required.
 
@@ -290,9 +306,9 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## Theming
 
-The editor ships with a **dark theme** by default. A **☀ Light / 🌙 Dark** toggle button appears in the CANVAS panel heading and persists the preference in `localStorage`.
+The editor ships with a **light theme** by default. A **☀ Light / 🌙 Dark** toggle button appears in the CANVAS panel heading and persists the preference in `localStorage`.
 
-The editor's styles are fully scoped to `#tb-editor-host` — they do not affect the rest of your application. The editing canvas is always white (document-like) regardless of the selected theme.
+The editor's styles are fully scoped to `#tb-editor-host` using CSS custom properties — they do not affect the rest of your application. The editing canvas is always white (document-like) regardless of the selected theme.
 
 ---
 

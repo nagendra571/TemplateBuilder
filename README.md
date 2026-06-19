@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.3.7 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.4.2 | Full management UI — create, edit, version, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.3.7
+dotnet add package TemplateBuilder.Editor --version 1.4.2
 ```
 
 ### 2. Add a connection string
@@ -227,7 +227,8 @@ Both packages share the same database schema — point them at the same connecti
 |---|---|
 | **Create / edit** | Navigate to `/Templates` |
 | **Version history & restore** | Click **History** on the Edit page |
-| **Live preview** | Click **Preview** → enter JSON → **Render** |
+| **Live preview** | Click **Preview** → JSON auto-filled from template placeholders → **Render** |
+| **Preview auto-fill** | "⚡ Auto-fill from template" scans editor content for `{{ model.X }}` placeholders and populates the JSON textarea with sample string values — no SQL view required |
 | **Dark / Light theme** | Toggle in the CANVAS panel heading, persisted in localStorage |
 | **Render in code** | Inject `ITemplateEngine`, call `RenderByNameAsync` |
 | **Auto-migrations** | Database schema created and updated on startup |
@@ -284,6 +285,22 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 ## Release History
 
 ### TemplateBuilder.Editor
+
+**v1.4.2**
+- **Fix**: Draft banner ("Unsaved draft found") no longer appears on page load when there is no saved draft — CSS specificity bug caused `display:flex` to override the `[hidden]` attribute.
+- **Fix**: Validate panel no longer appears on page load — same CSS `[hidden]` specificity fix applied.
+- **Preview auto-fill**: "⚡ Auto-fill from template" button now parses `{{ model.X }}` placeholders directly from the editor content and fills the JSON textarea with sample string values. Works for every template regardless of whether a SQL view is loaded — button is always enabled.
+
+**v1.4.1**
+- **Fix**: Special Characters floating panel no longer visible on page load; close button now functions correctly.
+- **Fix**: Find & Replace floating panel no longer visible on page load — same CSS `[hidden]` specificity fix.
+
+**v1.4.0**
+- **Modern SaaS UI redesign** — New design token system (Inter font, CSS custom properties for color/shadow/radius) scoped to `#tb-editor-host`. Consistent light and dark themes across all panels.
+- **Card-style Field Palette** — SQL view columns displayed as cards with a hover-reveal Insert button.
+- **Badge system** — Type badges (Email, Report, Notice, Custom) and status badges (Active/Inactive) with matching light/dark variants on the template list page.
+- **Version History polish** — Version entries rendered as cards with a "Current" indicator and per-entry Restore buttons.
+- **Panel heading icons** — Visual icons on Field Palette (⊞), Canvas (✏), and Properties (⚙) headings.
 
 **v1.3.7**
 - **Access Control** — Configure authorization via `options.Authorization` in `AddTemplateBuilderEditor()`: `Anonymous` (default), `Authenticated`, `Role` (supports multiple roles with OR logic), or a custom named ASP.NET Core policy. Fully backward compatible — existing installations require no changes.
@@ -349,7 +366,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push src/TemplateBuilder.Editor/bin/Release/TemplateBuilder.Editor.1.3.7.nupkg \
+dotnet nuget push nupkg/TemplateBuilder.Editor.1.4.2.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \

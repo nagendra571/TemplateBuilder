@@ -682,33 +682,15 @@
 /* ── 16. State Banners ───────────────────────────────────────── */
 
 /* Draft recovery banner */
-#tb-editor-host .tb-draft-banner {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    background: var(--warning-bg);
-    border-bottom: 1px solid var(--warning-border);
-    border-left: 3px solid var(--warning);
-    font-size: 13px;
-    color: var(--warning);
-    flex-wrap: wrap;
-    flex-shrink: 0;
-}
+#tb-editor-host .tb-draft-banner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--warning-bg); border-bottom: 1px solid var(--warning-border); border-left: 3px solid var(--warning); font-size: 13px; color: var(--warning); flex-wrap: wrap; flex-shrink: 0; }
+#tb-editor-host .tb-draft-banner[hidden] { display: none; }
 #tb-editor-host .tb-draft-banner-icon { font-size: 14px; flex-shrink: 0; }
 #tb-editor-host .tb-draft-banner-text { flex: 1; min-width: 180px; color: var(--text-muted); font-size: 13px; }
 #tb-editor-host .tb-draft-banner-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
 /* Validate panel */
-#tb-editor-host .tb-validate-panel {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 14px;
-    font-size: 13px;
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border);
-}
+#tb-editor-host .tb-validate-panel { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+#tb-editor-host .tb-validate-panel[hidden] { display: none; }
 #tb-editor-host .tb-validate-panel--ok {
     background: var(--success-bg);
     color: var(--success);
