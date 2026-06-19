@@ -463,6 +463,21 @@ async function loadViewColumns(viewName) {
     }
 }
 
+// ── Preview sample JSON helpers ───────────────────────────────────────────────
+
+function _tbGenerateSampleFromTemplate() {
+    if (!_editor) return '{}';
+    const html = _editor.getContents();
+    const pattern = /\{\{-?\s*model\.(\w+)\s*-?\}\}/g;
+    const fields = new Set();
+    let m;
+    while ((m = pattern.exec(html)) !== null) fields.add(m[1]);
+    if (fields.size === 0) return '{}';
+    const obj = {};
+    for (const f of fields) obj[f] = `Sample ${f}`;
+    return JSON.stringify(obj, null, 2);
+}
+
 // Keyboard insert — event delegation on the palette container
 document.getElementById('field-palette').addEventListener('click', (e) => {
     const btn = e.target.closest('.palette-insert-btn');
@@ -575,6 +590,10 @@ async function restoreVersion(btn, versionId, sourceVersionNumber) {
 function openPreview() {
     const modal = document.getElementById('preview-modal');
     modal.classList.add('open');
+    const ta = document.getElementById('preview-json');
+    if (!ta.value.trim() || ta.value.trim() === '{}') {
+        ta.value = _tbGenerateSampleFromTemplate();
+    }
     trapFocus(modal);
 }
 
@@ -1316,6 +1335,11 @@ document.getElementById('btn-history')?.addEventListener('click', openVersionHis
 document.getElementById('btn-preview')?.addEventListener('click', openPreview);
 document.getElementById('btn-save')?.addEventListener('click', saveVersion);
 document.getElementById('btn-render')?.addEventListener('click', renderPreview);
+document.getElementById('btn-gen-sample')?.addEventListener('click', () => {
+    const ta = document.getElementById('preview-json');
+    ta.value = _tbGenerateSampleFromTemplate();
+    ta.focus();
+});
 document.getElementById('btn-validate-dismiss')?.addEventListener('click', () => {
     document.getElementById('validate-panel').hidden = true;
 });

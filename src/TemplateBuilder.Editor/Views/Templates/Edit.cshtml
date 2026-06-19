@@ -156,8 +156,15 @@
         </div>
         <div class="modal-body">
             <div class="tb-form-row">
-                <label for="preview-json">Sample Data (JSON)</label>
-                <textarea id="preview-json" class="tb-code-textarea" rows="6">{}</textarea>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
+                    <label for="preview-json" style="margin:0;">Sample Data (JSON)</label>
+                    <button type="button" id="btn-gen-sample" class="btn btn-ghost btn-sm"
+                            title="Auto-fill sample values from {{ model.X }} placeholders in the template">
+                        &#x26A1; Auto-fill from template
+                    </button>
+                </div>
+                <textarea id="preview-json" class="tb-code-textarea" rows="8"
+                          placeholder='{ "FieldName": "value" }'>{}</textarea>
             </div>
             <button class="btn btn-primary btn-sm" id="btn-render">Render</button>
             <div id="preview-error" class="tb-error-msg" role="alert" style="display:none;"></div>
