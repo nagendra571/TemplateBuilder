@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.4.2**
+**Current version: 1.4.4**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.4.2
+dotnet add package TemplateBuilder.Editor --version 1.4.4
 ```
 
 ### 2. Add a connection string
@@ -222,6 +222,12 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
+### v1.4.4
+- **Side-by-side Version Compare** — Click **Compare** on any version in the History panel to open a full-width compare modal. The current editor content renders on the left; the selected old version renders on the right — both use auto-generated sample JSON so loops and grids populate correctly. A **Restore vN** button in the right panel restores directly from the compare view. **← History** returns to the version list without losing context.
+
+### v1.4.3
+- **Auto-fill for Loop & Grid blocks** — "⚡ Auto-fill from template" now generates sample array data for Loop Block and Grid Block collections, not just top-level scalar fields. Click the button on any template that contains a `{{ for item in model.Items }}` loop — the JSON textarea is populated with a 2-item array including all referenced item fields (e.g. `ProductName`, `Qty`, `UnitPrice`). Second array items append a ` 2` suffix for visual distinction in the preview. Existing scalar field behaviour is unchanged.
+
 ### v1.4.2
 - **Fix**: Draft banner ("Unsaved draft found") no longer appears on page load when there is no saved draft — CSS specificity bug caused `display:flex` to override the `[hidden]` attribute. Dismiss (Restore / Discard) buttons work correctly when a real draft exists.
 - **Fix**: Validate panel no longer appears on page load — same CSS `[hidden]` specificity fix.
@@ -292,6 +298,7 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 | Edit template | `GET /Templates/{id}/Edit` |
 | Save version | `POST /Templates/{id}/SaveVersion` |
 | Version history | `GET /Templates/{id}/Versions` |
+| Version body (for compare) | `GET /Templates/{id}/Versions/{versionId}/Body` |
 | Restore version | `POST /Templates/{id}/Restore/{versionId}/{sourceVersionNumber}` |
 | Live preview | `POST /Templates/{id}/Preview` |
 | Duplicate | `POST /Templates/{id}/Duplicate` |

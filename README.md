@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.4.2 | Full management UI — create, edit, version, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.4.4 | Full management UI — create, edit, version, compare, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.4.2
+dotnet add package TemplateBuilder.Editor --version 1.4.4
 ```
 
 ### 2. Add a connection string
@@ -286,6 +286,12 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.4.4**
+- **Side-by-side Version Compare** — Click **Compare** on any version in the History panel to open a full-width compare modal. Current editor content renders on the left; the selected old version renders on the right — both use auto-generated sample JSON so loops and grids populate correctly. A **Restore vN** button in the right panel restores directly from the compare view. **← History** returns to the version list without losing context.
+
+**v1.4.3**
+- **Auto-fill for Loop & Grid blocks** — "⚡ Auto-fill from template" now generates 2-item sample arrays for Loop Block and Grid Block collections. Each array item includes all referenced sub-fields (`ProductName`, `Qty`, `UnitPrice`, etc.). Second items append a ` 2` suffix for visual distinction. Existing scalar field behaviour is unchanged.
+
 **v1.4.2**
 - **Fix**: Draft banner ("Unsaved draft found") no longer appears on page load when there is no saved draft — CSS specificity bug caused `display:flex` to override the `[hidden]` attribute.
 - **Fix**: Validate panel no longer appears on page load — same CSS `[hidden]` specificity fix applied.
@@ -366,7 +372,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push nupkg/TemplateBuilder.Editor.1.4.2.nupkg \
+dotnet nuget push nupkg/TemplateBuilder.Editor.1.4.4.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \
