@@ -151,6 +151,15 @@ public class TemplatesController : Controller
         return PartialView("_VersionHistory", (versions.ToList(), template.CurrentVersionId));
     }
 
+    [HttpGet("Templates/{id:int}/Versions/{versionId:int}/Body")]
+    public async Task<IActionResult> GetVersionBody(int id, int versionId, CancellationToken ct = default)
+    {
+        var body = await _repository.GetVersionBodyAsync(versionId, ct);
+        if (body is null)
+            return NotFound(new ErrorResult("VERSION_NOT_FOUND", $"Version {versionId} not found."));
+        return Ok(new { body });
+    }
+
     [HttpPost("Templates/{id:int}/Restore/{versionId:int}/{sourceVersionNumber:int}"), ValidateAntiForgeryToken]
     public async Task<IActionResult> RestoreVersion(int id, int versionId, int sourceVersionNumber, CancellationToken ct = default)
     {

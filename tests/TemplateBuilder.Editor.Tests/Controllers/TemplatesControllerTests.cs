@@ -159,4 +159,32 @@ public class TemplatesControllerTests
         var ok = (OkObjectResult)result;
         ok.Value.Should().BeEquivalentTo(new { valid = false, message = "Unexpected token at line 2" });
     }
+
+    [Fact]
+    public async Task GetVersionBody_ExistingVersion_ReturnsBodyJson()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetVersionBodyAsync(42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("<p>Hello {{ model.Name }}</p>");
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.GetVersionBody(1, 42);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { body = "<p>Hello {{ model.Name }}</p>" });
+    }
+
+    [Fact]
+    public async Task GetVersionBody_NonExistentVersion_ReturnsNotFound()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetVersionBodyAsync(99, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.GetVersionBody(1, 99);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
 }
