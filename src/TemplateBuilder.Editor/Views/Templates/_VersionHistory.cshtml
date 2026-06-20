@@ -12,7 +12,13 @@
                 }
                 @if (!isCurrent)
                 {
-                    <button class="btn btn-sm btn-secondary" onclick="restoreVersion(this, @v.Id, @v.VersionNumber)">Restore</button>
+                    <button class="btn btn-sm btn-secondary"
+                            data-version-id="@v.Id"
+                            data-version-num="@v.VersionNumber"
+                            data-comment="@(v.ChangeComment ?? string.Empty)"
+                            data-created-at="@v.CreatedAt.ToString("dd MMM yyyy HH:mm")"
+                            onclick="openCompareView(this)">Compare</button>
+                    <button class="btn btn-sm btn-primary" onclick="restoreVersion(this, @v.Id, @v.VersionNumber)">Restore</button>
                 }
             </div>
             @if (!string.IsNullOrWhiteSpace(v.ChangeComment))

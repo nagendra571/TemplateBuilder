@@ -465,9 +465,7 @@ async function loadViewColumns(viewName) {
 
 // ── Preview sample JSON helpers ───────────────────────────────────────────────
 
-function _tbGenerateSampleFromTemplate() {
-    if (!_editor) return '{}';
-    const html = _editor.getContents();
+function _tbGenerateSampleFromHtml(html) {
     const obj = {};
 
     // Pass 1 — top-level scalars: {{ model.FieldName }}
@@ -498,6 +496,11 @@ function _tbGenerateSampleFromTemplate() {
     }
 
     return Object.keys(obj).length ? JSON.stringify(obj, null, 2) : '{}';
+}
+
+function _tbGenerateSampleFromTemplate() {
+    if (!_editor) return '{}';
+    return _tbGenerateSampleFromHtml(_editor.getContents());
 }
 
 // Keyboard insert — event delegation on the palette container
@@ -603,6 +606,99 @@ async function restoreVersion(btn, versionId, sourceVersionNumber) {
     } catch {
         restoreErrorEl.textContent = 'Network error — please try again.';
         restoreErrorEl.style.display = 'block';
+        btn.disabled = false;
+    }
+}
+
+// ── Version Compare ───────────────────────────────────────────────────────────
+
+async function openCompareView(btn) {
+    const versionId  = parseInt(btn.dataset.versionId, 10);
+    const versionNum = parseInt(btn.dataset.versionNum, 10);
+    const comment    = btn.dataset.comment || '';
+    const createdAt  = btn.dataset.createdAt || '';
+
+    closeModal('version-modal');
+
+    document.getElementById('compare-current-num').textContent =
+        document.getElementById('version-display')?.textContent?.trim() ?? 'Current';
+
+    document.getElementById('compare-old-num').textContent = `v${versionNum}`;
+    document.getElementById('compare-old-meta').textContent =
+        comment ? `${createdAt} · ${comment}` : createdAt;
+
+    const restoreBtn = document.getElementById('btn-compare-restore');
+    restoreBtn.textContent = `Restore v${versionNum}`;
+    restoreBtn.disabled = false;
+    restoreBtn.onclick = () => restoreFromCompare(restoreBtn, versionId, versionNum);
+
+    ['current', 'old'].forEach(side => {
+        const loading = document.getElementById(`compare-loading-${side}`);
+        loading.textContent = 'Loading…';
+        loading.style.display = 'flex';
+        document.getElementById(`compare-iframe-${side}`).srcdoc = '';
+    });
+    document.getElementById('compare-error').style.display = 'none';
+
+    const modal = document.getElementById('compare-modal');
+    modal.classList.add('open');
+    trapFocus(modal);
+
+    const currentBody = _editor ? _editor.getContents() : '';
+    await Promise.all([
+        _renderComparePanel('current', currentBody, null),
+        _renderComparePanel('old', null, versionId)
+    ]);
+}
+
+async function _renderComparePanel(side, body, versionId) {
+    const loadingEl = document.getElementById(`compare-loading-${side}`);
+    const iframeEl  = document.getElementById(`compare-iframe-${side}`);
+    try {
+        if (body === null) {
+            const res = await fetch(`/Templates/${templateId}/Versions/${versionId}/Body`);
+            if (!res.ok) { loadingEl.textContent = 'Failed to load version.'; return; }
+            body = (await res.json()).body;
+        }
+        const modelJson = _tbGenerateSampleFromHtml(body);
+        const previewRes = await fetch(`/Templates/${templateId}/Preview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': _csrf },
+            body: JSON.stringify({ body, modelJson })
+        });
+        if (!previewRes.ok) {
+            const err = await previewRes.json().catch(() => null);
+            loadingEl.textContent = `Preview failed: ${err?.message ?? previewRes.status}`;
+            return;
+        }
+        iframeEl.srcdoc = (await previewRes.json()).html;
+        loadingEl.style.display = 'none';
+    } catch {
+        loadingEl.textContent = 'Network error loading preview.';
+    }
+}
+
+async function restoreFromCompare(btn, versionId, sourceVersionNumber) {
+    const errEl = document.getElementById('compare-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/Templates/${templateId}/Restore/${versionId}/${sourceVersionNumber}`, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': _csrf }
+        });
+        if (res.ok) {
+            clearDraft();
+            window.location.reload();
+        } else {
+            const err = await res.json().catch(() => null);
+            errEl.textContent = err?.message ?? 'Failed to restore version.';
+            errEl.style.display = 'block';
+            btn.disabled = false;
+        }
+    } catch {
+        errEl.textContent = 'Network error — please try again.';
+        errEl.style.display = 'block';
         btn.disabled = false;
     }
 }
@@ -790,7 +886,7 @@ function closeModal(id) {
 
 document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    ['version-modal', 'preview-modal', 'loop-modal', 'conditional-modal', 'save-snippet-modal'].forEach(id => {
+    ['version-modal', 'preview-modal', 'loop-modal', 'conditional-modal', 'save-snippet-modal', 'compare-modal'].forEach(id => {
         const el = document.getElementById(id);
         if (el?.classList.contains('open')) closeModal(id);
     });
@@ -1372,6 +1468,12 @@ document.querySelectorAll('.modal-close').forEach(btn => {
         if (overlay) closeModal(overlay.id);
     });
 });
+
+document.getElementById('btn-compare-back-history')?.addEventListener('click', () => {
+    closeModal('compare-modal');
+    openVersionHistory();
+});
+document.getElementById('btn-compare-keep')?.addEventListener('click', () => closeModal('compare-modal'));
 
 document.getElementById('btn-loop-insert')?.addEventListener('click', () => {
     const collection = document.getElementById('loop-collection').value.trim();
