@@ -658,18 +658,10 @@ async function _renderComparePanel(side, body, versionId) {
     try {
         if (body === null) {
             const res = await fetch(`/Templates/${templateId}/Versions/${versionId}/Body`);
-            if (!res.ok) {
-                loadingEl.textContent = 'Failed to load version.';
-                loadingEl.style.display = 'none';
-                return;
-            }
+            if (!res.ok) { loadingEl.textContent = 'Failed to load version.'; return; }
             body = (await res.json()).body;
         }
-        if (body == null) {
-            loadingEl.textContent = 'Version body unavailable.';
-            loadingEl.style.display = 'none';
-            return;
-        }
+        if (body == null) { loadingEl.textContent = 'Version body unavailable.'; return; }
         const modelJson = _tbGenerateSampleFromHtml(body);
         const previewRes = await fetch(`/Templates/${templateId}/Preview`, {
             method: 'POST',
@@ -679,14 +671,12 @@ async function _renderComparePanel(side, body, versionId) {
         if (!previewRes.ok) {
             const err = await previewRes.json().catch(() => null);
             loadingEl.textContent = `Preview failed: ${err?.message ?? previewRes.status}`;
-            loadingEl.style.display = 'none';
             return;
         }
         iframeEl.srcdoc = (await previewRes.json()).html;
         loadingEl.style.display = 'none';
     } catch {
         loadingEl.textContent = 'Network error loading preview.';
-        loadingEl.style.display = 'none';
     }
 }
 
