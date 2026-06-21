@@ -170,4 +170,24 @@ public class TemplateRepositoryTests
 
         result.Should().BeNull();
     }
+
+    [Fact]
+    public async Task GetAllAsync_PopulatesCurrentVersion_VersionNumberNotZero()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "Versioned", TemplateType = "Email" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion
+        {
+            TemplateId = template.Id,
+            VersionNumber = 1,
+            Body = "<p>Hello</p>"
+        });
+
+        var result = await repo.GetAllAsync();
+
+        result.Should().HaveCount(1);
+        result[0].CurrentVersion.Should().NotBeNull();
+        result[0].CurrentVersion!.VersionNumber.Should().Be(1);
+    }
 }

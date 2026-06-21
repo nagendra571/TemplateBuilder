@@ -38,6 +38,7 @@ public class TemplateRepository : ITemplateRepository
     public async Task<IReadOnlyList<Template>> GetAllAsync(CancellationToken ct = default) =>
         await _context.Templates
             .AsNoTracking()
+            .Include(t => t.CurrentVersion)
             .Where(t => t.IsActive)
             .OrderBy(t => t.Name)
             .ToListAsync(ct);

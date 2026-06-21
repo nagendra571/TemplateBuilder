@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\TemplateBuilder.Application\TemplateBuilder.Application.csproj" />
     <ProjectReference Include="..\..\src\TemplateBuilder.Core\TemplateBuilder.Core.csproj" />
   </ItemGroup>
 
