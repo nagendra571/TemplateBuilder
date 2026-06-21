@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.4.4 | Full management UI — create, edit, version, compare, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.4.5 | Full management UI — create, edit, version, compare, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.4.4
+dotnet add package TemplateBuilder.Editor --version 1.4.5
 ```
 
 ### 2. Add a connection string
@@ -286,6 +286,9 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.4.5**
+- **Fix**: Template list page now shows the correct version number for each template — `GetAllAsync` was missing `.Include(t => t.CurrentVersion)`, causing every row to display `v0`.
+
 **v1.4.4**
 - **Side-by-side Version Compare** — Click **Compare** on any version in the History panel to open a full-width compare modal. Current editor content renders on the left; the selected old version renders on the right — both use auto-generated sample JSON so loops and grids populate correctly. A **Restore vN** button in the right panel restores directly from the compare view. **← History** returns to the version list without losing context.
 
@@ -372,7 +375,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push nupkg/TemplateBuilder.Editor.1.4.4.nupkg \
+dotnet nuget push nupkg/TemplateBuilder.Editor.1.4.5.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \

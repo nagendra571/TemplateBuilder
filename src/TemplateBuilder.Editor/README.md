@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.4.4**
+**Current version: 1.4.5**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.4.4
+dotnet add package TemplateBuilder.Editor --version 1.4.5
 ```
 
 ### 2. Add a connection string
@@ -221,6 +221,9 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v1.4.5
+- **Fix**: Template list page now shows the correct version number for each template. `GetAllAsync` was missing `.Include(t => t.CurrentVersion)`, causing `CurrentVersion` to always be `null` and every row to display `v0`.
 
 ### v1.4.4
 - **Side-by-side Version Compare** — Click **Compare** on any version in the History panel to open a full-width compare modal. The current editor content renders on the left; the selected old version renders on the right — both use auto-generated sample JSON so loops and grids populate correctly. A **Restore vN** button in the right panel restores directly from the compare view. **← History** returns to the version list without losing context.
