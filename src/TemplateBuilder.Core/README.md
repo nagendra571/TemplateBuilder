@@ -1,6 +1,6 @@
 # TemplateBuilder.Core
 
-**Current version: 1.0.3**
+**Current version: 1.0.5**
 
 Render Scriban-powered HTML templates to strings in any .NET 10 application. Lightweight, no UI — just service registration and injection.
 
@@ -20,7 +20,7 @@ To create and manage templates, install the companion package [`TemplateBuilder.
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Core --version 1.0.3
+dotnet add package TemplateBuilder.Core --version 1.0.5
 ```
 
 ### 2. Add a connection string
@@ -154,6 +154,16 @@ dotnet add package TemplateBuilder.Editor
 ```
 
 Both packages share the same database schema — point them at the same connection string. If you already have `TemplateBuilder.Editor` installed you do **not** need `TemplateBuilder.Core` separately; Editor includes the rendering engine.
+
+---
+
+## What's New
+
+### v1.0.5
+- **Fix**: This package README was still advertising `1.0.3` as current after 1.0.4 shipped — the version bump wasn't repacked into the actual `.nupkg`. Now confirmed fixed by extracting and inspecting the published package before every push.
+
+### v1.0.4
+- **Dependency updates** — HtmlSanitizer 9.0.892 → 9.2.995 and Scriban 7.2.0 → 7.2.6, clearing known moderate/high-severity NuGet security advisories. Microsoft.Data.SqlClient, EF Core SqlServer, and `Microsoft.Extensions.*` packages bumped to their latest 10.0.x patch releases. No breaking changes.
 
 ---
 

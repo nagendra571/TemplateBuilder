@@ -31,7 +31,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>TemplateBuilder.Core</PackageId>
-    <Version>1.0.3</Version>
+    <Version>1.0.5</Version>
     <Authors>TemplateBuilder</Authors>
     <Description>Render TemplateBuilder templates to HTML strings. Call services.AddTemplateBuilder(...) then inject ITemplateEngine and call RenderAsync(templateId, model).</Description>
     <PackageTags>template;scriban;html;rendering</PackageTags>

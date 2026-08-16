@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.4.5**
+**Current version: 1.5.2**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -8,7 +8,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 
 ## Requirements
 
-- .NET 10
+- .NET 8 or .NET 10
 - ASP.NET Core MVC
 - SQL Server
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.4.5
+dotnet add package TemplateBuilder.Editor --version 1.5.2
 ```
 
 ### 2. Add a connection string
@@ -221,6 +221,15 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v1.5.2
+- **Fix**: This package README was still advertising 1.4.5 as the current version after the 1.5.0/1.5.1 releases — it's now kept in sync with the actual package version on every release.
+
+### v1.5.1
+- **Dependency updates** — HtmlSanitizer 9.0.892 → 9.2.995 and Scriban 7.2.0 → 7.2.6, clearing known moderate/high-severity NuGet security advisories. Microsoft.Data.SqlClient, EF Core, and `Microsoft.Extensions.*` packages bumped to their latest patch releases on each supported line (net8.0 → 8.0.30 / 8.0.x, net10.0 → 10.0.11). No breaking changes.
+
+### v1.5.0
+- **.NET 8 support** — The package now multi-targets `net8.0;net10.0`. The published NuGet package contains both `lib/net8.0/` and `lib/net10.0/` asset folders, so it's consumable by .NET 8 (LTS) projects in addition to .NET 10 (LTS). No source or API changes.
 
 ### v1.4.5
 - **Fix**: Template list page now shows the correct version number for each template. `GetAllAsync` was missing `.Include(t => t.CurrentVersion)`, causing `CurrentVersion` to always be `null` and every row to display `v0`.
