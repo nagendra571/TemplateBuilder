@@ -4,8 +4,8 @@ A Scriban-powered HTML template management system for .NET. Targets **.NET 8 (LT
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.5.1 | Full management UI — create, edit, version, compare, preview, restore |
-| [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.5.2 | Full management UI — create, edit, version, compare, preview, restore |
+| [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.5 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
 
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Targets **.NET 8 (LT
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.5.1
+dotnet add package TemplateBuilder.Editor --version 1.5.2
 ```
 
 ### 2. Add a connection string
@@ -197,7 +197,7 @@ All editor routes — including the snippets API and the `/Templates/_setup` dia
 Use this when you only need to render templates in code (no editor UI).
 
 ```bash
-dotnet add package TemplateBuilder.Core --version 1.0.3
+dotnet add package TemplateBuilder.Core --version 1.0.5
 ```
 
 ```csharp
@@ -286,6 +286,9 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.5.2**
+- **Fix**: The NuGet package's own README (`src/TemplateBuilder.Editor/README.md` — what nuget.org actually renders) was still advertising `1.4.5` as current after the 1.5.0/1.5.1 releases, because only this top-level repo README had been updated. Both READMEs are now kept in sync with every release, and the package README's Requirements section now correctly lists .NET 8 or .NET 10.
+
 **v1.5.1**
 - **Dependency updates** — HtmlSanitizer 9.0.892 → 9.2.995 and Scriban 7.2.0 → 7.2.6, clearing known moderate/high-severity NuGet security advisories. Microsoft.Data.SqlClient, EF Core, and `Microsoft.Extensions.*` packages bumped to their latest patch releases on each supported line (net8.0 → 8.0.30 / 8.0.x, net10.0 → 10.0.11). Test-only tooling (`Microsoft.NET.Test.Sdk`, `coverlet.collector`, `xunit.runner.visualstudio`) also updated. No breaking changes — verified with a full build, pack, and test pass on both net8.0 and net10.0.
 
@@ -355,6 +358,14 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 **v1.2.0**
 - **Font Family Selection**, **Fullscreen Editing**, **Word & Character Count**, **Auto-save Drafts**, **Find & Replace** (Ctrl+H), **Clean Paste from Word/Outlook**.
 
+### TemplateBuilder.Core
+
+**v1.0.5**
+- **Fix**: The published `1.0.4` package's own README (`src/TemplateBuilder.Core/README.md` — what nuget.org renders) still said `1.0.3`, because the version fix was made after that package had already been packed and never repacked. `1.0.4` is superseded by this release for that reason alone — no code changes.
+
+**v1.0.4**
+- **Dependency updates** — HtmlSanitizer 9.0.892 → 9.2.995 and Scriban 7.2.0 → 7.2.6, clearing known moderate/high-severity NuGet security advisories. Microsoft.Data.SqlClient, EF Core SqlServer, and `Microsoft.Extensions.*` packages bumped to their latest 10.0.x patch releases. No breaking changes.
+
 ---
 
 ## Development
@@ -381,10 +392,10 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push nupkg/TemplateBuilder.Editor.1.5.1.nupkg \
+dotnet nuget push nupkg/TemplateBuilder.Editor.1.5.2.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
-dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \
+dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.5.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 ```
 
