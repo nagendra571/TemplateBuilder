@@ -1,10 +1,10 @@
 # TemplateBuilder
 
-A Scriban-powered HTML template management system for .NET. Ships two independent NuGet packages:
+A Scriban-powered HTML template management system for .NET. Targets **.NET 8 (LTS)** and **.NET 10 (LTS)**. Ships two independent NuGet packages:
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.4.5 | Full management UI — create, edit, version, compare, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.5.1 | Full management UI — create, edit, version, compare, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.3 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Ships two independen
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.4.5
+dotnet add package TemplateBuilder.Editor --version 1.5.1
 ```
 
 ### 2. Add a connection string
@@ -286,6 +286,12 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.5.1**
+- **Dependency updates** — HtmlSanitizer 9.0.892 → 9.2.995 and Scriban 7.2.0 → 7.2.6, clearing known moderate/high-severity NuGet security advisories. Microsoft.Data.SqlClient, EF Core, and `Microsoft.Extensions.*` packages bumped to their latest patch releases on each supported line (net8.0 → 8.0.30 / 8.0.x, net10.0 → 10.0.11). Test-only tooling (`Microsoft.NET.Test.Sdk`, `coverlet.collector`, `xunit.runner.visualstudio`) also updated. No breaking changes — verified with a full build, pack, and test pass on both net8.0 and net10.0.
+
+**v1.5.0**
+- **.NET 8 support** — `TemplateBuilder.Editor` (and its Domain/Application/Infrastructure dependencies) now multi-target `net8.0;net10.0`. The published NuGet package contains both `lib/net8.0/` and `lib/net10.0/` asset folders, so the package is consumable by .NET 8 (LTS) projects in addition to .NET 10 (LTS). No source or API changes — purely a build/packaging change.
+
 **v1.4.5**
 - **Fix**: Template list page now shows the correct version number for each template — `GetAllAsync` was missing `.Include(t => t.CurrentVersion)`, causing every row to display `v0`.
 
@@ -375,7 +381,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push nupkg/TemplateBuilder.Editor.1.4.5.nupkg \
+dotnet nuget push nupkg/TemplateBuilder.Editor.1.5.1.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.3.nupkg \

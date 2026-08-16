@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>TemplateBuilder.Editor</PackageId>
-    <Version>1.5.0</Version>
+    <Version>1.5.1</Version>
     <Authors>TemplateBuilder</Authors>
     <Description>Full template management UI (create, edit, version history) as an embeddable Razor Class Library. Call AddTemplateBuilderEditor() then navigate to /Templates.</Description>
     <Tags>template;scriban;html;editor;razor</Tags>
@@ -41,9 +41,9 @@
   <!-- Runtime dependencies of the bundled assemblies — must be declared explicitly
        because PrivateAssets=all on ProjectReferences suppresses transitive packages. -->
   <ItemGroup>
-    <PackageReference Include="HtmlSanitizer" Version="9.0.892" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
-    <PackageReference Include="Scriban" Version="7.2.0" />
+    <PackageReference Include="HtmlSanitizer" Version="9.2.995" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+    <PackageReference Include="Scriban" Version="7.2.6" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
@@ -52,17 +52,17 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.11" />
   </ItemGroup>
 
   <!-- EF Core SqlServer: net8.0 uses 8.0.x, net10.0 uses 10.0.x -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.30" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
   </ItemGroup>
 
   <Target Name="BundleInternalAssemblies" BeforeTargets="_GetPackageFiles">
