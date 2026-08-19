@@ -15,13 +15,15 @@ public class TemplatesControllerTests
         ITemplateRepository? repo = null,
         ISqlViewDiscoveryService? discovery = null,
         ITemplateEngine? engine = null,
-        IHtmlSanitizerService? sanitizer = null)
+        IHtmlSanitizerService? sanitizer = null,
+        ISampleDataGenerator? sampleDataGenerator = null)
     {
         var mockRepo = repo ?? new Mock<ITemplateRepository>().Object;
         var mockDiscovery = discovery ?? new Mock<ISqlViewDiscoveryService>().Object;
         var mockEngine = engine ?? new Mock<ITemplateEngine>().Object;
         var mockSanitizer = sanitizer ?? new Mock<IHtmlSanitizerService>().Object;
-        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer);
+        var mockSampleDataGenerator = sampleDataGenerator ?? new Mock<ISampleDataGenerator>().Object;
+        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator);
     }
 
     [Fact]
@@ -158,6 +160,79 @@ public class TemplatesControllerTests
         result.Should().BeOfType<OkObjectResult>();
         var ok = (OkObjectResult)result;
         ok.Value.Should().BeEquivalentTo(new { valid = false, message = "Unexpected token at line 2" });
+    }
+
+    [Fact]
+    public async Task GenerateSampleData_ReturnsGeneratedDictionary()
+    {
+        var mockGen = new Mock<ISampleDataGenerator>();
+        mockGen.Setup(g => g.GenerateAsync("v_Test", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, object?> { ["Name"] = "Jane Doe" });
+        var controller = CreateController(sampleDataGenerator: mockGen.Object);
+
+        var result = await controller.GenerateSampleData(new GenerateSampleDataRequest("v_Test", null));
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { sampleData = new Dictionary<string, object?> { ["Name"] = "Jane Doe" } });
+    }
+
+    [Fact]
+    public async Task GenerateSampleData_NoViewOrBody_ReturnsEmptyDictionary()
+    {
+        var mockGen = new Mock<ISampleDataGenerator>();
+        mockGen.Setup(g => g.GenerateAsync(null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<string, object?>());
+        var controller = CreateController(sampleDataGenerator: mockGen.Object);
+
+        var result = await controller.GenerateSampleData(new GenerateSampleDataRequest(null, null));
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { sampleData = new Dictionary<string, object?>() });
+    }
+
+    [Fact]
+    public async Task SaveSampleData_ExistingTemplate_SavesAndReturnsOk()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email" };
+        mockRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.SaveSampleData(1, new SaveSampleDataRequest("{\"Name\":\"Jane\"}"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { saved = true });
+        template.SampleData.Should().Be("{\"Name\":\"Jane\"}");
+        mockRepo.Verify(r => r.UpdateTemplateAsync(template, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveSampleData_BlankValue_ClearsSampleData()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email", SampleData = "{\"Old\":1}" };
+        mockRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.SaveSampleData(1, new SaveSampleDataRequest("   "));
+
+        result.Should().BeOfType<OkObjectResult>();
+        template.SampleData.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveSampleData_NonExistentTemplate_ReturnsNotFound()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>())).ReturnsAsync((Template?)null);
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.SaveSampleData(99, new SaveSampleDataRequest("{}"));
+
+        result.Should().BeOfType<NotFoundObjectResult>();
     }
 
     [Fact]

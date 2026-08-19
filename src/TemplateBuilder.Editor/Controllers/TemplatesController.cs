@@ -20,13 +20,15 @@ public class TemplatesController : Controller
     private readonly ISqlViewDiscoveryService _viewDiscovery;
     private readonly ITemplateEngine _engine;
     private readonly IHtmlSanitizerService _sanitizer;
+    private readonly ISampleDataGenerator _sampleDataGenerator;
 
-    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer)
+    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator)
     {
         _repository = repository;
         _viewDiscovery = viewDiscovery;
         _engine = engine;
         _sanitizer = sanitizer;
+        _sampleDataGenerator = sampleDataGenerator;
     }
 
     [HttpGet]
@@ -254,6 +256,23 @@ public class TemplatesController : Controller
         {
             return Ok(new { valid = false, message = ex.Message });
         }
+    }
+
+    [HttpPost("Templates/Api/SampleData/Generate"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateSampleData([FromBody] GenerateSampleDataRequest request, CancellationToken ct = default)
+    {
+        var data = await _sampleDataGenerator.GenerateAsync(request?.ViewName, request?.TemplateBody, ct);
+        return Ok(new { sampleData = data });
+    }
+
+    [HttpPut("Templates/{id:int}/SampleData"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveSampleData(int id, [FromBody] SaveSampleDataRequest request, CancellationToken ct = default)
+    {
+        var template = await _repository.GetByIdAsync(id, ct);
+        if (template is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
+        template.SampleData = string.IsNullOrWhiteSpace(request?.SampleData) ? null : request.SampleData;
+        await _repository.UpdateTemplateAsync(template, ct);
+        return Ok(new { saved = true });
     }
 
     [HttpPost("Templates/{id:int}/Duplicate"), ValidateAntiForgeryToken]

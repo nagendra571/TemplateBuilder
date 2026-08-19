@@ -48,6 +48,8 @@ public static class ServiceCollectionExtensions
                 connectionString,
                 sp.GetRequiredService<IOptions<TemplateBuilderOptions>>()));
 
+        services.AddScoped<ISampleDataGenerator, SampleDataGenerator>();
+
         services.AddHostedService<MigrationHostedService>();
 
         // ── Authorization ──────────────────────────────────────────────────

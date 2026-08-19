@@ -13,6 +13,7 @@ public class TemplateTests
         template.IsActive.Should().BeTrue();
         template.CurrentVersionId.Should().BeNull();
         template.Versions.Should().BeEmpty();
+        template.SampleData.Should().BeNull();
     }
 
     [Fact]

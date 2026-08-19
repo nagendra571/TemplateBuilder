@@ -55,6 +55,21 @@ public class TemplateRepositoryTests
     }
 
     [Fact]
+    public async Task UpdateTemplateAsync_PersistsSampleData_RoundTrips()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "Invoice", TemplateType = "Email" });
+
+        template.SampleData = "{\"Name\":\"Jane Doe\"}";
+        await repo.UpdateTemplateAsync(template);
+
+        var reloaded = await repo.GetByIdAsync(template.Id);
+        reloaded.Should().NotBeNull();
+        reloaded!.SampleData.Should().Be("{\"Name\":\"Jane Doe\"}");
+    }
+
+    [Fact]
     public async Task GetByNameAsync_ReturnsMatchingTemplate()
     {
         await using var context = CreateContext();
