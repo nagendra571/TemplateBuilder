@@ -4,7 +4,7 @@ A Scriban-powered HTML template management system for .NET. Targets **.NET 8 (LT
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.5.2 | Full management UI — create, edit, version, compare, preview, restore |
+| [`TemplateBuilder.Editor`](https://www.nuget.org/packages/TemplateBuilder.Editor) | 1.6.0 | Full management UI — create, edit, version, compare, preview, restore |
 | [`TemplateBuilder.Core`](https://www.nuget.org/packages/TemplateBuilder.Core) | 1.0.5 | Render templates to HTML strings — lightweight, no UI |
 
 > `TemplateBuilder.Editor` includes everything `TemplateBuilder.Core` does. If you install Editor you do not need Core separately.
@@ -17,7 +17,7 @@ A Scriban-powered HTML template management system for .NET. Targets **.NET 8 (LT
 
 ```bash
 dotnet new mvc -n MyApp && cd MyApp
-dotnet add package TemplateBuilder.Editor --version 1.5.2
+dotnet add package TemplateBuilder.Editor --version 1.6.0
 ```
 
 ### 2. Add a connection string
@@ -286,6 +286,14 @@ Templates use [Scriban](https://github.com/scriban/scriban). Model properties ar
 
 ### TemplateBuilder.Editor
 
+**v1.6.0**
+- **JSON Create endpoint** — `POST /Templates/Create` now binds a JSON body (`{ name, description, templateType, body }`) instead of a form post, matching every other write endpoint's pattern. Response is `{ templateId }`. No route or behavior change for consumers who don't call this endpoint directly — the editor's own Create button already used the new flow.
+- **Server-side sample-data generation** — new "⚡ Generate" dropdown next to the preview-model field, alongside the existing "Auto-fill from template" quick action: generate realistic sample values from the selected SQL view's columns, from the template's `{{ model.X }}`/`{{ for x in model.Y }}` tokens, or both (view wins on key collisions). A "💾 Save to template" button persists the generated JSON on the template (new nullable `SampleData` column, not versioned) so Preview works immediately on the next visit without re-entering a model by hand. New endpoints: `POST /Templates/Api/SampleData/Generate`, `PUT /Templates/{id}/SampleData`.
+- **Scriban syntax reference panel** — a "?" button next to FIELD PALETTE opens a searchable floating panel with 15 example snippets across 7 groups (loops, conditionals, dates, strings, numbers, missing values, whitespace); click any entry to insert it at the editor caret.
+- **Palette search & used-field marks** — a search box filters the field palette as you type; fields already referenced in the template body get a checkmark, refreshed automatically as you edit. The palette's type label now also shows column length when known (e.g. `nvarchar(200)`).
+- **Dual model access (opt-in)** — new `AllowTopLevelModelAccess` option (default `false`) lets template bodies access model members both at the top level (`{{ Name }}`) and under the existing wrapper (`{{ model.Name }}`). Off by default to preserve the documented `model.*`-only contract; a model member named `model` always wins over the wrapper when enabled. See the option's XML doc for the builtin-name-shadowing caveat before turning this on.
+- **CSS scoping hardening** — closed real gaps in the editor's `#tb-editor-host` CSS scoping (roughly a third of the stylesheet was unintentionally unscoped) and fixed a subtler bug found during verification: several toolbar icons and the compare-modal/code-viewer panels were sized in `rem`, which is always relative to the *page's* `<html>` element rather than any scoped ancestor — invisible in isolation, but any host page that resets root font-size (Bootstrap 3.3.7 does, to `10px`) would silently shrink them by ~37%. Converted to `em`/fixed `px` throughout.
+
 **v1.5.2**
 - **Fix**: The NuGet package's own README (`src/TemplateBuilder.Editor/README.md` — what nuget.org actually renders) was still advertising `1.4.5` as current after the 1.5.0/1.5.1 releases, because only this top-level repo README had been updated. Both READMEs are now kept in sync with every release, and the package README's Requirements section now correctly lists .NET 8 or .NET 10.
 
@@ -392,7 +400,7 @@ dotnet pack src/TemplateBuilder.Editor/TemplateBuilder.Editor.csproj -c Release
 dotnet pack src/TemplateBuilder.Core/TemplateBuilder.Core.csproj -c Release
 
 # Publish
-dotnet nuget push nupkg/TemplateBuilder.Editor.1.5.2.nupkg \
+dotnet nuget push nupkg/TemplateBuilder.Editor.1.6.0.nupkg \
   --api-key <KEY> --source https://api.nuget.org/v3/index.json
 
 dotnet nuget push src/TemplateBuilder.Core/bin/Release/TemplateBuilder.Core.1.0.5.nupkg \

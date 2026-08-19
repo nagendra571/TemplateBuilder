@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.5.2**
+**Current version: 1.6.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.5.2
+dotnet add package TemplateBuilder.Editor --version 1.6.0
 ```
 
 ### 2. Add a connection string
@@ -222,6 +222,14 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
+### v1.6.0
+- **JSON Create endpoint** — `POST /Templates/Create` now takes a JSON body instead of a form post, matching every other write endpoint.
+- **Server-side sample-data generation** — generate realistic preview-model JSON from a SQL view's columns, from the template's `{{ model.X }}` tokens, or both; save it to the template so Preview works immediately on your next visit. New endpoints: `POST /Templates/Api/SampleData/Generate`, `PUT /Templates/{id}/SampleData`.
+- **Scriban syntax reference panel** — searchable in-editor reference with 15 example snippets, click to insert at the caret.
+- **Palette search & used-field marks** — filter the field palette live; fields already used in the body are marked automatically.
+- **`AllowTopLevelModelAccess` option (opt-in, default off)** — lets templates use `{{ Name }}` in addition to `{{ model.Name }}`. See the XML doc on `TemplateBuilderOptions.AllowTopLevelModelAccess` for the builtin-name-shadowing tradeoff before enabling.
+- **CSS scoping fixes** — closed real gaps in `#tb-editor-host` scoping and fixed several icons/panels that were sized in `rem` (relative to the *host page's* root font-size, not the editor) — could render up to ~37% smaller if your app resets root font-size (e.g. Bootstrap 3).
+
 ### v1.5.2
 - **Fix**: This package README was still advertising 1.4.5 as the current version after the 1.5.0/1.5.1 releases — it's now kept in sync with the actual package version on every release.
 
@@ -319,6 +327,8 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 | List snippets | `GET /Templates/Api/Snippets` |
 | Create snippet | `POST /Templates/Api/Snippets` |
 | Delete snippet | `DELETE /Templates/Api/Snippets/{id}` |
+| Generate sample data | `POST /Templates/Api/SampleData/Generate` |
+| Save sample data | `PUT /Templates/{id}/SampleData` |
 | Setup check | `GET /Templates/_setup` *(Development only)* |
 
 ---
