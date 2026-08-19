@@ -767,6 +767,13 @@
 #tb-editor-host .sun-editor .se-drag-handle { display: none !important; }
 #tb-editor-host .sun-editor .se-find-replace { display: none !important; }
 
+/* A Bootstrap 3-class host page sets a global `button, input, select, textarea { font: inherit; }`
+   reset, which makes SunEditor's toolbar buttons inherit #tb-editor-host's 14px instead of their
+   own default font-size — shrinking their em-sized SVG icons. SunEditor's own stylesheet is a
+   third-party CDN file we don't control/scope, so restore just the one property Bootstrap's
+   reset changes, narrowly, on SunEditor's toolbar buttons specifically. */
+#tb-editor-host .sun-editor button { font-size: initial; }
+
 /* Code view */
 #tb-editor-host .sun-editor .se-wrapper.se-source-view-status .se-code-wrapper {
     flex: 1 1 auto !important;
