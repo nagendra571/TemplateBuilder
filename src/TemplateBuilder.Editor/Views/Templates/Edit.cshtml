@@ -1,4 +1,5 @@
 @model TemplateBuilder.Editor.Models.TemplateEditorViewModel
+@using TemplateBuilder.Application.Services
 @{
     ViewData["Title"] = Model.Id.HasValue ? $"Edit — {Model.Name}" : "New Template";
     var isNew = !Model.Id.HasValue;
@@ -11,7 +12,9 @@
 
         <!-- LEFT: Field Palette -->
         <div class="tb-panel-left">
-            <div class="tb-panel-heading" id="palette-heading"><span class="tb-heading-icon">⊞</span> FIELD PALETTE</div>
+            <div class="tb-panel-heading" id="palette-heading"><span class="tb-heading-icon">⊞</span> FIELD PALETTE
+                <button type="button" id="btn-ref-open" class="tb-ref-open-btn" title="Scriban syntax reference">?</button>
+            </div>
             <div class="tb-view-selector-row">
                 <label for="view-selector">SQL View</label>
                 <select id="view-selector">
@@ -367,6 +370,37 @@
         <input type="search" id="sc-search" class="tb-sc-search" placeholder="Search…" autocomplete="off">
     </div>
     <div id="sc-groups" class="tb-sc-groups"></div>
+</div>
+
+<!-- Scriban Reference floating panel (non-blocking — no overlay) -->
+<div id="ref-panel" class="tb-ref-panel" hidden role="dialog" aria-label="Scriban Reference">
+    <div class="tb-ref-header">
+        <span class="tb-ref-title">Scriban Reference</span>
+        <button type="button" id="btn-ref-close" class="tb-ref-close" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="tb-ref-search-row">
+        <input type="search" id="ref-search" class="tb-ref-search" placeholder="Search…" autocomplete="off">
+    </div>
+    <div id="ref-groups" class="tb-ref-groups">
+        @foreach (var group in ScribanReferenceCatalog.Entries.GroupBy(e => e.Group))
+        {
+            <div class="tb-ref-group" data-group="@group.Key">
+                <div class="tb-ref-group-label">@group.Key</div>
+                @foreach (var entry in group)
+                {
+                    <button type="button" class="tb-ref-item" data-code="@entry.Code" data-label="@entry.Label"
+                            title="@entry.Label">
+                        <span class="tb-ref-item-label">@entry.Label</span>
+                        <code class="tb-ref-item-code">@entry.Code</code>
+                        @if (entry.Expected is not null)
+                        {
+                            <span class="tb-ref-item-output">@entry.Expected</span>
+                        }
+                    </button>
+                }
+            </div>
+        }
+    </div>
 </div>
 
 </div>@* /tb-editor-host *@

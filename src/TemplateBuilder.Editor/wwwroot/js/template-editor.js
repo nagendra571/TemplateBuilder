@@ -1002,6 +1002,7 @@ document.addEventListener('keydown', e => {
     if (fd && !fd.hidden) fd.hidden = true;
     if (window._isFindReplaceOpen?.()) window._closeFindReplace?.();
     if (window._isSpecialCharsOpen?.()) window._closeSpecialChars?.();
+    if (window._isScribanReferenceOpen?.()) window._closeScribanReference?.();
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1941,6 +1942,60 @@ function toggleTheme() {
     window._openSpecialChars   = openPanel;
     window._closeSpecialChars  = closePanel;
     window._isSpecialCharsOpen = () => !panel.hidden;
+})();
+
+// ── Scriban reference panel ───────────────────────────────────────────────────
+
+(function () {
+    const panel    = document.getElementById('ref-panel');
+    const searchEl = document.getElementById('ref-search');
+    const groupsEl = document.getElementById('ref-groups');
+    if (!panel) return;
+
+    function renderGroups(query) {
+        const q = query.trim().toLowerCase();
+        document.querySelectorAll('#ref-groups .tb-ref-group').forEach(group => {
+            const label = group.querySelector('.tb-ref-group-label')?.textContent.toLowerCase() ?? '';
+            let visible = 0;
+            group.querySelectorAll('.tb-ref-item').forEach(item => {
+                const hay = (item.textContent ?? '').toLowerCase();
+                const show = !q || hay.includes(q) || label.includes(q);
+                item.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            group.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function openPanel() {
+        searchEl.value = '';
+        renderGroups('');
+        panel.hidden = false;
+        searchEl.focus();
+    }
+
+    function closePanel() {
+        panel.hidden = true;
+        document.querySelector('.sun-editor-editable')?.focus();
+    }
+
+    searchEl.addEventListener('input', e => renderGroups(e.target.value));
+
+    groupsEl.addEventListener('click', e => {
+        const btn = e.target.closest('.tb-ref-item');
+        if (!btn || !_editor) return;
+        _editor.insertText(btn.dataset.code + ' ');
+        markDirty();
+        closePanel();
+        showToast(`Inserted: ${btn.dataset.label}`);
+    });
+
+    document.getElementById('btn-ref-close')?.addEventListener('click', closePanel);
+    document.getElementById('btn-ref-open')?.addEventListener('click', openPanel);
+
+    window._openScribanReference = openPanel;
+    window._closeScribanReference = closePanel;
+    window._isScribanReferenceOpen = () => !panel.hidden;
 })();
 
 // ── Find & Replace ────────────────────────────────────────────────────────────
