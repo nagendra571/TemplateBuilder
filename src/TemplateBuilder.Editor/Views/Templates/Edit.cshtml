@@ -25,6 +25,9 @@
                     }
                 </select>
             </div>
+            <div class="tb-palette-search-row">
+                <input type="search" id="palette-search" class="tb-palette-search" placeholder="Search fields…" autocomplete="off" aria-label="Search fields">
+            </div>
             <div id="field-palette" aria-live="polite">
                 <div class="tb-palette-msg">Select a view to see fields</div>
             </div>
@@ -223,6 +226,7 @@
                         </button>
                     </div>
                 </div>
+                <div id="model-badges" class="tb-model-badges" aria-live="polite"></div>
                 <textarea id="preview-json" class="tb-code-textarea" rows="8"
                           placeholder='{ "FieldName": "value" }'>{}</textarea>
             </div>

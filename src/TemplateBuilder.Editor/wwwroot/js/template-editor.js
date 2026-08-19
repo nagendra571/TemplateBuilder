@@ -239,7 +239,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         th:    'style|class|contenteditable|colspan|rowspan',
         all:   'data-*'
     },
-    onChange: () => { markDirty(); updateWordCount(); },
+    onChange: () => { markDirty(); updateWordCount(); refreshUsedMarks(); },
     linkTargetNewWindow: true,
     imageUploadBeforeHandler: function(files, info, core, uploadHandler) {
         const alt = (info?.altText ?? info?.alt ?? '').trim();
@@ -448,11 +448,13 @@ async function loadViewColumns(viewName) {
             palette.innerHTML = '<div class="tb-palette-msg">No columns found</div>';
             return;
         }
+        const used = _tbUsedFields(_editor ? _editor.getContents() : '');
         palette.innerHTML = columns.map(c => `
-            <div class="palette-field" draggable="true" data-field="${escapeHtml(c.name)}">
+            <div class="palette-field${used.has(c.name) ? ' palette-field--used' : ''}" draggable="true" data-field="${escapeHtml(c.name)}">
                 <span class="palette-field-label">${escapeHtml(c.name)}
-                    <span class="palette-field-type">${escapeHtml(c.dataType)}</span>
+                    <span class="palette-field-type">${escapeHtml(c.maxLength ? `${c.dataType}(${c.maxLength})` : c.dataType)}</span>
                 </span>
+                <span class="palette-field-used-mark" aria-hidden="true">${used.has(c.name) ? '&#10003;' : ''}</span>
                 <button type="button" class="palette-insert-btn"
                         aria-label="Insert ${escapeHtml(c.name)} field"
                         data-field="${escapeHtml(c.name)}">Insert</button>
@@ -498,6 +500,16 @@ function _tbGenerateSampleFromHtml(html) {
     return Object.keys(obj).length ? JSON.stringify(obj, null, 2) : '{}';
 }
 
+function _tbUsedFields(html) {
+    const used = new Set();
+    const scalarPat = /\{\{-?\s*model\.(\w+)\s*-?\}\}/g;
+    let m;
+    while ((m = scalarPat.exec(html)) !== null) used.add(m[1]);
+    const loopPat = /\{\{-?\s*for\s+\w+\s+in\s+model\.(\w+)\s*-?\}\}/g;
+    while ((m = loopPat.exec(html)) !== null) used.add(m[1]);
+    return used;
+}
+
 function _tbGenerateSampleFromTemplate() {
     if (!_editor) return '{}';
     return _tbGenerateSampleFromHtml(_editor.getContents());
@@ -528,6 +540,7 @@ async function generateSampleData(mode) {
         }
         ta.value = JSON.stringify(sampleData, null, 2);
         updateSampleSaveBtn();
+        renderModelBadges();
         showToast('Sample data generated');
     } catch {
         showToast('Could not generate sample data - check the template or view');
@@ -561,6 +574,44 @@ async function saveSampleData() {
         showToast('Could not save sample data');
     }
 }
+
+// Model badges — chips above preview-json reflecting its current top-level JSON keys.
+function renderModelBadges() {
+    const container = document.getElementById('model-badges');
+    const ta = document.getElementById('preview-json');
+    if (!container || !ta) return;
+    let obj;
+    try {
+        obj = JSON.parse(ta.value || '{}');
+    } catch {
+        container.innerHTML = '';
+        return;
+    }
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+        container.innerHTML = '';
+        return;
+    }
+    container.innerHTML = Object.keys(obj).map(k => `
+        <span class="tb-model-badge">
+            ${escapeHtml(k)}
+            <button type="button" class="tb-model-badge-remove" data-key="${escapeHtml(k)}" aria-label="Remove ${escapeHtml(k)}">&times;</button>
+        </span>`).join('');
+}
+
+document.getElementById('model-badges')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tb-model-badge-remove');
+    if (!btn) return;
+    const ta = document.getElementById('preview-json');
+    try {
+        const obj = JSON.parse(ta.value || '{}');
+        delete obj[btn.dataset.key];
+        ta.value = JSON.stringify(obj, null, 2);
+    } catch { /* leave textarea untouched if it wasn't valid JSON */ }
+    renderModelBadges();
+    updateSampleSaveBtn();
+});
+
+document.getElementById('preview-json')?.addEventListener('input', renderModelBadges);
 
 // Keyboard insert — event delegation on the palette container
 document.getElementById('field-palette').addEventListener('click', (e) => {
@@ -820,6 +871,7 @@ async function openPreview() {
         }
     }
     updateSampleSaveBtn();
+    renderModelBadges();
     trapFocus(modal);
 }
 
@@ -1558,6 +1610,28 @@ function updateWordCount() {
 // ── Event wiring (replaces inline onclick/onchange attrs) ─────────────────────
 
 document.getElementById('view-selector')?.addEventListener('change', e => loadViewColumns(e.target.value));
+document.getElementById('palette-search')?.addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#field-palette .palette-field').forEach(row => {
+        const name = row.dataset.field?.toLowerCase() ?? '';
+        row.style.display = !q || name.includes(q) ? '' : 'none';
+    });
+});
+
+let _usedMarkTimer = null;
+function refreshUsedMarks() {
+    clearTimeout(_usedMarkTimer);
+    _usedMarkTimer = setTimeout(() => {
+        if (!_currentColumns.length) return;
+        const used = _tbUsedFields(_editor ? _editor.getContents() : '');
+        document.querySelectorAll('#field-palette .palette-field').forEach(row => {
+            const isUsed = used.has(row.dataset.field);
+            row.classList.toggle('palette-field--used', isUsed);
+            const mark = row.querySelector('.palette-field-used-mark');
+            if (mark) mark.innerHTML = isUsed ? '&#10003;' : '';
+        });
+    }, 1500);
+}
 document.getElementById('btn-history')?.addEventListener('click', openVersionHistory);
 document.getElementById('btn-preview')?.addEventListener('click', openPreview);
 document.getElementById('btn-save')?.addEventListener('click', saveVersion);
@@ -1568,6 +1642,7 @@ document.getElementById('btn-gen-sample')?.addEventListener('click', () => {
     ta.value = _tbGenerateSampleFromTemplate();
     ta.focus();
     updateSampleSaveBtn();
+    renderModelBadges();
 });
 document.getElementById('btn-gen-menu')?.addEventListener('click', () => {
     const menu = document.getElementById('gen-menu');

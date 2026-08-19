@@ -1414,3 +1414,32 @@
 #tb-editor-host .tb-ref-item-label { font-size: 13px; font-weight: 600; }
 #tb-editor-host .tb-ref-item-code { font-size: 12px; color: var(--accent); overflow-wrap: anywhere; }
 #tb-editor-host .tb-ref-item-output { font-size: 11px; color: var(--text-muted); overflow-wrap: anywhere; }
+
+/* ── 33. Palette Search, Used-Field Marks, Model Badges ──────── */
+
+#tb-editor-host .tb-palette-search-row { padding: 0 12px 8px; }
+#tb-editor-host .tb-palette-search {
+    width: 100%; box-sizing: border-box; padding: 6px 10px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg); color: var(--text); font-size: 13px;
+}
+
+#tb-editor-host .palette-field--used .palette-field-label { color: var(--text-muted); }
+#tb-editor-host .palette-field--used .palette-field-label::after { content: " ✓"; color: var(--accent); }
+#tb-editor-host .palette-field-used-mark { display: none; }
+#tb-editor-host .palette-field-type { font-size: 11px; opacity: .75; }
+
+/* Model badges — chips above preview-json reflecting its current top-level JSON keys */
+#tb-editor-host .tb-model-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#tb-editor-host .tb-model-badges:empty { margin-bottom: 0; }
+#tb-editor-host .tb-model-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 6px 3px 10px; border-radius: 999px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 12px; font-family: inherit;
+}
+#tb-editor-host .tb-model-badge-remove {
+    border: 0; background: transparent; color: var(--text-muted);
+    cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px;
+}
+#tb-editor-host .tb-model-badge-remove:hover { color: var(--text); }
