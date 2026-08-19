@@ -66,7 +66,7 @@ public class SqlViewDiscoveryService : ISqlViewDiscoveryService
         await using var conn = new SqlConnection(_connectionString);
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(
-            $@"SELECT COLUMN_NAME, DATA_TYPE
+            $@"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE
               FROM INFORMATION_SCHEMA.COLUMNS
               WHERE TABLE_NAME = @viewName
               AND TABLE_SCHEMA NOT IN ({ExcludedSchemaSql})
@@ -75,7 +75,11 @@ public class SqlViewDiscoveryService : ISqlViewDiscoveryService
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         var columns = new List<SqlColumnInfo>();
         while (await reader.ReadAsync(ct))
-            columns.Add(new SqlColumnInfo(reader.GetString(0), reader.GetString(1)));
+            columns.Add(new SqlColumnInfo(
+                reader.GetString(0),
+                reader.GetString(1),
+                MaxLength: reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                IsNullable: reader.GetString(3) == "YES"));
         return columns;
     }
 
