@@ -277,7 +277,7 @@
 #tb-editor-host .tb-error-msg    { font-size: 12px; color: var(--danger); margin-top: 4px; }
 #tb-editor-host .tb-field-error  { display: block; font-size: 11px; color: var(--danger); margin-top: 3px; }
 #tb-editor-host .tb-validation-summary:empty { display: none; }
-#tb-editor-host .tb-validation-summary ul    { margin: 0; padding: 0 0 0 1.1rem; }
+#tb-editor-host .tb-validation-summary ul    { margin: 0; padding: 0 0 0 1.1em; }
 #tb-editor-host .tb-code-textarea { font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; }
 #tb-editor-host .tb-radio-group { display: flex; gap: 12px; font-size: 13px; }
 #tb-editor-host .tb-radio-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-secondary); font-weight: 400; margin-bottom: 0; }
@@ -1295,10 +1295,10 @@
 #tb-editor-host .compare-panels {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 1em;
     flex: 1;
     overflow: hidden;
-    padding: 0 1rem 1rem;
+    padding: 0 1em 1em;
     min-height: 0;
 }
 
@@ -1314,16 +1314,16 @@
 #tb-editor-host .compare-panel-header {
     display: flex;
     align-items: center;
-    gap: .5rem;
-    padding: .5rem .75rem;
+    gap: .5em;
+    padding: .5em .75em;
     background: var(--surface2);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
-    font-size: .85rem;
+    font-size: .85em;
 }
 
 #tb-editor-host .compare-panel-meta {
-    font-size: .8rem;
+    font-size: .8em;
     color: var(--text-muted);
     flex: 1;
 }
@@ -1350,12 +1350,12 @@
     align-items: center;
     justify-content: center;
     background: var(--surface);
-    font-size: .9rem;
+    font-size: .9em;
     color: var(--text-muted);
 }
 
 #tb-editor-host .compare-panel-actions {
-    padding: .5rem .75rem;
+    padding: .5em .75em;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: flex-end;

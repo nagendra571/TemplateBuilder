@@ -35,7 +35,7 @@ const blockquotePlugin = {
     name: 'blockquote',
     display: 'command',
     title: 'Blockquote',
-    innerHTML: '<span style="font-size:1rem;font-weight:700;">❝</span>',
+    innerHTML: '<span style="font-size:1em;font-weight:700;">❝</span>',
     add: function(core) {},
     action: function() {
         if (!_editor) return;
@@ -48,7 +48,7 @@ const pageBreakPlugin = {
     name: 'pageBreak',
     display: 'command',
     title: 'Page Break',
-    innerHTML: '<span style="font-size:.7rem;letter-spacing:.03em;">PG↵</span>',
+    innerHTML: '<span style="font-size:.7em;letter-spacing:.03em;">PG↵</span>',
     add: function(core) {},
     action: function() {
         if (!_editor) return;
@@ -79,7 +79,7 @@ const insertFieldPlugin = {
     name: 'insertField',
     display: 'command',
     title: 'Insert Field',
-    innerHTML: '<span style="font-size:.72rem;font-weight:600;letter-spacing:.03em;">&#123;&#123; &#125;&#125;</span>',
+    innerHTML: '<span style="font-size:.72em;font-weight:600;letter-spacing:.03em;">&#123;&#123; &#125;&#125;</span>',
     add: function(core) {},
     action: function() {
         if (!_editor) return;
@@ -93,7 +93,7 @@ const insertLoopPlugin = {
     name: 'insertLoop',
     display: 'command',
     title: 'Insert Loop',
-    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#8635;</span>',
+    innerHTML: '<span style="font-size:.72em;font-weight:600;">&#8635;</span>',
     add: function(core) {},
     action: function() { if (!_editor) return; openLoopWizard(); }
 };
@@ -102,7 +102,7 @@ const insertConditionalPlugin = {
     name: 'insertConditional',
     display: 'command',
     title: 'Insert Conditional',
-    innerHTML: '<span style="font-size:.72rem;font-weight:600;">if</span>',
+    innerHTML: '<span style="font-size:.72em;font-weight:600;">if</span>',
     add: function(core) {},
     action: function() { if (!_editor) return; openConditionalWizard(); }
 };
@@ -111,7 +111,7 @@ const validatePlugin = {
     name: 'validate',
     display: 'command',
     title: 'Validate Template',
-    innerHTML: '<span style="font-size:.72rem;font-weight:600;">&#x2713;</span>',
+    innerHTML: '<span style="font-size:.72em;font-weight:600;">&#x2713;</span>',
     add: function(core) {},
     action: function() { if (!_editor) return; runValidate(); }
 };
@@ -120,7 +120,7 @@ const findReplacePlugin = {
     name: 'findReplace',
     display: 'command',
     title: 'Find & Replace (Ctrl+H)',
-    innerHTML: '<span style="font-size:.82rem;font-weight:600;">⌕</span>',
+    innerHTML: '<span style="font-size:.82em;font-weight:600;">⌕</span>',
     add: function(core) {},
     action: function() { window._openFindReplace?.(); }
 };
@@ -129,7 +129,7 @@ const saveSnippetPlugin = {
     name: 'saveSnippet',
     display: 'command',
     title: 'Save selection as snippet',
-    innerHTML: '<span style="font-size:.82rem;">📌</span>',
+    innerHTML: '<span style="font-size:.82em;">📌</span>',
     add: function(core) {},
     action: function() { window._openSaveSnippetModal?.(); }
 };
@@ -138,7 +138,7 @@ const printPlugin = {
     name: 'print',
     display: 'command',
     title: 'Print',
-    innerHTML: '<span style="font-size:.82rem">🖨</span>',
+    innerHTML: '<span style="font-size:.82em">🖨</span>',
     add: function(core) {},
     action: function() { window.print(); }
 };
@@ -147,7 +147,7 @@ const listStylePlugin = {
     name: 'listStyle',
     display: 'command',
     title: 'List Style ▾',
-    innerHTML: '<span style="font-size:.7rem;font-weight:600">≡▾</span>',
+    innerHTML: '<span style="font-size:.7em;font-weight:600">≡▾</span>',
     add: function(core) {},
     action: function() { window._toggleListStyleMenu?.(); }
 };
@@ -156,7 +156,7 @@ const anchorPlugin = {
     name: 'insertAnchor',
     display: 'command',
     title: 'Insert Anchor',
-    innerHTML: '<span style="font-size:.82rem">⚓</span>',
+    innerHTML: '<span style="font-size:.82em">⚓</span>',
     add: function(core) {},
     action: function() {
         if (!_editor) return;
@@ -177,7 +177,7 @@ const specialCharsPlugin = {
     name: 'specialChars',
     display: 'command',
     title: 'Special Characters',
-    innerHTML: '<span style="font-size:.88rem;font-weight:600">Ω</span>',
+    innerHTML: '<span style="font-size:.88em;font-weight:600">Ω</span>',
     add: function(core) {},
     action: function() { window._openSpecialChars?.(); }
 };
@@ -1064,10 +1064,10 @@ function showToast(msg) {
     toast.setAttribute('role', 'status');
     toast.textContent = msg;
     Object.assign(toast.style, {
-        position: 'fixed', bottom: '1.5rem', right: '1.5rem',
+        position: 'fixed', bottom: '24px', right: '24px',
         background: 'var(--accent)', color: 'white',
-        padding: '.6rem 1rem', borderRadius: 'var(--radius)',
-        fontSize: '.85rem', zIndex: '999', transition: 'opacity .3s'
+        padding: '10px 16px', borderRadius: 'var(--radius)',
+        fontSize: '14px', zIndex: '999', transition: 'opacity .3s'
     });
     document.body.appendChild(toast);
     setTimeout(() => {
@@ -1112,9 +1112,9 @@ function updateWordCount() {
         '.sun-editor .se-code-wrapper .se-code-view-line{display:none!important;}',
         '.sun-editor .se-code-wrapper .se-code-viewer{',
         '  flex:1 1 auto!important;width:100%!important;min-width:0!important;',
-        '  height:100%!important;box-sizing:border-box!important;padding:.75rem!important;',
+        '  height:100%!important;box-sizing:border-box!important;padding:.75em!important;',
         '  background:#1e1e1e!important;color:#c9d1d9!important;',
-        '  font-family:Consolas,"Courier New",monospace!important;font-size:.82rem!important;}',
+        '  font-family:Consolas,"Courier New",monospace!important;font-size:.82em!important;}',
         '.__se__font_size{width:65px!important;min-width:0!important;}',
         '.__se__font{width:120px!important;min-width:0!important;}'
     ].join('');
@@ -1552,7 +1552,7 @@ function updateWordCount() {
             `<div class="tb-field-item" data-field="${escapeHtml(c.name)}" tabindex="0">
                 ${escapeHtml(c.name)}<span class="tb-field-item-type">${escapeHtml(c.dataType)}</span>
              </div>`
-        ).join('') || '<div style="padding:.25rem .5rem;font-size:.78rem;color:var(--text-muted)">No fields found</div>';
+        ).join('') || '<div style="padding:.25em .5em;font-size:.78em;color:var(--text-muted)">No fields found</div>';
     }
 
     function insertFieldToken(fieldName) {
