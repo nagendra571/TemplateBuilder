@@ -576,6 +576,48 @@ document.getElementById('field-palette').addEventListener('click', (e) => {
 
 // ── Save version ──────────────────────────────────────────────────────────────
 
+async function createTemplate() {
+    const btn = document.getElementById('btn-create');
+    const errorEl = document.getElementById('save-error');
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    if (!_editor) {
+        errorEl.textContent = 'Editor is still loading — please wait a moment.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+    }
+    const body = _editor.getContents();
+    try {
+        const res = await fetch('/Templates/Create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({
+                name: document.getElementById('prop-name').value,
+                templateType: document.getElementById('prop-type').value,
+                description: document.getElementById('prop-desc').value,
+                body
+            })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            window.location.href = `/Templates/${data.templateId}/Edit`;
+        } else {
+            const err = await res.json().catch(() => null);
+            errorEl.textContent = errMessage(err, 'Failed to create template.');
+            errorEl.style.display = 'block';
+        }
+    } catch {
+        errorEl.textContent = 'Network error — please try again.';
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 async function saveVersion() {
     const btn = document.getElementById('btn-save');
     const errorEl = document.getElementById('save-error');
@@ -1518,6 +1560,7 @@ document.getElementById('view-selector')?.addEventListener('change', e => loadVi
 document.getElementById('btn-history')?.addEventListener('click', openVersionHistory);
 document.getElementById('btn-preview')?.addEventListener('click', openPreview);
 document.getElementById('btn-save')?.addEventListener('click', saveVersion);
+document.getElementById('btn-create')?.addEventListener('click', createTemplate);
 document.getElementById('btn-render')?.addEventListener('click', renderPreview);
 document.getElementById('btn-gen-sample')?.addEventListener('click', () => {
     const ta = document.getElementById('preview-json');
@@ -1659,11 +1702,6 @@ function toggleTheme() {
     btn.addEventListener('click', toggleTheme);
 })();
 
-// Sync SunEditor back to the hidden textarea and suppress the beforeunload guard.
-document.getElementById('editor-form')?.addEventListener('submit', () => {
-    if (_editor) _editor.save();
-    markClean();
-});
 
 ['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
     const el = document.getElementById(id);

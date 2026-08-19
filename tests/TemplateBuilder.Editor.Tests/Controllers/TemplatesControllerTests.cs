@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
@@ -55,6 +56,67 @@ public class TemplatesControllerTests
         var result = await controller.Edit(99);
 
         result.Should().BeOfType<NotFoundResult>();
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_ValidRequest_CreatesTemplateAndReturnsId()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 42; return t; });
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.CreateTemplateJson(new TemplateEditorViewModel
+        {
+            Name = "Welcome Email",
+            TemplateType = "Email",
+            Body = "<p>Hi {{ model.Name }}</p>"
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { templateId = 42 });
+        mockRepo.Verify(r => r.PublishVersionAsync(42, It.Is<TemplateVersion>(v =>
+            v.VersionNumber == 1 && v.Body == "<p>Hi {{ model.Name }}</p>" && v.ChangeComment == "Initial version"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_EmptyBody_DoesNotPublishVersion()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 1; return t; });
+        var controller = CreateController(mockRepo.Object);
+
+        await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = "A", TemplateType = "Email", Body = "" });
+
+        mockRepo.Verify(r => r.PublishVersionAsync(It.IsAny<int>(), It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_MissingName_ReturnsBadRequest()
+    {
+        var controller = CreateController();
+
+        var result = await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = "", TemplateType = "Email" });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_DuplicateName_ReturnsBadRequestWithMessage()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException());
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = "Dup", TemplateType = "Email" });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result;
+        bad.Value.Should().BeEquivalentTo(new ErrorResult("VALIDATION_ERROR", "A template named 'Dup' already exists."));
     }
 
     [Fact]

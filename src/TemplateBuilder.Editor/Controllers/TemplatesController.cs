@@ -56,14 +56,11 @@ public class TemplatesController : Controller
         return View("Edit", new TemplateEditorViewModel { AvailableViews = views.ToList() });
     }
 
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(TemplateEditorViewModel model, CancellationToken ct = default)
+    [HttpPost, ValidateAntiForgeryToken, ActionName("Create")]
+    public async Task<IActionResult> CreateTemplateJson([FromBody] TemplateEditorViewModel model, CancellationToken ct = default)
     {
-        if (!ModelState.IsValid)
-        {
-            model.AvailableViews = (await _viewDiscovery.GetViewNamesAsync(ct)).ToList();
-            return View("Edit", model);
-        }
+        if (string.IsNullOrWhiteSpace(model.Name))
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", "Template name is required."));
         try
         {
             var template = await _repository.CreateAsync(new Template
@@ -84,7 +81,7 @@ public class TemplatesController : Controller
                 }, ct);
             }
 
-            return RedirectToAction(nameof(Edit), new { id = template.Id });
+            return Ok(new { templateId = template.Id });
         }
         catch (DbUpdateException)
         {
