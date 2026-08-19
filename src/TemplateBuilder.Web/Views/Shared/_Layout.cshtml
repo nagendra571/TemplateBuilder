@@ -8,6 +8,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @if (Context.Request.Query["bootstrapTest"] == "1")
+    {
+        @* F5 verification only: loads the exact Bootstrap 3.3.7 / jQuery 3.7.1 versions from the
+           client's discovery report to prove the editor's #tb-editor-host CSS scoping holds up
+           against a real Bootstrap 3 host page, in the same document (not an iframe). Gated behind
+           a query flag so normal sample-host navigation is completely unaffected. *@
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    }
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
