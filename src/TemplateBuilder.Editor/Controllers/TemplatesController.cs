@@ -107,7 +107,8 @@ public class TemplatesController : Controller
             Body = template.CurrentVersion?.Body ?? string.Empty,
             CurrentVersionId = template.CurrentVersionId,
             CurrentVersionNumber = template.CurrentVersion?.VersionNumber ?? 0,
-            AvailableViews = views.ToList()
+            AvailableViews = views.ToList(),
+            SampleData = template.SampleData
         });
     }
 

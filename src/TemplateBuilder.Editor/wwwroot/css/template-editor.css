@@ -1354,3 +1354,21 @@
     justify-content: flex-end;
     flex-shrink: 0;
 }
+
+/* ── 31. Sample Data Generator ───────────────────────────────── */
+
+#tb-editor-host .tb-preview-actions { display: flex; align-items: center; gap: 6px; }
+
+#tb-editor-host .tb-dropdown { position: relative; }
+#tb-editor-host .tb-dropdown-menu {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 30;
+    min-width: 180px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 4px;
+}
+#tb-editor-host .tb-dropdown-menu[hidden] { display: none; }
+#tb-editor-host .tb-dropdown-menu button {
+    display: block; width: 100%; text-align: left; padding: 8px 10px;
+    border: 0; background: transparent; color: var(--text); cursor: pointer;
+    border-radius: var(--radius); font-size: 13px; font-family: inherit;
+}
+#tb-editor-host .tb-dropdown-menu button:hover { background: var(--surface2); }

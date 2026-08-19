@@ -202,10 +202,23 @@
             <div class="tb-form-row">
                 <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
                     <label for="preview-json" style="margin:0;">Sample Data (JSON)</label>
-                    <button type="button" id="btn-gen-sample" class="btn btn-ghost btn-sm"
-                            title="Auto-fill sample values from {{ model.X }} placeholders in the template">
-                        &#x26A1; Auto-fill from template
-                    </button>
+                    <div class="tb-preview-actions">
+                        <button type="button" id="btn-gen-save" class="btn btn-ghost btn-sm"
+                                title="Save this sample data to the template" style="display:none;">&#128190; Save to template</button>
+                        <div class="tb-dropdown">
+                            <button type="button" id="btn-gen-menu" class="btn btn-ghost btn-sm"
+                                    aria-haspopup="menu" aria-expanded="false">&#9889; Generate &#9662;</button>
+                            <div class="tb-dropdown-menu" id="gen-menu" role="menu" hidden>
+                                <button type="button" class="tb-gen-option" data-gen="view" role="menuitem">From SQL view</button>
+                                <button type="button" class="tb-gen-option" data-gen="tokens" role="menuitem">From template tokens</button>
+                                <button type="button" class="tb-gen-option" data-gen="both" role="menuitem">Both</button>
+                            </div>
+                        </div>
+                        <button type="button" id="btn-gen-sample" class="btn btn-ghost btn-sm"
+                                title="Auto-fill sample values from {{ model.X }} placeholders in the template">
+                            &#x26A1; Auto-fill from template
+                        </button>
+                    </div>
                 </div>
                 <textarea id="preview-json" class="tb-code-textarea" rows="8"
                           placeholder='{ "FieldName": "value" }'>{}</textarea>
@@ -368,6 +381,7 @@
 <script>
     const templateId = @(Model.Id?.ToString() ?? "null");
     const currentVersionNumber = @Model.CurrentVersionNumber;
+    let savedSampleData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.SampleData));
 </script>
 <script src="/_content/TemplateBuilder.Editor/js/template-editor.js"></script>
 }

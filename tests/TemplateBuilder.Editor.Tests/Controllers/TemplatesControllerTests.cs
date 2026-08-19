@@ -58,6 +58,28 @@ public class TemplatesControllerTests
     }
 
     [Fact]
+    public async Task Edit_ExistingTemplate_PopulatesSampleDataFromEntity()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 1,
+            Name = "Invoice",
+            TemplateType = "Email",
+            SampleData = "{\"Name\":\"Jane\"}"
+        });
+        var mockDiscovery = new Mock<ISqlViewDiscoveryService>();
+        mockDiscovery.Setup(d => d.GetViewNamesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
+        var controller = CreateController(mockRepo.Object, mockDiscovery.Object);
+
+        var result = await controller.Edit(1);
+
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        var model = view.Model.Should().BeOfType<TemplateEditorViewModel>().Subject;
+        model.SampleData.Should().Be("{\"Name\":\"Jane\"}");
+    }
+
+    [Fact]
     public async Task Duplicate_CreatesNewTemplateWithSameBodyAndRedirects()
     {
         var mockRepo = new Mock<ITemplateRepository>();

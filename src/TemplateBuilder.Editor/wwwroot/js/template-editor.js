@@ -503,6 +503,65 @@ function _tbGenerateSampleFromTemplate() {
     return _tbGenerateSampleFromHtml(_editor.getContents());
 }
 
+async function generateSampleData(mode) {
+    const ta = document.getElementById('preview-json');
+    if (!ta) return;
+    const viewName = document.getElementById('view-selector')?.value || null;
+    const body = _editor ? _editor.getContents() : null;
+    try {
+        const res = await fetch('/Templates/Api/SampleData/Generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({
+                viewName: mode === 'tokens' ? null : viewName,
+                templateBody: mode === 'view' ? null : body
+            })
+        });
+        if (!res.ok) throw new Error('Generate failed');
+        const { sampleData } = await res.json();
+        if (!sampleData || !Object.keys(sampleData).length) {
+            showToast('Nothing to generate - add {{ model.X }} placeholders first');
+            return;
+        }
+        ta.value = JSON.stringify(sampleData, null, 2);
+        updateSampleSaveBtn();
+        showToast('Sample data generated');
+    } catch {
+        showToast('Could not generate sample data - check the template or view');
+    }
+}
+
+function updateSampleSaveBtn() {
+    const btn = document.getElementById('btn-gen-save');
+    if (!btn) return;
+    const ta = document.getElementById('preview-json');
+    const hasData = !!ta && !!ta.value.trim() && ta.value.trim() !== '{}';
+    btn.style.display = templateId && hasData ? '' : 'none';
+}
+
+async function saveSampleData() {
+    if (!templateId) return;
+    const ta = document.getElementById('preview-json');
+    try {
+        const res = await fetch(`/Templates/${templateId}/SampleData`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ sampleData: ta.value.trim() })
+        });
+        if (!res.ok) throw new Error('Save failed');
+        savedSampleData = ta.value.trim();
+        showToast('Sample data saved to template');
+    } catch {
+        showToast('Could not save sample data');
+    }
+}
+
 // Keyboard insert — event delegation on the palette container
 document.getElementById('field-palette').addEventListener('click', (e) => {
     const btn = e.target.closest('.palette-insert-btn');
@@ -707,13 +766,18 @@ async function restoreFromCompare(btn, versionId, sourceVersionNumber) {
 
 // ── Preview modal ─────────────────────────────────────────────────────────────
 
-function openPreview() {
+async function openPreview() {
     const modal = document.getElementById('preview-modal');
     modal.classList.add('open');
     const ta = document.getElementById('preview-json');
     if (!ta.value.trim() || ta.value.trim() === '{}') {
-        ta.value = _tbGenerateSampleFromTemplate();
+        if (savedSampleData) {
+            ta.value = savedSampleData;
+        } else {
+            await generateSampleData('both');
+        }
     }
+    updateSampleSaveBtn();
     trapFocus(modal);
 }
 
@@ -1459,7 +1523,28 @@ document.getElementById('btn-gen-sample')?.addEventListener('click', () => {
     const ta = document.getElementById('preview-json');
     ta.value = _tbGenerateSampleFromTemplate();
     ta.focus();
+    updateSampleSaveBtn();
 });
+document.getElementById('btn-gen-menu')?.addEventListener('click', () => {
+    const menu = document.getElementById('gen-menu');
+    const btn = document.getElementById('btn-gen-menu');
+    const willOpen = menu.hidden;
+    menu.hidden = !willOpen;
+    btn?.setAttribute('aria-expanded', String(willOpen));
+    if (willOpen) menu.querySelector('button')?.focus();
+});
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('gen-menu');
+    if (!menu || menu.hidden) return;
+    if (!e.target.closest('.tb-dropdown')) menu.hidden = true;
+});
+document.querySelectorAll('.tb-gen-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.getElementById('gen-menu').hidden = true;
+        generateSampleData(btn.dataset.gen);
+    });
+});
+document.getElementById('btn-gen-save')?.addEventListener('click', saveSampleData);
 document.getElementById('btn-validate-dismiss')?.addEventListener('click', () => {
     document.getElementById('validate-panel').hidden = true;
 });

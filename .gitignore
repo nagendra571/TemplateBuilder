@@ -21,3 +21,5 @@ packages/
 wwwroot/lib/
 /.playwright-mcp
 /.superpowers/brainstorm
+/lighthouse
+/screenshots
