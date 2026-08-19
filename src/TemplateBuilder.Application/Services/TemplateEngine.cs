@@ -56,8 +56,26 @@ public class TemplateEngine : ITemplateEngine
 
         var scriptObject = new CaseInsensitiveScriptObject();
         scriptObject.Import(model, filter: null, renamer: m => m.Name);
-        var wrapper = new ScriptObject();
-        wrapper["model"] = scriptObject;
+
+        ScriptObject wrapper;
+        if (_options.AllowTopLevelModelAccess)
+        {
+            // Import the same model members at global scope so `{{ X }}` works alongside
+            // `{{ model.X }}`. If the model itself has a top-level member literally named
+            // "model" (case-insensitively), the user's value wins — the wrapper is not set.
+            var topLevel = new CaseInsensitiveScriptObject();
+            topLevel.Import(model, filter: null, renamer: m => m.Name);
+            bool hasModelKey = topLevel.Keys.Any(k => string.Equals(k, "model", StringComparison.OrdinalIgnoreCase));
+            if (!hasModelKey)
+                topLevel["model"] = scriptObject;
+            wrapper = topLevel;
+        }
+        else
+        {
+            wrapper = new ScriptObject();
+            wrapper["model"] = scriptObject;
+        }
+
         var context = new TemplateContext { MemberRenamer = m => m.Name };
         context.PushGlobal(wrapper);
 

@@ -10,13 +10,14 @@ namespace TemplateBuilder.Application.Tests.Services;
 
 public class TemplateEngineTests
 {
-    private static TemplateEngine CreateEngine(ITemplateRepository repo)
+    private static TemplateEngine CreateEngine(ITemplateRepository repo, bool allowTopLevelModelAccess = false)
     {
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Microsoft.Extensions.Options.Options.Create(new TemplateBuilderOptions
         {
             EnableCaching = true,
-            CacheDurationMinutes = 30
+            CacheDurationMinutes = 30,
+            AllowTopLevelModelAccess = allowTopLevelModelAccess
         });
         return new TemplateEngine(repo, cache, options);
     }
@@ -214,6 +215,54 @@ public class TemplateEngineTests
         var act = async () => await engine.RenderByNameAsync("Inactive", new { });
 
         await act.Should().ThrowAsync<TemplateNotFoundException>();
+    }
+
+    // F6: dual model access (top-level `X` and `model.X`).
+
+    [Fact]
+    public async Task RenderBodyAsync_TopLevelAccessDisabled_TopLevelTokenRendersEmpty()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object); // default: AllowTopLevelModelAccess = false
+
+        var html = await engine.RenderBodyAsync("<p>{{ Name }}</p>", new { Name = "John" });
+
+        html.Should().Be("<p></p>");
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_TopLevelAccessEnabled_BothStylesRender()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object, allowTopLevelModelAccess: true);
+
+        var html = await engine.RenderBodyAsync("<p>{{ Name }} / {{ model.Name }}</p>", new { Name = "John" });
+
+        html.Should().Be("<p>John / John</p>");
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_TopLevelAccessEnabled_CaseInsensitive()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object, allowTopLevelModelAccess: true);
+
+        var html = await engine.RenderBodyAsync("<p>{{ name }}</p>", new { Name = "John" });
+
+        html.Should().Be("<p>John</p>");
+    }
+
+    [Fact]
+    public async Task RenderBodyAsync_TopLevelAccessEnabled_ModelKeyNamedModel_NotClobbered()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var engine = CreateEngine(repo.Object, allowTopLevelModelAccess: true);
+
+        // The model has its own member literally named "model" — the user's value must win
+        // over the built-in `model.*` wrapper when the template accesses {{ model }}.
+        var html = await engine.RenderBodyAsync("<p>{{ model }}</p>", new { model = "user-value" });
+
+        html.Should().Be("<p>user-value</p>");
     }
 
     private static TemplateEngine CreateEngineNoCaching(ITemplateRepository repo)
