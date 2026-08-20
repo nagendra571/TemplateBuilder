@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="TemplateBuilder.Editor" Version="1.1.7" />
+    <PackageReference Include="TemplateBuilder.Editor" Version="1.6.0" />
   </ItemGroup>
 
 </Project>
