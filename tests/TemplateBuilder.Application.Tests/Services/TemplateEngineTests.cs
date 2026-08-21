@@ -64,7 +64,7 @@ public class TemplateEngineTests
     public async Task RenderAsync_UnknownTemplateId_ThrowsTemplateNotFoundException()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((int?)null);
+        repo.Setup(r => r.GetByIdAsync(999, It.IsAny<CancellationToken>())).ReturnsAsync((Domain.Entities.Template?)null);
         var engine = CreateEngine(repo.Object);
 
         var act = async () => await engine.RenderAsync(999, new { });
@@ -73,23 +73,26 @@ public class TemplateEngineTests
     }
 
     [Fact]
-    public async Task RenderAsync_ValidTemplate_FetchesBodyAndRenders()
+    public async Task RenderAsync_ValidTemplate_FetchesLastActiveVersionBodyAndRenders()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 1, Name = "A", IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 10, Body = "<p>{{ model.Title }}</p>" });
         repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>{{ model.Title }}</p>");
         var engine = CreateEngine(repo.Object);
 
-        var html = await engine.RenderAsync(1, new { Title = "Hello World" });
+        var result = await engine.RenderAsync(1, new { Title = "Hi" });
 
-        html.Should().Be("<p>Hello World</p>");
+        result.Should().Be("<p>Hi</p>");
     }
 
     [Fact]
     public async Task RenderAsync_CalledTwice_SecondCallUsesCache_NoSecondBodyFetch()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 1, IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 10, Body = "<p>{{ model.X }}</p>" });
         repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>{{ model.X }}</p>");
         var engine = CreateEngine(repo.Object);
 
@@ -103,9 +106,14 @@ public class TemplateEngineTests
     public async Task RenderAsync_VersionChanged_RefetchesBody()
     {
         var repo = new Mock<ITemplateRepository>();
-        var versionIdSequence = new Queue<int?>(new int?[] { 10, 11 });
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => versionIdSequence.Dequeue());
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 1, IsActive = true });
+        var versionSequence = new Queue<Domain.Entities.TemplateVersion?>(new Domain.Entities.TemplateVersion?[]
+        {
+            new Domain.Entities.TemplateVersion { Id = 10 },
+            new Domain.Entities.TemplateVersion { Id = 11 }
+        });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => versionSequence.Dequeue());
         repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>v1</p>");
         repo.Setup(r => r.GetVersionBodyAsync(11, It.IsAny<CancellationToken>())).ReturnsAsync("<p>v2</p>");
         var engine = CreateEngine(repo.Object);
@@ -131,7 +139,8 @@ public class TemplateEngineTests
                 IsActive = true,
                 CurrentVersionId = 20
             });
-        repo.Setup(r => r.GetCurrentVersionIdAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(20);
+        repo.Setup(r => r.GetLastActiveVersionAsync(5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 20 });
         repo.Setup(r => r.GetVersionBodyAsync(20, It.IsAny<CancellationToken>())).ReturnsAsync("<p>Welcome</p>");
         var engine = CreateEngine(repo.Object);
 
@@ -140,18 +149,96 @@ public class TemplateEngineTests
         html.Should().Be("<p>Welcome</p>");
     }
 
-    // FIXED: was referencing non-existent GetByIdWithActiveCheckAsync
     [Fact]
-    public async Task RenderAsync_InactiveTemplate_ThrowsTemplateNotFoundException()
+    public async Task RenderAsync_InactiveTemplate_ThrowsTemplateInactiveException()
     {
         var repo = new Mock<ITemplateRepository>();
-        // GetCurrentVersionIdAsync returns null for inactive templates (filtered by IsActive in repo)
-        repo.Setup(r => r.GetCurrentVersionIdAsync(42, It.IsAny<CancellationToken>())).ReturnsAsync((int?)null);
+        repo.Setup(r => r.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 7, IsActive = false });
         var engine = CreateEngine(repo.Object);
 
-        var act = async () => await engine.RenderAsync(42, new { });
+        var act = async () => await engine.RenderAsync(7, new { });
 
-        await act.Should().ThrowAsync<TemplateNotFoundException>();
+        await act.Should().ThrowAsync<TemplateInactiveException>();
+    }
+
+    [Fact]
+    public async Task RenderAsync_NoActiveVersion_ThrowsNoActiveVersionException()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 7, IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(7, It.IsAny<CancellationToken>())).ReturnsAsync((Domain.Entities.TemplateVersion?)null);
+        var engine = CreateEngine(repo.Object);
+
+        var act = async () => await engine.RenderAsync(7, new { });
+
+        await act.Should().ThrowAsync<NoActiveVersionException>();
+    }
+
+    [Fact]
+    public async Task RenderAsync_LatestVersionIsDraft_ServesOlderActiveBody()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template
+        {
+            Id = 1,
+            IsActive = true,
+            CurrentVersion = new Domain.Entities.TemplateVersion { Id = 12, VersionNumber = 3, Body = "draft", IsActive = false }
+        });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 11, VersionNumber = 2, Body = "<p>{{ model.Title }}</p>", IsActive = true });
+        repo.Setup(r => r.GetVersionBodyAsync(11, It.IsAny<CancellationToken>())).ReturnsAsync("<p>{{ model.Title }}</p>");
+        var engine = CreateEngine(repo.Object);
+
+        var result = await engine.RenderAsync(1, new { Title = "Active" });
+
+        result.Should().Be("<p>Active</p>");
+    }
+
+    [Fact]
+    public async Task RenderByNameAsync_InactiveTemplate_ThrowsTemplateInactiveException()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByNameAsync("Off", It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 9, IsActive = false });
+        var engine = CreateEngine(repo.Object);
+
+        var act = async () => await engine.RenderByNameAsync("Off", new { });
+
+        await act.Should().ThrowAsync<TemplateInactiveException>();
+    }
+
+    [Fact]
+    public async Task DraftSave_DoesNotEvictCachedActiveBody()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 1, IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 10, Body = "<p>{{ model.Title }}</p>", IsActive = true });
+        repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>{{ model.Title }}</p>");
+        var engine = CreateEngine(repo.Object);
+
+        await engine.RenderAsync(1, new { Title = "One" });   // warms the cache
+        await engine.RenderAsync(1, new { Title = "Two" });   // same active version id — must hit the cache
+
+        repo.Verify(r => r.GetVersionBodyAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ActiveSave_RefetchesBody()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var activeId = 10;
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 1, IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new Domain.Entities.TemplateVersion { Id = activeId, Body = "<p>{{ model.Title }}</p>", IsActive = true });
+        repo.Setup(r => r.GetVersionBodyAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => $"<p>{{{{ model.Title }}}} {id}</p>");
+        var engine = CreateEngine(repo.Object);
+
+        await engine.RenderAsync(1, new { Title = "One" });   // caches version 10
+        activeId = 11;                                         // an active save happened
+        var result = await engine.RenderAsync(1, new { Title = "Two" });
+
+        result.Should().Contain("11");
     }
 
     [Fact]
@@ -196,25 +283,6 @@ public class TemplateEngineTests
         var html = await engine.RenderBodyAsync("<p>{{ model.Val }}</p>", new { Val = "<script>alert(1)</script>" });
 
         html.Should().Contain("<script>alert(1)</script>");
-    }
-
-    [Fact]
-    public async Task RenderByNameAsync_InactiveTemplate_ThrowsTemplateNotFoundException()
-    {
-        var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetByNameAsync("Inactive", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Domain.Entities.Template
-            {
-                Id = 7,
-                Name = "Inactive",
-                TemplateType = "Email",
-                IsActive = false
-            });
-        var engine = CreateEngine(repo.Object);
-
-        var act = async () => await engine.RenderByNameAsync("Inactive", new { });
-
-        await act.Should().ThrowAsync<TemplateNotFoundException>();
     }
 
     // F6: dual model access (top-level `X` and `model.X`).
@@ -276,7 +344,9 @@ public class TemplateEngineTests
     public async Task RenderAsync_CachingDisabled_FetchesBodyOnEveryCall()
     {
         var repo = new Mock<ITemplateRepository>();
-        repo.Setup(r => r.GetCurrentVersionIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(10);
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Domain.Entities.Template { Id = 1, IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 10 });
         repo.Setup(r => r.GetVersionBodyAsync(10, It.IsAny<CancellationToken>())).ReturnsAsync("<p>hi</p>");
         var engine = CreateEngineNoCaching(repo.Object);
 

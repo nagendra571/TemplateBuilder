@@ -26,24 +26,31 @@ public class TemplateEngine : ITemplateEngine
 
     public async Task<string> RenderAsync(int templateId, object model, CancellationToken ct = default)
     {
-        var currentVersionId = await _repository.GetCurrentVersionIdAsync(templateId, ct)
-            ?? throw new TemplateNotFoundException(templateId);
+        var template = await _repository.GetByIdAsync(templateId, ct);
+        if (template is null)
+            throw new TemplateNotFoundException(templateId);
+        if (!template.IsActive)
+            throw new TemplateInactiveException(templateId);
 
-        var body = await GetBodyAsync(templateId, currentVersionId, ct);
+        var activeVersion = await _repository.GetLastActiveVersionAsync(templateId, ct)
+            ?? throw new NoActiveVersionException(templateId);
+
+        var body = await GetBodyAsync(templateId, activeVersion.Id, ct);
         return await RenderBodyAsync(body, model, ct);
     }
 
     public async Task<string> RenderByNameAsync(string templateName, object model, CancellationToken ct = default)
     {
         var template = await _repository.GetByNameAsync(templateName, ct);
-        if (template is null || !template.IsActive)
+        if (template is null)
             throw new TemplateNotFoundException(templateName);
+        if (!template.IsActive)
+            throw new TemplateInactiveException(template.Id);
 
-        // Lightweight version check for cache invalidation (per spec caching contract)
-        var currentVersionId = await _repository.GetCurrentVersionIdAsync(template.Id, ct)
-            ?? throw new TemplateNotFoundException(templateName);
+        var activeVersion = await _repository.GetLastActiveVersionAsync(template.Id, ct)
+            ?? throw new NoActiveVersionException(template.Id);
 
-        var body = await GetBodyAsync(template.Id, currentVersionId, ct);
+        var body = await GetBodyAsync(template.Id, activeVersion.Id, ct);
         return await RenderBodyAsync(body, model, ct);
     }
 
