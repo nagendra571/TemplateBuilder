@@ -17,14 +17,18 @@ public class TemplatesControllerTests
         ISqlViewDiscoveryService? discovery = null,
         ITemplateEngine? engine = null,
         IHtmlSanitizerService? sanitizer = null,
-        ISampleDataGenerator? sampleDataGenerator = null)
+        ISampleDataGenerator? sampleDataGenerator = null,
+        Mock<ITemplatePromotionService>? promo = null,
+        ITemplateHealthService? health = null)
     {
         var mockRepo = repo ?? new Mock<ITemplateRepository>().Object;
         var mockDiscovery = discovery ?? new Mock<ISqlViewDiscoveryService>().Object;
         var mockEngine = engine ?? new Mock<ITemplateEngine>().Object;
         var mockSanitizer = sanitizer ?? new Mock<IHtmlSanitizerService>().Object;
         var mockSampleDataGenerator = sampleDataGenerator ?? new Mock<ISampleDataGenerator>().Object;
-        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator);
+        var mockPromo = promo?.Object ?? new Mock<ITemplatePromotionService>().Object;
+        var mockHealth = health ?? new Mock<ITemplateHealthService>().Object;
+        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth);
     }
 
     [Fact]
@@ -453,5 +457,38 @@ public class TemplatesControllerTests
 
         request.Should().NotBeNull();
         request!.IsActive.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ExportTemplate_ReturnsFileAttachment()
+    {
+        var promo = new Mock<ITemplatePromotionService>();
+        promo.Setup(p => p.BuildExportAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TemplateExportDocument { Template = new TemplateExportTemplate { Name = "Inv", TemplateType = "Email" } });
+        promo.Setup(p => p.SerializeExport(It.IsAny<TemplateExportDocument>())).Returns("{}");
+        promo.Setup(p => p.SanitizeFileName("Inv")).Returns("Inv");
+        var controller = CreateController(promo: promo);
+
+        var result = await controller.ExportTemplate(1);
+
+        result.Should().BeOfType<FileContentResult>();
+        var file = (FileContentResult)result;
+        file.ContentType.Should().Be("application/json");
+    }
+
+    [Fact]
+    public async Task BulkDelete_ReturnsSucceededAndFailed()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email" });
+        repo.Setup(r => r.DeleteAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        repo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync((Template?)null);
+        var controller = CreateController(repo.Object);
+
+        var result = await controller.BulkDelete(new BulkIdsRequest { Ids = new List<int> { 1, 2 } });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { succeeded = new[] { 1 }, failed = new[] { new { id = 2, reason = "NOT_FOUND" } } });
     }
 }

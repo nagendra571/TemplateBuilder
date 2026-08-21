@@ -21,4 +21,5 @@ public class TemplateEditorViewModel
     public bool LatestVersionIsActive { get; set; } = true;
     public List<string> AvailableViews { get; set; } = new();
     public string? SampleData { get; set; }
+    public string? SourceView { get; set; }
 }

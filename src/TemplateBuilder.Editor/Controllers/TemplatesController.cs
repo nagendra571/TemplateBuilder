@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 using System.Text.Json;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
@@ -21,14 +23,18 @@ public class TemplatesController : Controller
     private readonly ITemplateEngine _engine;
     private readonly IHtmlSanitizerService _sanitizer;
     private readonly ISampleDataGenerator _sampleDataGenerator;
+    private readonly ITemplatePromotionService _promotion;
+    private readonly ITemplateHealthService _health;
 
-    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator)
+    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health)
     {
         _repository = repository;
         _viewDiscovery = viewDiscovery;
         _engine = engine;
         _sanitizer = sanitizer;
         _sampleDataGenerator = sampleDataGenerator;
+        _promotion = promotion;
+        _health = health;
     }
 
     [HttpGet]
@@ -106,7 +112,8 @@ public class TemplatesController : Controller
             CurrentVersionNumber = template.CurrentVersion?.VersionNumber ?? 0,
             LatestVersionIsActive = template.CurrentVersion?.IsActive ?? true,
             AvailableViews = views.ToList(),
-            SampleData = template.SampleData
+            SampleData = template.SampleData,
+            SourceView = template.SourceView
         });
     }
 
@@ -122,6 +129,12 @@ public class TemplatesController : Controller
             template.Name = request.Name.Trim();
             template.TemplateType = request.TemplateType;
             template.Description = request.Description;
+            var previousSourceView = template.SourceView;
+            template.SourceView = string.IsNullOrWhiteSpace(request.SourceView) ? null : request.SourceView.Trim();
+            if (!string.Equals(previousSourceView, template.SourceView, StringComparison.OrdinalIgnoreCase))
+                template.SourceViewSnapshot = template.SourceView is null
+                    ? null
+                    : await _health.BuildSnapshotJsonAsync(template.SourceView, ct);
             await _repository.UpdateTemplateAsync(template, ct);
             var nextNumber = await _repository.GetNextVersionNumberAsync(id, ct);
             var version = await _repository.PublishVersionAsync(id, new TemplateVersion
@@ -308,5 +321,86 @@ public class TemplatesController : Controller
         {
             return BadRequest(new ErrorResult("VALIDATION_ERROR", $"A template named '{request.NewName.Trim()}' already exists."));
         }
+    }
+
+    [HttpGet("Templates/Export/{id:int}")]
+    public async Task<IActionResult> ExportTemplate(int id, CancellationToken ct = default)
+    {
+        var doc = await _promotion.BuildExportAsync(id, ct);
+        if (doc is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
+        var bytes = Encoding.UTF8.GetBytes(_promotion.SerializeExport(doc));
+        var fileName = $"{_promotion.SanitizeFileName(doc.Template.Name)}.template.json";
+        return File(bytes, "application/json", fileName);
+    }
+
+    [HttpPost("Templates/Import"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import([FromForm] IFormFile file, CancellationToken ct = default)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new ErrorResult("NO_FILE", "No file selected."));
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        var result = await _promotion.ImportAsync(ms.ToArray(), User.Identity?.Name ?? "system", ct);
+        return Ok(result);
+    }
+
+    [HttpPost("Templates/BulkActivate"), ValidateAntiForgeryToken]
+    public Task<IActionResult> BulkActivate([FromBody] BulkIdsRequest request, CancellationToken ct = default)
+        => BulkToggle(request.Ids, active: true, ct);
+
+    [HttpPost("Templates/BulkDeactivate"), ValidateAntiForgeryToken]
+    public Task<IActionResult> BulkDeactivate([FromBody] BulkIdsRequest request, CancellationToken ct = default)
+        => BulkToggle(request.Ids, active: false, ct);
+
+    private async Task<IActionResult> BulkToggle(IReadOnlyList<int> ids, bool active, CancellationToken ct)
+    {
+        var succeeded = new List<int>();
+        var failed = new List<object>();
+        foreach (var id in ids)
+        {
+            try
+            {
+                var t = await _repository.GetByIdAsync(id, ct);
+                if (t is null) { failed.Add(new { id, reason = "NOT_FOUND" }); continue; }
+                if (t.IsActive == active) { succeeded.Add(id); continue; }
+                t.IsActive = active;
+                await _repository.UpdateTemplateAsync(t, ct);
+                succeeded.Add(id);
+            }
+            catch (Exception) { failed.Add(new { id, reason = "ERROR" }); }
+        }
+        return Ok(new { succeeded, failed });
+    }
+
+    [HttpPost("Templates/BulkExport"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkExport([FromBody] BulkIdsRequest request, CancellationToken ct = default)
+    {
+        var zip = await _promotion.BuildBulkZipAsync(request.Ids, ct);
+        return File(zip, "application/zip", "template-builder-export.zip");
+    }
+
+    [HttpPost("Templates/BulkDelete"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> BulkDelete([FromBody] BulkIdsRequest request, CancellationToken ct = default)
+    {
+        var succeeded = new List<int>();
+        var failed = new List<object>();
+        foreach (var id in request.Ids)
+        {
+            try
+            {
+                var t = await _repository.GetByIdAsync(id, ct);
+                if (t is null) { failed.Add(new { id, reason = "NOT_FOUND" }); continue; }
+                if (await _repository.DeleteAsync(id, ct)) succeeded.Add(id); else failed.Add(new { id, reason = "NOT_FOUND" });
+            }
+            catch (Exception) { failed.Add(new { id, reason = "ERROR" }); }
+        }
+        return Ok(new { succeeded, failed });
+    }
+
+    [HttpGet("Templates/{id:int}/Health")]
+    public async Task<IActionResult> GetHealth(int id, CancellationToken ct = default)
+    {
+        var report = await _health.CheckAsync(id, ct);
+        return Ok(report);
     }
 }

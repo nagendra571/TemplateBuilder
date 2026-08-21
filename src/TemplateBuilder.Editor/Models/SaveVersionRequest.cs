@@ -6,4 +6,5 @@ public record SaveVersionRequest(
     string? Description,
     string Body,
     string? ChangeComment,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    string? SourceView = null);
