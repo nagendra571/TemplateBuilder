@@ -16,4 +16,6 @@ public interface ITemplateRepository
     Task<Template> CreateAsync(Template template, CancellationToken ct = default);
     Task UpdateTemplateAsync(Template template, CancellationToken ct = default);
     Task<TemplateVersion> PublishVersionAsync(int templateId, TemplateVersion version, CancellationToken ct = default);
+    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<IReadOnlyList<Template>> GetAllIncludingInactiveAsync(CancellationToken ct = default);
 }

@@ -68,9 +68,30 @@ public class TemplateRepository : ITemplateRepository
         return (max ?? 0) + 1;
     }
 
+    public async Task<IReadOnlyList<Template>> GetAllIncludingInactiveAsync(CancellationToken ct = default) =>
+        await _context.Templates
+            .AsNoTracking()
+            .Include(t => t.CurrentVersion)
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+    {
+        var template = await _context.Templates.FirstOrDefaultAsync(t => t.Id == id, ct);
+        if (template is null) return false;
+
+        var versions = await _context.TemplateVersions.Where(v => v.TemplateId == id).ToListAsync(ct);
+        _context.TemplateVersions.RemoveRange(versions);
+        _context.Templates.Remove(template);
+        await _context.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<Template> CreateAsync(Template template, CancellationToken ct = default)
     {
         template.CreatedAt = template.UpdatedAt = DateTime.UtcNow;
+        if (template.ExternalKey == Guid.Empty)
+            template.ExternalKey = Guid.NewGuid();
         _context.Templates.Add(template);
         await _context.SaveChangesAsync(ct);
         return template;

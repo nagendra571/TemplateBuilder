@@ -250,4 +250,50 @@ public class TemplateRepositoryTests
         result.Should().NotBeNull();
         result!.Body.Should().Be("x");
     }
+
+    [Fact]
+    public async Task CreateAsync_AssignsNonEmptyExternalKey()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var t = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        t.ExternalKey.Should().NotBe(Guid.Empty);
+    }
+
+    [Fact]
+    public async Task ExternalKeys_AreUniquePerRow()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var a = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        var b = await repo.CreateAsync(new Template { Name = "B", TemplateType = "Email" });
+        a.ExternalKey.Should().NotBe(b.ExternalKey);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_RemovesTemplateAndVersions_ReturnsTrueThenFalse()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var t = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        await repo.PublishVersionAsync(t.Id, new TemplateVersion { Body = "<p>v1</p>" });
+
+        (await repo.DeleteAsync(t.Id)).Should().BeTrue();
+        (await repo.GetByIdAsync(t.Id)).Should().BeNull();
+        (await repo.GetVersionHistoryAsync(t.Id)).Should().BeEmpty();
+        (await repo.DeleteAsync(t.Id)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetAllIncludingInactiveAsync_IncludesInactiveTemplates()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        await repo.CreateAsync(new Template { Name = "Off", TemplateType = "Email", IsActive = false });
+        await repo.CreateAsync(new Template { Name = "On", TemplateType = "Email", IsActive = true });
+
+        var all = await repo.GetAllIncludingInactiveAsync();
+
+        all.Select(t => t.Name).Should().BeEquivalentTo("Off", "On");
+    }
 }

@@ -13,6 +13,10 @@ public class TemplateConfiguration : IEntityTypeConfiguration<Template>
         builder.HasIndex(t => t.Name).IsUnique();
         builder.Property(t => t.TemplateType).HasMaxLength(50).IsRequired();
         builder.Property(t => t.Description).HasMaxLength(500);
+        builder.Property(t => t.ExternalKey).IsRequired();
+        builder.HasIndex(t => t.ExternalKey).IsUnique();
+        builder.Property(t => t.SourceView).HasMaxLength(200);
+        builder.Property(t => t.SourceViewSnapshot).HasColumnType("nvarchar(max)");
         builder.Property(t => t.CreatedAt).HasColumnType("datetime2");
         builder.Property(t => t.UpdatedAt).HasColumnType("datetime2");
         builder.Property(t => t.RowVersion).IsRowVersion();
