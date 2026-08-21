@@ -104,6 +104,7 @@ public class TemplatesController : Controller
             Body = template.CurrentVersion?.Body ?? string.Empty,
             CurrentVersionId = template.CurrentVersionId,
             CurrentVersionNumber = template.CurrentVersion?.VersionNumber ?? 0,
+            LatestVersionIsActive = template.CurrentVersion?.IsActive ?? true,
             AvailableViews = views.ToList(),
             SampleData = template.SampleData
         });
@@ -128,9 +129,10 @@ public class TemplatesController : Controller
                 TemplateId = id,
                 VersionNumber = nextNumber,
                 Body = request.Body,
-                ChangeComment = request.ChangeComment
+                ChangeComment = request.ChangeComment,
+                IsActive = request.IsActive ?? true
             }, ct);
-            return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
+            return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber, isActive = version.IsActive });
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -165,15 +167,16 @@ public class TemplatesController : Controller
     {
         try
         {
-            var oldBody = await _repository.GetVersionBodyAsync(versionId, ct);
-            if (oldBody is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Version {versionId} not found."));
+            var source = await _repository.GetVersionAsync(versionId, ct);
+            if (source is null) return NotFound(new ErrorResult("VERSION_NOT_FOUND", $"Version {versionId} not found."));
             var nextNumber = await _repository.GetNextVersionNumberAsync(id, ct);
             var version = await _repository.PublishVersionAsync(id, new TemplateVersion
             {
                 TemplateId = id,
                 VersionNumber = nextNumber,
-                Body = oldBody,
-                ChangeComment = $"Restored from v{sourceVersionNumber}"
+                Body = source.Body,
+                ChangeComment = $"Restored from v{sourceVersionNumber}",
+                IsActive = source.IsActive
             }, ct);
             return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
         }
@@ -280,6 +283,7 @@ public class TemplatesController : Controller
         if (source is null) return NotFound();
 
         var body = source.CurrentVersion?.Body ?? string.Empty;
+        var isActive = source.CurrentVersion?.IsActive ?? true;
         try
         {
             var newTemplate = await _repository.CreateAsync(new Template
@@ -294,7 +298,8 @@ public class TemplatesController : Controller
                 TemplateId = newTemplate.Id,
                 VersionNumber = 1,
                 Body = body,
-                ChangeComment = $"Duplicated from '{source.Name}'"
+                ChangeComment = $"Duplicated from '{source.Name}'",
+                IsActive = isActive
             }, ct);
 
             return Ok(new { id = newTemplate.Id });

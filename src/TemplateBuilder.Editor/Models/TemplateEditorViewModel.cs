@@ -18,6 +18,7 @@ public class TemplateEditorViewModel
     public string? Body { get; set; }
     public int? CurrentVersionId { get; set; }
     public int CurrentVersionNumber { get; set; }
+    public bool LatestVersionIsActive { get; set; } = true;
     public List<string> AvailableViews { get; set; } = new();
     public string? SampleData { get; set; }
 }

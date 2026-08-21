@@ -346,4 +346,112 @@ public class TemplatesControllerTests
 
         result.Should().BeOfType<NotFoundObjectResult>();
     }
+
+    [Fact]
+    public async Task SaveVersion_WithoutIsActive_DefaultsToActive()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email" };
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        TemplateVersion? captured = null;
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        var controller = CreateController(repo.Object);
+
+        var result = await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null));
+
+        result.Should().BeOfType<OkObjectResult>();
+        captured!.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SaveVersion_IsActiveFalse_CreatesDraftVersion()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email" };
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        TemplateVersion? captured = null;
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        var controller = CreateController(repo.Object);
+
+        var result = await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null, IsActive: false));
+
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { versionId = 0, versionNumber = 2, isActive = false });
+        captured!.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RestoreVersion_InheritsSourceIsActive()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetVersionAsync(5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TemplateVersion { Id = 5, VersionNumber = 1, Body = "<p>old</p>", IsActive = false });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+        TemplateVersion? captured = null;
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        var controller = CreateController(repo.Object);
+
+        var result = await controller.RestoreVersion(1, 5, 1);
+
+        result.Should().BeOfType<OkObjectResult>();
+        captured!.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Duplicate_InheritsLatestVersionIsActive()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 3, Name = "Src", TemplateType = "Email",
+            CurrentVersion = new TemplateVersion { Body = "<p>x</p>", IsActive = false }
+        });
+        repo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Template { Id = 9, Name = "Copy", TemplateType = "Email" });
+        TemplateVersion? captured = null;
+        repo.Setup(r => r.PublishVersionAsync(9, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        var controller = CreateController(repo.Object);
+
+        var result = await controller.Duplicate(3, new DuplicateRequest("Copy"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        captured!.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Edit_SetsLatestVersionIsActive()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 1, Name = "A", TemplateType = "Email",
+            CurrentVersion = new TemplateVersion { VersionNumber = 2, Body = "<p>d</p>", IsActive = false }
+        });
+        var discovery = new Mock<ISqlViewDiscoveryService>();
+        discovery.Setup(d => d.GetViewNamesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<string>());
+        var controller = CreateController(repo.Object, discovery.Object);
+
+        var result = await controller.Edit(1);
+
+        var view = (ViewResult)result;
+        var model = (TemplateEditorViewModel)view.Model!;
+        model.LatestVersionIsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SaveVersionRequest_JsonWithoutIsActive_BindsNull()
+    {
+        var json = """{"name":"A","templateType":"Email","body":"<p>x</p>"}""";
+        var request = System.Text.Json.JsonSerializer.Deserialize<SaveVersionRequest>(
+            json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        request.Should().NotBeNull();
+        request!.IsActive.Should().BeNull();
+    }
 }

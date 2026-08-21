@@ -5,4 +5,5 @@ public record SaveVersionRequest(
     string TemplateType,
     string? Description,
     string Body,
-    string? ChangeComment);
+    string? ChangeComment,
+    bool? IsActive = null);
