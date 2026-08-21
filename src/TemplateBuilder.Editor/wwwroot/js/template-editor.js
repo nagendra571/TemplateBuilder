@@ -669,15 +669,18 @@ async function createTemplate() {
     }
 }
 
-async function saveVersion() {
-    const btn = document.getElementById('btn-save');
+async function saveVersion(isActive) {
+    const btnSave = document.getElementById('btn-save');
+    const btnSaveDraft = document.getElementById('btn-save-draft');
     const errorEl = document.getElementById('save-error');
     errorEl.style.display = 'none';
-    btn.disabled = true;
+    if (btnSave) btnSave.disabled = true;
+    if (btnSaveDraft) btnSaveDraft.disabled = true;
     if (!_editor) {
         errorEl.textContent = 'Editor is still loading — please wait a moment.';
         errorEl.style.display = 'block';
-        btn.disabled = false;
+        if (btnSave) btnSave.disabled = false;
+        if (btnSaveDraft) btnSaveDraft.disabled = false;
         return;
     }
     const body = _editor.getContents();
@@ -693,12 +696,23 @@ async function saveVersion() {
                 templateType: document.getElementById('prop-type').value,
                 description: document.getElementById('prop-desc').value,
                 body,
-                changeComment: document.getElementById('save-comment').value
+                changeComment: document.getElementById('save-comment').value,
+                isActive,
             })
         });
         if (res.ok) {
             const data = await res.json();
             document.getElementById('version-display').textContent = `v${data.versionNumber}`;
+            const existingBadge = document.getElementById('draft-version-badge');
+            if (data.isActive) {
+                if (existingBadge) existingBadge.remove();
+            } else if (!existingBadge) {
+                const b = document.createElement('span');
+                b.id = 'draft-version-badge';
+                b.className = 'tb-badge tb-badge-draft';
+                b.textContent = 'Draft version';
+                document.getElementById('version-display').after(b);
+            }
             document.getElementById('save-comment').value = '';
             clearDraft();
             markClean();
@@ -712,7 +726,8 @@ async function saveVersion() {
         errorEl.textContent = 'Network error — please try again.';
         errorEl.style.display = 'block';
     } finally {
-        btn.disabled = false;
+        if (btnSave) btnSave.disabled = false;
+        if (btnSaveDraft) btnSaveDraft.disabled = false;
     }
 }
 
@@ -1634,7 +1649,8 @@ function refreshUsedMarks() {
 }
 document.getElementById('btn-history')?.addEventListener('click', openVersionHistory);
 document.getElementById('btn-preview')?.addEventListener('click', openPreview);
-document.getElementById('btn-save')?.addEventListener('click', saveVersion);
+document.getElementById('btn-save')?.addEventListener('click', () => saveVersion(true));
+document.getElementById('btn-save-draft')?.addEventListener('click', () => saveVersion(false));
 document.getElementById('btn-create')?.addEventListener('click', createTemplate);
 document.getElementById('btn-render')?.addEventListener('click', renderPreview);
 document.getElementById('btn-gen-sample')?.addEventListener('click', () => {

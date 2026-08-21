@@ -1450,3 +1450,7 @@
     cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px;
 }
 #tb-editor-host .tb-model-badge-remove:hover { color: var(--text); }
+
+/* ── Two-state save (Draft/Active versions) ── */
+#tb-editor-host #draft-version-badge { margin-left: 6px; vertical-align: middle; }
+#tb-editor-host .tb-version-header .tb-badge { margin-left: 6px; }

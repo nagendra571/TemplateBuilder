@@ -112,6 +112,10 @@
                         <label>Version</label>
                         <div class="tb-version-row">
                             <span id="version-display">v @Model.CurrentVersionNumber</span>
+                            @if (!isNew && !Model.LatestVersionIsActive)
+                            {
+                                <span id="draft-version-badge" class="tb-badge tb-badge-draft">Draft version</span>
+                            }
                             <button type="button" id="btn-history" class="btn btn-sm btn-secondary">History</button>
                         </div>
                     </div>
@@ -130,6 +134,7 @@
                 <button type="button" id="btn-preview" class="btn btn-secondary">Preview</button>
                 @if (!isNew)
                 {
+                    <button type="button" id="btn-save-draft" class="btn btn-secondary">Save Draft</button>
                     <button type="button" id="btn-save" class="btn btn-primary">Save Version</button>
                 }
                 else

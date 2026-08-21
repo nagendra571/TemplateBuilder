@@ -10,6 +10,7 @@
                 {
                     <span class="tb-version-badge">Current</span>
                 }
+                <span class="tb-badge @(v.IsActive ? "tb-badge-live" : "tb-badge-draft")">@(v.IsActive ? "Active" : "Draft")</span>
                 @if (!isCurrent)
                 {
                     <button class="btn btn-sm btn-secondary"
