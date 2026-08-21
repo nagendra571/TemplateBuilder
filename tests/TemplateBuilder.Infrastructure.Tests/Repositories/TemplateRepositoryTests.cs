@@ -205,4 +205,49 @@ public class TemplateRepositoryTests
         result[0].CurrentVersion.Should().NotBeNull();
         result[0].CurrentVersion!.VersionNumber.Should().Be(1);
     }
+
+    [Fact]
+    public async Task GetLastActiveVersionAsync_ReturnsLatestActive_SkipsDrafts()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 1, Body = "active-1", IsActive = true });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 2, Body = "draft-2", IsActive = false });
+        var active3 = await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 3, Body = "active-3", IsActive = true });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 4, Body = "draft-4", IsActive = false });
+
+        var result = await repo.GetLastActiveVersionAsync(template.Id);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(active3.Id);
+        result.Body.Should().Be("active-3");
+    }
+
+    [Fact]
+    public async Task GetLastActiveVersionAsync_ReturnsNull_WhenAllVersionsAreDrafts()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 1, Body = "draft", IsActive = false });
+
+        var result = await repo.GetLastActiveVersionAsync(template.Id);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetVersionAsync_ReturnsSingleVersion()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        var v = await repo.PublishVersionAsync(template.Id, new TemplateVersion { TemplateId = template.Id, VersionNumber = 1, Body = "x" });
+
+        var result = await repo.GetVersionAsync(v.Id);
+
+        result.Should().NotBeNull();
+        result!.Body.Should().Be("x");
+    }
 }

@@ -35,6 +35,17 @@ public class TemplateRepository : ITemplateRepository
             .Select(v => v.Body)
             .FirstOrDefaultAsync(ct);
 
+    public async Task<TemplateVersion?> GetLastActiveVersionAsync(int templateId, CancellationToken ct = default) =>
+        await _context.TemplateVersions
+            .Where(v => v.TemplateId == templateId && v.IsActive)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(ct);
+
+    public async Task<TemplateVersion?> GetVersionAsync(int versionId, CancellationToken ct = default) =>
+        await _context.TemplateVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(v => v.Id == versionId, ct);
+
     public async Task<IReadOnlyList<Template>> GetAllAsync(CancellationToken ct = default) =>
         await _context.Templates
             .AsNoTracking()
