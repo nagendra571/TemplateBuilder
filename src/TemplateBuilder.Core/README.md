@@ -1,6 +1,6 @@
 # TemplateBuilder.Core
 
-**Current version: 1.0.5**
+**Current version: 2.0.0**
 
 Render Scriban-powered HTML templates to strings in any .NET 10 application. Lightweight, no UI — just service registration and injection.
 
@@ -20,7 +20,7 @@ To create and manage templates, install the companion package [`TemplateBuilder.
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Core --version 1.0.5
+dotnet add package TemplateBuilder.Core --version 2.0.0
 ```
 
 ### 2. Add a connection string
@@ -91,6 +91,16 @@ Task<string> RenderByNameAsync(string templateName, object model, CancellationTo
 Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = default);
 ```
 
+`RenderAsync` / `RenderByNameAsync` serve the **last Active version** of the template — its highest-numbered version with `IsActive = true` — skipping any newer Draft version saved via the Editor's **Save Draft** button. As of `2.0.0`, three typed exceptions (`TemplateBuilder.Domain.Exceptions`) can be thrown:
+
+| Exception | Thrown when |
+|---|---|
+| `TemplateNotFoundException` | No template with that ID/name exists |
+| `TemplateInactiveException` | The template itself is deactivated (`Template.IsActive == false`) |
+| `NoActiveVersionException` | The template is active but every saved version is a Draft — nothing Active to render |
+
+**Breaking change from `1.x`:** an inactive template previously threw `TemplateNotFoundException`; it now throws the more specific `TemplateInactiveException`.
+
 ### `ITemplateRepository`
 
 Direct access to template data.
@@ -158,6 +168,10 @@ Both packages share the same database schema — point them at the same connecti
 ---
 
 ## What's New
+
+### v2.0.0
+- **Two-state save model** — templates managed via `TemplateBuilder.Editor` now save each version as either **Draft** or **Active**. This package's render API is unaffected in shape but is now Active-version-aware — see below.
+- **Breaking: render API now serves the last Active version, not simply the newest one.** `RenderAsync` / `RenderByNameAsync` walk version history for the highest-numbered version with `IsActive = true`; a newer Draft version is skipped. See the [`ITemplateEngine`](#itemplateengine) section above for the two new exceptions this introduces (`TemplateInactiveException`, `NoActiveVersionException`) and the change to when `TemplateNotFoundException` is thrown.
 
 ### v1.0.5
 - **Fix**: This package README was still advertising `1.0.3` as current after 1.0.4 shipped — the version bump wasn't repacked into the actual `.nupkg`. Now confirmed fixed by extracting and inspecting the published package before every push.

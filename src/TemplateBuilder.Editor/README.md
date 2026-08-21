@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 1.6.0**
+**Current version: 2.0.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 1.6.0
+dotnet add package TemplateBuilder.Editor --version 2.0.0
 ```
 
 ### 2. Add a connection string
@@ -222,6 +222,11 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
+### v2.0.0
+- **Two-state save model** — each template version is now either **Draft** or **Active**. The toolbar gains a **Save Draft** button alongside **Save Version**: Save Draft creates a new version marked Draft (safe to iterate without affecting what renders live); Save Version creates a new version marked Active. Draft versions show a **"Draft version"** badge in the editor and a **Draft** badge in the History panel.
+- **Breaking: render API now serves the last Active version, not simply the newest one.** `ITemplateEngine.RenderAsync` / `RenderByNameAsync` walk version history for the highest-numbered version with `IsActive = true` — a newer Draft version is skipped. See the [Render Templates in Code](#render-templates-in-code) section below for the two new exceptions this introduces.
+- **Autosave and Create behavior are unchanged** — the localStorage autosave/restore flow and template Create still work exactly as before; only the two Save buttons and their History/badge treatment are new.
+
 ### v1.6.0
 - **JSON Create endpoint** — `POST /Templates/Create` now takes a JSON body instead of a form post, matching every other write endpoint.
 - **Server-side sample-data generation** — generate realistic preview-model JSON from a SQL view's columns, from the template's `{{ model.X }}` tokens, or both; save it to the template so Preview works immediately on your next visit. New endpoints: `POST /Templates/Api/SampleData/Generate`, `PUT /Templates/{id}/SampleData`.
@@ -372,6 +377,16 @@ public class WelcomeEmailService(ITemplateEngine engine)
         engine.RenderByNameAsync("Welcome Email", new { FirstName = firstName });
 }
 ```
+
+`RenderAsync` / `RenderByNameAsync` serve the **last Active version** — the highest-numbered version with `IsActive = true` — not simply the newest version. A version saved via **Save Draft** is skipped until it is promoted with **Save Version**. As of `2.0.0`, three typed exceptions (`TemplateBuilder.Domain.Exceptions`) can surface from either method:
+
+| Exception | Thrown when |
+|---|---|
+| `TemplateNotFoundException` | No template with that ID/name exists |
+| `TemplateInactiveException` | The template itself has been deactivated (`Template.IsActive == false`, via **Toggle Active**) |
+| `NoActiveVersionException` | The template exists and is active, but every saved version is a Draft — there is nothing Active to render |
+
+**Breaking change from `1.x`:** previously, an inactive template's render call threw `TemplateNotFoundException`. It now throws the more specific `TemplateInactiveException`. Catch both if you need to preserve the old fallback behavior.
 
 ---
 
