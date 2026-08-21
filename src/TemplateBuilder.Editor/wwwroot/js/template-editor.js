@@ -2365,3 +2365,287 @@ setTimeout(loadDraft, 500);
 // Initialize word count once SunEditor has rendered its content
 setTimeout(updateWordCount, 400);
 
+// ── Bulk selection + bulk actions (Templates/Index) ───────────────────────────
+
+(function initBulkOps() {
+    const bar = document.getElementById('tb-bulk-bar');
+    if (!bar) return;
+
+    const checkAll = document.getElementById('tb-check-all');
+    const countEl  = document.getElementById('tb-bulk-count');
+
+    function getRowChecks() {
+        return Array.from(document.querySelectorAll('.tb-row-check'));
+    }
+
+    function getSelectedIds() {
+        return getRowChecks()
+            .filter(c => c.checked)
+            .map(c => parseInt(c.value, 10))
+            .filter(n => !Number.isNaN(n));
+    }
+
+    function updateBar() {
+        const rows = getRowChecks();
+        const ids = getSelectedIds();
+        bar.hidden = ids.length === 0;
+        if (countEl) countEl.textContent = `${ids.length} selected`;
+        if (checkAll) checkAll.checked = rows.length > 0 && ids.length === rows.length;
+    }
+
+    document.addEventListener('change', (e) => {
+        if (e.target.classList?.contains('tb-row-check')) updateBar();
+    });
+
+    checkAll?.addEventListener('change', () => {
+        getRowChecks().forEach(c => { c.checked = checkAll.checked; });
+        updateBar();
+    });
+
+    document.getElementById('btn-bulk-clear')?.addEventListener('click', () => {
+        getRowChecks().forEach(c => { c.checked = false; });
+        if (checkAll) checkAll.checked = false;
+        updateBar();
+    });
+
+    async function bulkPost(url, ids) {
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': _csrf
+            },
+            body: JSON.stringify({ ids })
+        });
+    }
+
+    async function runBulkAction(url, verb, confirmMsg) {
+        const ids = getSelectedIds();
+        if (!ids.length) return;
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+        try {
+            const res = await bulkPost(url, ids);
+            if (!res.ok) { showToast(`Failed to ${verb} templates.`); return; }
+            const data = await res.json();
+            const okCount = data.succeeded?.length ?? 0;
+            const failCount = data.failed?.length ?? 0;
+            showToast(`${okCount} template(s) ${verb}${failCount ? `, ${failCount} failed` : ''}.`);
+            window.location.reload();
+        } catch {
+            showToast(`Network error — could not ${verb} templates.`);
+        }
+    }
+
+    document.getElementById('btn-bulk-activate')?.addEventListener('click', () =>
+        runBulkAction('/Templates/BulkActivate', 'activated'));
+    document.getElementById('btn-bulk-deactivate')?.addEventListener('click', () =>
+        runBulkAction('/Templates/BulkDeactivate', 'deactivated'));
+    document.getElementById('btn-bulk-delete')?.addEventListener('click', () =>
+        runBulkAction('/Templates/BulkDelete', 'deleted', 'Delete the selected templates? This cannot be undone.'));
+
+    document.getElementById('btn-bulk-export')?.addEventListener('click', async () => {
+        const ids = getSelectedIds();
+        if (!ids.length) return;
+        try {
+            const res = await bulkPost('/Templates/BulkExport', ids);
+            if (!res.ok) { showToast('Failed to export templates.'); return; }
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = 'template-builder-export.zip';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch {
+            showToast('Network error — could not export templates.');
+        }
+    });
+
+    updateBar();
+})();
+
+// ── Health badges (Templates/Index list + Health index page) ─────────────────
+
+(function initHealthBadges() {
+    const badges = Array.from(document.querySelectorAll('.tb-health-badge[data-template-id]'));
+    if (!badges.length) return;
+
+    const ids = badges.map(b => b.dataset.templateId).filter(Boolean);
+    if (!ids.length) return;
+
+    function badgeClassFor(severity) {
+        if (severity === 'critical') return 'tb-health-badge-critical';
+        if (severity === 'warning') return 'tb-health-badge-warning';
+        return 'tb-health-badge-healthy';
+    }
+
+    function labelFor(severity, findingCount) {
+        if (severity === 'critical') return `Critical (${findingCount})`;
+        if (severity === 'warning') return `Warning (${findingCount})`;
+        return 'Healthy';
+    }
+
+    (async function loadBadges() {
+        try {
+            const res = await fetch(`/Health/Summaries?ids=${encodeURIComponent(ids.join(','))}`);
+            if (!res.ok) return;
+            const summaries = await res.json();
+            const byId = new Map(summaries.map(s => [String(s.templateId), s]));
+            badges.forEach(badge => {
+                const summary = byId.get(badge.dataset.templateId);
+                badge.classList.remove('tb-health-badge-healthy', 'tb-health-badge-warning', 'tb-health-badge-critical');
+                if (!summary) { badge.textContent = '—'; return; }
+                badge.classList.add(badgeClassFor(summary.severity));
+                badge.textContent = labelFor(summary.severity, summary.findingCount);
+            });
+        } catch {
+            // leave badges at their default "—" state on network failure
+        }
+    })();
+})();
+
+// ── Import modal (Templates/Index) ────────────────────────────────────────────
+
+(function initImportModal() {
+    const modal = document.getElementById('import-modal');
+    if (!modal) return;
+
+    const fileInput = document.getElementById('import-file');
+    const errorEl   = document.getElementById('import-error');
+    const resultEl  = document.getElementById('import-result');
+    const openBtn   = document.getElementById('btn-import-open');
+    const closeBtn  = document.getElementById('btn-import-close');
+    const submitBtn = document.getElementById('btn-import-submit');
+
+    function openImportModal() {
+        if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+        if (resultEl) resultEl.innerHTML = '';
+        if (fileInput) fileInput.value = '';
+        modal.classList.add('open');
+        trapFocus(modal);
+    }
+
+    openBtn?.addEventListener('click', openImportModal);
+    closeBtn?.addEventListener('click', () => closeModal('import-modal'));
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal('import-modal');
+    });
+
+    function appendResultEntry(entry, kind, label) {
+        const div = document.createElement('div');
+        div.className = `tb-import-result-item ${kind === 'ok' ? 'tb-import-result-ok' : 'tb-import-result-error'}`;
+        div.innerHTML = `<strong>${escapeHtml(entry.name || '(unnamed)')}</strong> — ${escapeHtml(label)}`;
+        resultEl.appendChild(div);
+    }
+
+    submitBtn?.addEventListener('click', async () => {
+        if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+        if (resultEl) resultEl.innerHTML = '';
+
+        const file = fileInput?.files?.[0];
+        if (!file) {
+            if (errorEl) { errorEl.textContent = 'Select a file to import.'; errorEl.style.display = 'block'; }
+            return;
+        }
+
+        submitBtn.disabled = true;
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/Templates/Import', {
+                method: 'POST',
+                headers: { 'RequestVerificationToken': _csrf },
+                body: formData
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => null);
+                if (errorEl) { errorEl.textContent = err?.message ?? 'Import failed.'; errorEl.style.display = 'block'; }
+                return;
+            }
+            const result = await res.json();
+            (result.created ?? []).forEach(e => appendResultEntry(e, 'ok', 'Created'));
+            (result.updated ?? []).forEach(e => appendResultEntry(e, 'ok', `Updated (+${e.versionsAppended ?? 0} version(s))`));
+            (result.skipped ?? []).forEach(e => appendResultEntry(e, 'error', e.reason || 'Skipped'));
+            (result.errors ?? []).forEach(e => appendResultEntry(e, 'error', e.reason || 'Import failed'));
+
+            const importedCount = (result.created?.length ?? 0) + (result.updated?.length ?? 0);
+            if (importedCount > 0) {
+                showToast(`${importedCount} template(s) imported.`);
+                setTimeout(() => window.location.reload(), 1200);
+            }
+        } catch {
+            if (errorEl) { errorEl.textContent = 'Network error — please try again.'; errorEl.style.display = 'block'; }
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+})();
+
+// ── Editor health panel (Templates/Edit) ──────────────────────────────────────
+
+(function initEditorHealth() {
+    const btn = document.getElementById('btn-health');
+    const panel = document.getElementById('health-panel');
+    if (!btn || !panel || !(templateId > 0)) return;
+
+    const findingsEl = document.getElementById('health-findings');
+    const metaEl = document.getElementById('health-meta');
+
+    // TemplateHealthReport findings carry a raw numeric HealthSeverity (0=Info, 1=Warning, 2=Critical) —
+    // this endpoint returns the report as-is (unlike Health/Summaries, which maps severity to a string).
+    function severityClass(sev) {
+        if (sev === 2) return 'tb-health-finding-critical';
+        if (sev === 1) return 'tb-health-finding-warning';
+        return 'tb-health-finding-info';
+    }
+
+    function severityLabel(sev) {
+        if (sev === 2) return 'Critical';
+        if (sev === 1) return 'Warning';
+        return 'Info';
+    }
+
+    async function loadHealth() {
+        findingsEl.innerHTML = 'Loading…';
+        metaEl.textContent = '';
+        try {
+            const res = await fetch(`/Templates/${templateId}/Health`);
+            if (!res.ok) {
+                findingsEl.innerHTML = '';
+                metaEl.textContent = 'Failed to load health report.';
+                return;
+            }
+            const report = await res.json();
+            const findings = report.findings ?? [];
+
+            if (!findings.length) {
+                findingsEl.innerHTML = '<div class="tb-health-finding tb-health-finding-info">No issues found.</div>';
+            } else {
+                const items = findings.map(f => `
+                    <li class="tb-health-finding ${severityClass(f.severity)}">
+                        <strong>[${severityLabel(f.severity)}]</strong> ${escapeHtml(f.message ?? '')}
+                    </li>`).join('');
+                findingsEl.innerHTML = `<ul class="tb-health-finding-list">${items}</ul>`;
+            }
+
+            const metaParts = [];
+            metaParts.push(report.sourceView ? `Source view: ${report.sourceView}` : 'No source view bound');
+            if (report.viewMissing) metaParts.push('view missing');
+            if (report.snapshotTakenAt) metaParts.push(`Snapshot: ${new Date(report.snapshotTakenAt).toLocaleString()}`);
+            metaEl.textContent = metaParts.join(' · ');
+        } catch {
+            findingsEl.innerHTML = '';
+            metaEl.textContent = 'Network error loading health report.';
+        }
+    }
+
+    btn.addEventListener('click', () => {
+        const willOpen = panel.hidden;
+        panel.hidden = !willOpen;
+        if (willOpen) loadHealth();
+    });
+})();
+
