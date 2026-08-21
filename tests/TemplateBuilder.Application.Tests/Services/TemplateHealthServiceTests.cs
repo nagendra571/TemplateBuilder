@@ -85,6 +85,29 @@ public class TemplateHealthServiceTests
     }
 
     [Fact]
+    public async Task Check_DottedToken_IsExcludedFromColumnDriftComparison()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var discovery = new Mock<ISqlViewDiscoveryService>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 1, Name = "T", SourceView = "v_Nested",
+            SourceViewSnapshot = JsonSerializer.Serialize(new { takenAt = DateTime.UtcNow, columns = new List<SqlColumnInfo> { new("Amount", "int", MaxLength: null, IsNullable: false) } }),
+            CurrentVersion = new TemplateVersion { Body = "<p>{{ model.User.Name }} {{ model.Amount }}</p>" }
+        });
+        // The live view has neither a "User" column nor a "User.Name" column — only "Amount".
+        discovery.Setup(d => d.GetViewColumnsAsync("v_Nested", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<SqlColumnInfo> { new("Total", "int", MaxLength: null, IsNullable: false) });
+        var svc = new TemplateHealthService(repo.Object, discovery.Object);
+
+        var report = await svc.CheckAsync(1);
+
+        report.Tokens.Should().Contain("User.Name");
+        report.Findings.Should().NotContain(f => f.Code == "column_missing" && f.Message.Contains("User"));
+        report.Findings.Should().Contain(f => f.Code == "column_missing" && f.Message.Contains("Amount"));
+    }
+
+    [Fact]
     public async Task Check_UnboundTemplateWithTokens_ReportsWarning()
     {
         var repo = new Mock<ITemplateRepository>();

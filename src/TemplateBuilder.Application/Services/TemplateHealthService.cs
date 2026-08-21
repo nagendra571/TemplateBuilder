@@ -83,8 +83,13 @@ public class TemplateHealthService : ITemplateHealthService
         var snapshotByName = snapshot?.Columns?.ToDictionary(c => c.Name, c => c, StringComparer.OrdinalIgnoreCase)
             ?? new Dictionary<string, SqlColumnInfo>(StringComparer.OrdinalIgnoreCase);
 
+        // Dotted/nested tokens (e.g. "User.Name") are intentionally excluded from column-level
+        // drift comparison: there's no spec-backed way to map a nested path to a flat SQL column
+        // name (neither the first segment nor the leaf segment is guaranteed correct), and guessing
+        // wrong would produce a misleading Critical column_missing finding. They still appear in
+        // report.Tokens and still count toward unbound_tokens elsewhere in this method.
         var columnNames = tokens
-            .Select(t => t.Contains('.') ? t[..t.IndexOf('.')] : t)
+            .Where(t => !t.Contains('.'))
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
         foreach (var columnName in columnNames)
