@@ -13,7 +13,22 @@
             <h1 class="tb-page-title">Templates</h1>
             <p style="color:var(--text-muted);font-size:13px;margin-top:2px;">Manage your reusable document templates</p>
         </div>
-        <a class="btn btn-primary" asp-action="Create">+ New Template</a>
+        <div style="display:flex;gap:8px;">
+            <button type="button" id="btn-import-open" class="btn btn-secondary">Import</button>
+            <a class="btn btn-primary" asp-action="Create">+ New Template</a>
+        </div>
+    </div>
+
+    <!-- Bulk Action Toolbar (hidden until a row is selected) -->
+    <div id="tb-bulk-bar" class="tb-bulk-bar" hidden>
+        <span id="tb-bulk-count">0 selected</span>
+        <div class="tb-bulk-actions">
+            <button type="button" id="btn-bulk-activate" class="btn btn-sm btn-secondary">Activate</button>
+            <button type="button" id="btn-bulk-deactivate" class="btn btn-sm btn-secondary">Deactivate</button>
+            <button type="button" id="btn-bulk-export" class="btn btn-sm btn-secondary">Export</button>
+            <button type="button" id="btn-bulk-delete" class="btn btn-sm btn-secondary tb-bulk-danger">Delete</button>
+            <button type="button" id="btn-bulk-clear" class="btn btn-sm btn-ghost">Clear</button>
+        </div>
     </div>
 
     <!-- Layout: main list + stats sidebar -->
@@ -53,6 +68,8 @@
                     <table class="tb-list-table" role="table" aria-label="Template list">
                         <thead>
                             <tr>
+                                <th scope="col" class="tb-check-col"><input type="checkbox" id="tb-check-all"></th>
+                                <th scope="col">Health</th>
                                 <th scope="col">Name</th>
                                 <th scope="col">Type</th>
                                 <th scope="col">Version</th>
@@ -65,6 +82,8 @@
                             @foreach (var t in Model.Templates)
                             {
                                 <tr id="row-@t.Id">
+                                    <td class="tb-check-col"><input type="checkbox" class="tb-row-check" value="@t.Id"></td>
+                                    <td><span class="tb-health-badge" data-template-id="@t.Id">—</span></td>
                                     <td class="tb-col-name">@t.Name</td>
                                     <td>
                                         <span class="tb-badge tb-badge-@t.TemplateType.ToLower()">@t.TemplateType</span>
@@ -80,6 +99,7 @@
                                     <td class="tb-col-actions">
                                         <div style="display:flex;gap:4px;justify-content:flex-end;">
                                             <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@t.Id">Edit</a>
+                                            <a class="btn btn-sm btn-secondary" href="@Url.Action("ExportTemplate", "Templates", new { id = t.Id })">Export</a>
                                             <button class="btn btn-sm btn-secondary"
                                                     onclick="openDuplicateModal(@t.Id, '@Html.Raw(t.Name.Replace("'", "\\'"))')">Duplicate</button>
                                             <button class="btn btn-sm btn-secondary"
@@ -133,6 +153,30 @@
             <div class="tb-modal-actions">
                 <button class="btn btn-secondary" onclick="closeDuplicateModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="confirmDuplicate()">Duplicate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+    <div class="modal modal--narrow">
+        <div class="modal-header">
+            <span id="import-modal-title" class="modal-title">Import Template</span>
+            <button class="modal-close" id="btn-import-close" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-muted);font-size:12px;margin-top:0;">
+                Select a template export file (.template.json) to import as a new template.
+            </p>
+            <div class="tb-form-row">
+                <label for="import-file">Template file</label>
+                <input type="file" id="import-file" accept=".json" />
+            </div>
+            <div id="import-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div id="import-result" aria-live="polite"></div>
+            <div class="tb-modal-actions">
+                <button type="button" class="btn btn-primary" id="btn-import-submit">Import</button>
             </div>
         </div>
     </div>

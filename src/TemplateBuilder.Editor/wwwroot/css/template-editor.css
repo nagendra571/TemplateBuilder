@@ -1454,3 +1454,117 @@
 /* ── Two-state save (Draft/Active versions) ── */
 #tb-editor-host #draft-version-badge { margin-left: 6px; vertical-align: middle; }
 #tb-editor-host .tb-version-header .tb-badge { margin-left: 6px; }
+
+/* ── 36. Lifecycle & Ops (bulk toolbar, import, health) ──────── */
+
+/* Bulk action toolbar (Templates/Index) */
+#tb-editor-host .tb-bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: var(--accent-subtle);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: var(--text);
+}
+#tb-editor-host .tb-bulk-bar[hidden] { display: none; }
+#tb-editor-host .tb-bulk-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#tb-editor-host .tb-bulk-danger { color: var(--danger); border-color: var(--danger-border); }
+#tb-editor-host .tb-bulk-danger:hover:not(:disabled) { background: var(--danger-bg); }
+
+/* Checkbox + health columns in the template list table */
+#tb-editor-host .tb-check-col { width: 36px; text-align: center; }
+#tb-editor-host .tb-check-col input[type="checkbox"] { cursor: pointer; }
+
+/* Health badge (used both in the list table and on the Health index page) */
+#tb-editor-host .tb-health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.1px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+#tb-editor-host .tb-health-badge-healthy {
+    background: var(--success-bg);
+    color: var(--success);
+    border-color: var(--success-border);
+}
+#tb-editor-host .tb-health-badge-warning {
+    background: var(--warning-bg);
+    color: var(--warning);
+    border-color: var(--warning-border);
+}
+#tb-editor-host .tb-health-badge-critical {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: var(--danger-border);
+}
+
+/* Import modal — result entries */
+#tb-editor-host #import-result { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+#tb-editor-host .tb-import-result-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    font-size: 12px;
+    color: var(--text);
+}
+#tb-editor-host .tb-import-result-ok { border-color: var(--success-border); background: var(--success-bg); color: var(--success); }
+#tb-editor-host .tb-import-result-error { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger); }
+
+/* Editor footer — Health panel */
+#tb-editor-host .tb-health-panel {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface2);
+}
+#tb-editor-host .tb-health-panel[hidden] { display: none; }
+#tb-editor-host .tb-health-meta { margin-top: 8px; font-size: 11px; color: var(--text-muted); }
+#tb-editor-host .tb-health-finding-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#tb-editor-host .tb-health-finding {
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 12px;
+    color: var(--text);
+}
+#tb-editor-host .tb-health-finding-warning { border-color: var(--warning-border); background: var(--warning-bg); color: var(--warning); }
+#tb-editor-host .tb-health-finding-critical { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger); }
+#tb-editor-host .tb-health-finding-info { color: var(--text-muted); }
+
+/* Health index page — summary chips + per-row finding list */
+#tb-editor-host .tb-health-summary { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+#tb-editor-host .tb-health-chip {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+}
+#tb-editor-host .tb-health-chip-count { font-size: 20px; font-weight: 700; color: var(--text); }
+#tb-editor-host .tb-health-chip-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+#tb-editor-host .tb-health-chip-healthy .tb-health-chip-count { color: var(--success); }
+#tb-editor-host .tb-health-chip-warning .tb-health-chip-count { color: var(--warning); }
+#tb-editor-host .tb-health-chip-critical .tb-health-chip-count { color: var(--danger); }
+#tb-editor-host .tb-health-chip-unbound .tb-health-chip-count { color: var(--text-muted); }

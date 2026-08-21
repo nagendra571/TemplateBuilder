@@ -103,6 +103,16 @@
                     </select>
                 </div>
                 <div>
+                    <label for="prop-source-view">Source SQL View</label>
+                    <select id="prop-source-view">
+                        <option value="">— None —</option>
+                        @foreach (var view in Model.AvailableViews)
+                        {
+                            <option value="@view" selected="@(Model.SourceView == view)">@view</option>
+                        }
+                    </select>
+                </div>
+                <div>
                     <label for="prop-desc">Description</label>
                     <textarea asp-for="Description" id="prop-desc" rows="2"></textarea>
                 </div>
@@ -132,6 +142,7 @@
                     <div asp-validation-summary="ModelOnly" class="tb-error-msg tb-validation-summary"></div>
                 }
                 <button type="button" id="btn-preview" class="btn btn-secondary">Preview</button>
+                <button type="button" id="btn-health" class="btn btn-secondary">Health</button>
                 @if (!isNew)
                 {
                     <button type="button" id="btn-save-draft" class="btn btn-secondary">Save Draft</button>
@@ -141,6 +152,10 @@
                 {
                     <button type="button" id="btn-create" class="btn btn-primary">Create Template</button>
                 }
+            </div>
+            <div id="health-panel" class="tb-health-panel" hidden>
+                <div id="health-findings"></div>
+                <div id="health-meta" class="tb-health-meta"></div>
             </div>
         </div>
     </div>

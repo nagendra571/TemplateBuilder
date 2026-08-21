@@ -1,0 +1,117 @@
+@model TemplateBuilder.Editor.Models.HealthIndexViewModel
+@using TemplateBuilder.Application.Services
+@{
+    ViewData["Title"] = "Template Health";
+    var healthyCount = Model.Rows.Count(r => r.Report.Findings.Count == 0);
+    var warningCount = Model.Rows.Count(r => r.Report.Worst == HealthSeverity.Warning);
+    var criticalCount = Model.Rows.Count(r => r.Report.Worst == HealthSeverity.Critical);
+    var unboundCount = Model.Rows.Count(r => string.IsNullOrWhiteSpace(r.Report.SourceView));
+}
+
+<div id="tb-editor-host" class="tb-theme-light tb-index-page">
+<div class="tb-page-content">
+
+    <!-- Page Header -->
+    <div class="tb-page-header">
+        <div>
+            <h1 class="tb-page-title">Template Health</h1>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:2px;">Drift between template tokens and their bound SQL source views</p>
+        </div>
+        <a class="btn btn-secondary" asp-controller="Templates" asp-action="Index">&larr; Back to Templates</a>
+    </div>
+
+    <!-- Summary chips -->
+    <div class="tb-health-summary">
+        <div class="tb-health-chip tb-health-chip-healthy">
+            <span class="tb-health-chip-count">@healthyCount</span>
+            <span class="tb-health-chip-label">Healthy</span>
+        </div>
+        <div class="tb-health-chip tb-health-chip-warning">
+            <span class="tb-health-chip-count">@warningCount</span>
+            <span class="tb-health-chip-label">Warnings</span>
+        </div>
+        <div class="tb-health-chip tb-health-chip-critical">
+            <span class="tb-health-chip-count">@criticalCount</span>
+            <span class="tb-health-chip-label">Critical</span>
+        </div>
+        <div class="tb-health-chip tb-health-chip-unbound">
+            <span class="tb-health-chip-count">@unboundCount</span>
+            <span class="tb-health-chip-label">Unbound</span>
+        </div>
+    </div>
+
+    @if (!Model.Rows.Any())
+    {
+        <div class="card tb-empty-state">
+            <p>No templates yet</p>
+        </div>
+    }
+    else
+    {
+        <div class="card" style="overflow:hidden;">
+            <table class="tb-list-table" role="table" aria-label="Template health">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Source View</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Findings</th>
+                        <th scope="col" style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        var severityClass = row.Report.Worst switch
+                        {
+                            HealthSeverity.Critical => "tb-health-badge-critical",
+                            HealthSeverity.Warning => "tb-health-badge-warning",
+                            _ => "tb-health-badge-healthy"
+                        };
+                        var severityLabel = row.Report.Worst switch
+                        {
+                            HealthSeverity.Critical => "Critical",
+                            HealthSeverity.Warning => "Warning",
+                            _ => "Healthy"
+                        };
+                        <tr>
+                            <td class="tb-col-name">@row.Name</td>
+                            <td class="tb-col-meta">@(string.IsNullOrWhiteSpace(row.Report.SourceView) ? "— unbound —" : row.Report.SourceView)</td>
+                            <td><span class="tb-health-badge @severityClass">@severityLabel</span></td>
+                            <td>
+                                @if (row.Report.Findings.Count == 0)
+                                {
+                                    <span class="tb-col-meta">No findings</span>
+                                }
+                                else
+                                {
+                                    <ul class="tb-health-finding-list">
+                                        @foreach (var finding in row.Report.Findings)
+                                        {
+                                            var findingClass = finding.Severity switch
+                                            {
+                                                HealthSeverity.Critical => "tb-health-finding-critical",
+                                                HealthSeverity.Warning => "tb-health-finding-warning",
+                                                _ => "tb-health-finding-info"
+                                            };
+                                            <li class="tb-health-finding @findingClass">@finding.Message</li>
+                                        }
+                                    </ul>
+                                }
+                            </td>
+                            <td class="tb-col-actions">
+                                <a class="tb-action-link" asp-controller="Templates" asp-action="Edit" asp-route-id="@row.TemplateId">Edit</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+</div>
+</div>@* /tb-editor-host *@
+
+@section Styles {
+<link rel="stylesheet" href="/_content/TemplateBuilder.Editor/css/template-editor.css">
+}
