@@ -80,6 +80,17 @@ public class TemplateRepository : ITemplateRepository
         var template = await _context.Templates.FirstOrDefaultAsync(t => t.Id == id, ct);
         if (template is null) return false;
 
+        // Break the circular FK dependency (Template.CurrentVersionId SetNull <-> TemplateVersion.TemplateId NoAction)
+        // before deleting versions + template in the same operation — EF Core's SaveChanges dependency-graph
+        // batching cannot resolve this cycle when both sides are deleted together in one call (confirmed only
+        // against a real SQL Server database; the InMemory test provider doesn't model this and silently passes
+        // without this step).
+        if (template.CurrentVersionId is not null)
+        {
+            template.CurrentVersionId = null;
+            await _context.SaveChangesAsync(ct);
+        }
+
         var versions = await _context.TemplateVersions.Where(v => v.TemplateId == id).ToListAsync(ct);
         _context.TemplateVersions.RemoveRange(versions);
         _context.Templates.Remove(template);

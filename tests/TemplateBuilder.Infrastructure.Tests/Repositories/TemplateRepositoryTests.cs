@@ -285,6 +285,34 @@ public class TemplateRepositoryTests
     }
 
     [Fact]
+    public async Task DeleteAsync_NullsCurrentVersionIdBeforeRemovingVersions_NoCircularDependency()
+    {
+        // Regression test for the circular FK dependency between Template.CurrentVersionId (SetNull)
+        // and TemplateVersion.TemplateId (NoAction): on a real SQL Server database, deleting a template
+        // and its versions (including whichever version CurrentVersionId points to) in a single
+        // SaveChangesAsync throws InvalidOperationException ("circular dependency was detected").
+        // The InMemory provider used here doesn't model that FK dependency-graph batching, so this test
+        // can't reproduce the original failure — it instead pins the required two-phase behavior
+        // (CurrentVersionId nulled and persisted before versions/template removal) by exercising the
+        // exact shape of the bug: a template whose CurrentVersionId points directly at one of the
+        // versions being deleted.
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var t = await repo.CreateAsync(new Template { Name = "A", TemplateType = "Email" });
+        await repo.PublishVersionAsync(t.Id, new TemplateVersion { TemplateId = t.Id, VersionNumber = 1, Body = "v1" });
+        var v2 = await repo.PublishVersionAsync(t.Id, new TemplateVersion { TemplateId = t.Id, VersionNumber = 2, Body = "v2" });
+
+        // Sanity: CurrentVersionId points at the most recently published version, which will also be deleted.
+        (await repo.GetCurrentVersionIdAsync(t.Id)).Should().Be(v2.Id);
+
+        var deleted = await repo.DeleteAsync(t.Id);
+
+        deleted.Should().BeTrue();
+        (await repo.GetByIdAsync(t.Id)).Should().BeNull();
+        (await repo.GetVersionHistoryAsync(t.Id)).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetAllIncludingInactiveAsync_IncludesInactiveTemplates()
     {
         await using var context = CreateContext();
