@@ -256,5 +256,223 @@
         if (e.key === 'Escape' && document.getElementById('duplicate-modal').classList.contains('open'))
             closeDuplicateModal();
     });
+
+    // ── Bulk selection + bulk actions ───────────────────────────────────────
+    (function initBulkOps() {
+        const bar = document.getElementById('tb-bulk-bar');
+        if (!bar) return;
+
+        const checkAll = document.getElementById('tb-check-all');
+        const countEl  = document.getElementById('tb-bulk-count');
+
+        function getRowChecks() {
+            return Array.from(document.querySelectorAll('.tb-row-check'));
+        }
+
+        function getSelectedIds() {
+            return getRowChecks()
+                .filter(c => c.checked)
+                .map(c => parseInt(c.value, 10))
+                .filter(n => !Number.isNaN(n));
+        }
+
+        function updateBar() {
+            const rows = getRowChecks();
+            const ids = getSelectedIds();
+            bar.hidden = ids.length === 0;
+            if (countEl) countEl.textContent = `${ids.length} selected`;
+            if (checkAll) checkAll.checked = rows.length > 0 && ids.length === rows.length;
+        }
+
+        document.addEventListener('change', (e) => {
+            if (e.target.classList?.contains('tb-row-check')) updateBar();
+        });
+
+        checkAll?.addEventListener('change', () => {
+            getRowChecks().forEach(c => { c.checked = checkAll.checked; });
+            updateBar();
+        });
+
+        document.getElementById('btn-bulk-clear')?.addEventListener('click', () => {
+            getRowChecks().forEach(c => { c.checked = false; });
+            if (checkAll) checkAll.checked = false;
+            updateBar();
+        });
+
+        async function bulkPost(url, ids) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': _csrf
+                },
+                body: JSON.stringify({ ids })
+            });
+        }
+
+        async function runBulkAction(url, verb, confirmMsg) {
+            const ids = getSelectedIds();
+            if (!ids.length) return;
+            if (confirmMsg && !window.confirm(confirmMsg)) return;
+            try {
+                const res = await bulkPost(url, ids);
+                if (!res.ok) { alert(`Failed to ${verb} templates.`); return; }
+                const data = await res.json();
+                const failCount = data.failed?.length ?? 0;
+                if (failCount) alert(`${failCount} template(s) could not be ${verb}.`);
+                window.location.reload();
+            } catch {
+                alert(`Network error — could not ${verb} templates.`);
+            }
+        }
+
+        document.getElementById('btn-bulk-activate')?.addEventListener('click', () =>
+            runBulkAction('/Templates/BulkActivate', 'activated'));
+        document.getElementById('btn-bulk-deactivate')?.addEventListener('click', () =>
+            runBulkAction('/Templates/BulkDeactivate', 'deactivated'));
+        document.getElementById('btn-bulk-delete')?.addEventListener('click', () =>
+            runBulkAction('/Templates/BulkDelete', 'deleted', 'Delete the selected templates? This cannot be undone.'));
+
+        document.getElementById('btn-bulk-export')?.addEventListener('click', async () => {
+            const ids = getSelectedIds();
+            if (!ids.length) return;
+            try {
+                const res = await bulkPost('/Templates/BulkExport', ids);
+                if (!res.ok) { alert('Failed to export templates.'); return; }
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = 'template-builder-export.zip';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(blobUrl);
+            } catch {
+                alert('Network error — could not export templates.');
+            }
+        });
+
+        updateBar();
+    })();
+
+    // ── Health badges (per-row, list table) ─────────────────────────────────
+    (function initHealthBadges() {
+        const badges = Array.from(document.querySelectorAll('.tb-health-badge[data-template-id]'));
+        if (!badges.length) return;
+
+        const ids = badges.map(b => b.dataset.templateId).filter(Boolean);
+        if (!ids.length) return;
+
+        function badgeClassFor(severity) {
+            if (severity === 'critical') return 'tb-health-badge-critical';
+            if (severity === 'warning') return 'tb-health-badge-warning';
+            return 'tb-health-badge-healthy';
+        }
+
+        function labelFor(severity, findingCount) {
+            if (severity === 'critical') return `Critical (${findingCount})`;
+            if (severity === 'warning') return `Warning (${findingCount})`;
+            return 'Healthy';
+        }
+
+        (async function loadBadges() {
+            try {
+                const res = await fetch(`/Health/Summaries?ids=${encodeURIComponent(ids.join(','))}`);
+                if (!res.ok) return;
+                const summaries = await res.json();
+                const byId = new Map(summaries.map(s => [String(s.templateId), s]));
+                badges.forEach(badge => {
+                    const summary = byId.get(badge.dataset.templateId);
+                    badge.classList.remove('tb-health-badge-healthy', 'tb-health-badge-warning', 'tb-health-badge-critical');
+                    if (!summary) { badge.textContent = '—'; return; }
+                    badge.classList.add(badgeClassFor(summary.severity));
+                    badge.textContent = labelFor(summary.severity, summary.findingCount);
+                });
+            } catch {
+                // leave badges at their default "—" state on network failure
+            }
+        })();
+    })();
+
+    // ── Import modal ─────────────────────────────────────────────────────────
+    (function initImportModal() {
+        const modal = document.getElementById('import-modal');
+        if (!modal) return;
+
+        const fileInput = document.getElementById('import-file');
+        const resultEl  = document.getElementById('import-result');
+        const openBtn   = document.getElementById('btn-import-open');
+        const closeBtn  = document.getElementById('btn-import-close');
+        const submitBtn = document.getElementById('btn-import-submit');
+
+        function openImportModal() {
+            if (resultEl) resultEl.textContent = '';
+            if (fileInput) fileInput.value = '';
+            modal.classList.add('open');
+            setTimeout(() => fileInput?.focus(), 50);
+        }
+
+        function closeImportModal() {
+            modal.classList.remove('open');
+        }
+
+        openBtn?.addEventListener('click', openImportModal);
+        closeBtn?.addEventListener('click', closeImportModal);
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && modal.classList.contains('open')) closeImportModal();
+        });
+
+        function appendResultEntry(entry, kind, label) {
+            const div = document.createElement('div');
+            div.className = `tb-import-result-item ${kind === 'ok' ? 'tb-import-result-ok' : 'tb-import-result-error'}`;
+            const strong = document.createElement('strong');
+            strong.textContent = entry.name || '(unnamed)';
+            div.appendChild(strong);
+            div.appendChild(document.createTextNode(` — ${label}`));
+            resultEl.appendChild(div);
+        }
+
+        submitBtn?.addEventListener('click', async () => {
+            if (resultEl) resultEl.textContent = '';
+
+            const file = fileInput?.files?.[0];
+            if (!file) {
+                alert('Select a file to import.');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/Templates/Import', {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': _csrf },
+                    body: formData
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => null);
+                    alert(err?.message ?? 'Import failed.');
+                    return;
+                }
+                const result = await res.json();
+                (result.created ?? []).forEach(e => appendResultEntry(e, 'ok', 'Created'));
+                (result.updated ?? []).forEach(e => appendResultEntry(e, 'ok', `Updated (+${e.versionsAppended ?? 0} version(s))`));
+                (result.skipped ?? []).forEach(e => appendResultEntry(e, 'error', e.reason || 'Skipped'));
+                (result.errors ?? []).forEach(e => appendResultEntry(e, 'error', e.reason || 'Import failed'));
+
+                const importedCount = (result.created?.length ?? 0) + (result.updated?.length ?? 0);
+                if (importedCount > 0) {
+                    setTimeout(() => window.location.reload(), 1200);
+                }
+            } catch {
+                alert('Network error — please try again.');
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+    })();
 </script>
 }
