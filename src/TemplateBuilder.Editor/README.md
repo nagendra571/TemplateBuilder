@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 2.0.0**
+**Current version: 2.1.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 2.0.0
+dotnet add package TemplateBuilder.Editor --version 2.1.0
 ```
 
 ### 2. Add a connection string
@@ -222,6 +222,14 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
+### v2.1.0
+- **Export / Import (promotion)** — Export any template to a versioned JSON file (`GET /Templates/Export/{id}`) and import it into another environment (`POST /Templates/Import`, multipart file upload). Each template carries a stable `ExternalKey` (a `Guid`, unique, backfilled on migration) that survives renames — import matches on that key: a match updates the existing template in place and appends the imported versions starting at `max + 1` (preserving each version's Draft/Active flag and the template's own active flag exactly); no match creates a new template with its original version numbers and flags intact. There is no skip/collapse behavior — every import either updates or creates. The exported JSON also includes `sampleData` (nullable string) so a template's saved preview data round-trips with it on both the create and update-by-key-match paths.
+- **Template health check** — `TemplateHealthService` parses a template's body via the Scriban AST (not regex) to extract every `model.*` field it references, then compares those fields against the live schema of the SQL view configured as the template's **Source View** (new Properties-panel field, saved via Save Draft/Save Version). Findings: **Critical** — `view_missing` (the configured view no longer exists) or `column_missing` (a referenced field has no matching column); **Warning** — `column_type_changed`, `column_length_changed`, `column_nullability_changed` (the column changed shape since the last snapshot), or `unbound_tokens` (fields referenced with no Source View configured at all). A snapshot of the view's columns is taken and stored with the template whenever the Source View changes, so drift is measured against what was true when it was last bound, not just what's true now. Nested/dotted paths (e.g. `model.Order.Total`) are extracted as tokens but excluded from column-level drift comparison (only top-level fields are checked against columns). `GET /Templates/{id}/Health` returns the full report as JSON; the editor's footer Health button renders it inline.
+- **Health overview page** — `GET /Health` lists every template (including inactive ones) with Healthy / Warning / Critical / Unbound chips and a per-template finding table, so drift across your whole template library is visible at a glance without opening each one.
+- **Health summaries** — `GET /Health/Summaries?ids=1,2,3` returns lightweight per-template severity + finding-count JSON, used to badge the template list without running a full health check inline for every row.
+- **Bulk operations** — The template list gains a checkbox column and a selection toolbar: **Activate**, **Deactivate**, **Export** (downloads a ZIP with one `.template.json` per selected template plus a `_summary.json` manifest, via `POST /Templates/BulkExport`), and **Delete** (`POST /Templates/BulkDelete`, permanent — removes all versions then the template; there's no single-template delete UI, bulk only). Activate/Deactivate (`POST /Templates/BulkActivate` / `BulkDeactivate`) skip templates already in the target state. All four bulk endpoints return a `{ succeeded, failed }` result per id.
+- **No audit trail** — none of the above (import, bulk activate/deactivate/delete) writes an audit log entry; this is a deliberate scope decision, not an oversight.
+
 ### v2.0.0
 - **Two-state save model** — each template version is now either **Draft** or **Active**. The toolbar gains a **Save Draft** button alongside **Save Version**: Save Draft creates a new version marked Draft (safe to iterate without affecting what renders live); Save Version creates a new version marked Active. Draft versions show a **"Draft version"** badge in the editor and a **Draft** badge in the History panel.
 - **Breaking: render API now serves the last Active version, not simply the newest one.** `ITemplateEngine.RenderAsync` / `RenderByNameAsync` walk version history for the highest-numbered version with `IsActive = true` — a newer Draft version is skipped. See the [Render Templates in Code](#render-templates-in-code) section below for the two new exceptions this introduces.
@@ -334,6 +342,15 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 | Delete snippet | `DELETE /Templates/Api/Snippets/{id}` |
 | Generate sample data | `POST /Templates/Api/SampleData/Generate` |
 | Save sample data | `PUT /Templates/{id}/SampleData` |
+| Export template | `GET /Templates/Export/{id}` |
+| Import template export file | `POST /Templates/Import` |
+| Bulk activate | `POST /Templates/BulkActivate` |
+| Bulk deactivate | `POST /Templates/BulkDeactivate` |
+| Bulk export | `POST /Templates/BulkExport` |
+| Bulk delete | `POST /Templates/BulkDelete` |
+| Template health check | `GET /Templates/{id}/Health` |
+| Health overview page | `GET /Health` |
+| Health summaries | `GET /Health/Summaries?ids=1,2,3` |
 | Setup check | `GET /Templates/_setup` *(Development only)* |
 
 ---
@@ -387,6 +404,57 @@ public class WelcomeEmailService(ITemplateEngine engine)
 | `NoActiveVersionException` | The template exists and is active, but every saved version is a Draft — there is nothing Active to render |
 
 **Breaking change from `1.x`:** previously, an inactive template's render call threw `TemplateNotFoundException`. It now throws the more specific `TemplateInactiveException`. Catch both if you need to preserve the old fallback behavior.
+
+---
+
+## Lifecycle & Ops
+
+Export/import, health checks, and bulk operations, added in `2.1.0` for moving templates between environments and keeping a large template library trustworthy.
+
+### Export / Import
+
+Every template has a stable `ExternalKey` (`Guid`, unique) that identifies it across environments — it's assigned on creation and **survives renames**, so it's what promotion matches on, not the template name.
+
+- **Export** — `GET /Templates/Export/{id}` downloads a `schemaVersion: 2` JSON file: the template's metadata (`externalKey`, `name`, `templateType`, `description`, `sampleData`, `isActive`) plus every version (`versionNumber`, `body`, `changeComment`, `createdAt`, `createdBy`, `isActive`).
+- **`sampleData` is included in the exported/imported JSON** — it's a nullable string, preserved on both the create and update-by-key-match import paths, so a template's saved preview data travels with it during promotion.
+- **Import** — `POST /Templates/Import` takes a multipart file upload of an exported JSON file:
+  - **Key match** (an existing template has the same `ExternalKey`) → updates that template's metadata and `IsActive` in place, then **appends** the imported versions starting at `max version number + 1`, preserving each version's `IsActive` flag exactly as exported.
+  - **No key match** → creates a new template, keeping the imported `ExternalKey`, original version numbers, and original flags.
+  - There is **no skip/collapse** behavior — an import always either updates or creates; a version is never silently dropped or merged into another.
+  - Any version body that fails to parse as valid Scriban, or a file with the wrong `schemaVersion`/missing name/type/versions, is rejected with an error entry rather than partially imported.
+- **Bulk export** — `POST /Templates/BulkExport` (`{ ids: [...] }`) downloads a ZIP containing one `{Name}.template.json` per selected template plus a `_summary.json` manifest.
+
+### Template health check
+
+`TemplateHealthService` walks a template body's **Scriban AST** (not a regex) to find every `model.*` field it actually references, then compares those fields against the live column schema of the SQL view configured as the template's **Source View** (a field in the editor's Properties panel, saved via Save Draft/Save Version). A snapshot of the view's columns is taken whenever the Source View changes, so drift is measured against what was true when the view was last bound.
+
+| Finding | Severity | Meaning |
+|---|---|---|
+| `view_missing` | Critical | The configured Source View no longer exists |
+| `column_missing` | Critical | A field the template references has no matching column in the view |
+| `column_type_changed` | Warning | The column's SQL data type changed since the last snapshot |
+| `column_length_changed` | Warning | The column's max length changed since the last snapshot |
+| `column_nullability_changed` | Warning | The column's nullability changed since the last snapshot |
+| `unbound_tokens` | Warning | The template references `model.*` fields but has no Source View configured at all |
+
+Nested/dotted paths (e.g. `model.Order.Total`) are extracted as tokens but are excluded from column-level drift comparison — only top-level fields are checked against columns.
+
+- `GET /Templates/{id}/Health` returns the full report as JSON; the editor's footer Health button renders it inline for the template you're editing.
+- `GET /Health` is an overview page listing every template (including inactive ones) with Healthy / Warning / Critical / Unbound chips and a per-template finding table.
+- `GET /Health/Summaries?ids=1,2,3` returns lightweight `{ templateId, severity, findingCount }` JSON per id, used to badge rows on the template list without running a full check inline.
+
+### Bulk operations
+
+The template list has a checkbox column and a selection toolbar:
+
+| Action | Route | Behavior |
+|---|---|---|
+| Activate | `POST /Templates/BulkActivate` | Sets `IsActive = true`; templates already active are counted as succeeded, not re-processed |
+| Deactivate | `POST /Templates/BulkDeactivate` | Sets `IsActive = false`; same already-in-state handling |
+| Export | `POST /Templates/BulkExport` | Downloads a ZIP (see Export / Import above) |
+| Delete | `POST /Templates/BulkDelete` | **Permanent** — removes all versions, then the template itself. There is no single-template delete UI; delete is bulk-only |
+
+All four return `{ succeeded: [...], failed: [{ id, reason }] }`. None of the lifecycle-and-ops actions (import, bulk activate/deactivate/delete) write an audit log entry — this is a deliberate scope decision.
 
 ---
 
