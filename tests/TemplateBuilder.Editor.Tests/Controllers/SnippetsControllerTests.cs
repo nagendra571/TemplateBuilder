@@ -4,6 +4,7 @@ using Moq;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Interfaces;
+using TemplateBuilder.Editor;
 using TemplateBuilder.Editor.Controllers;
 using TemplateBuilder.Editor.Models;
 
@@ -13,11 +14,13 @@ public class SnippetsControllerTests
 {
     private static SnippetsController CreateController(
         ISnippetRepository? snippets = null,
-        Mock<IAuditService>? audit = null)
+        Mock<IAuditService>? audit = null,
+        ActorResolverAccessor? actorResolver = null)
     {
         var mockSnippets = snippets ?? new Mock<ISnippetRepository>().Object;
         var mockAudit = audit?.Object ?? new Mock<IAuditService>().Object;
-        return new SnippetsController(mockSnippets, mockAudit);
+        var resolvedActorResolver = actorResolver ?? new ActorResolverAccessor(null);
+        return new SnippetsController(mockSnippets, mockAudit, resolvedActorResolver);
     }
 
     [Fact]

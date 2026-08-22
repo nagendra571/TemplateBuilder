@@ -8,6 +8,7 @@ using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Exceptions;
 using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Editor.Models;
+using TemplateBuilder.Editor;
 
 namespace TemplateBuilder.Editor.Controllers;
 
@@ -27,8 +28,9 @@ public class TemplatesController : Controller
     private readonly ITemplateHealthService _health;
     private readonly IAuditService _auditService;
     private readonly IAuditRepository _auditRepository;
+    private readonly ActorResolverAccessor _actorResolver;
 
-    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health, IAuditService auditService, IAuditRepository auditRepository)
+    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health, IAuditService auditService, IAuditRepository auditRepository, ActorResolverAccessor actorResolver)
     {
         _repository = repository;
         _viewDiscovery = viewDiscovery;
@@ -39,9 +41,10 @@ public class TemplatesController : Controller
         _health = health;
         _auditService = auditService;
         _auditRepository = auditRepository;
+        _actorResolver = actorResolver;
     }
 
-    protected string CurrentActor => User?.Identity?.Name ?? "anonymous";
+    protected string CurrentActor => ActorResolverChain.Resolve(_actorResolver.Resolver, User?.Identity?.Name, HttpContext);
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, string? type, CancellationToken ct = default)

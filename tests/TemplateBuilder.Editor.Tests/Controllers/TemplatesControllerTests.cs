@@ -5,6 +5,7 @@ using Moq;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Interfaces;
+using TemplateBuilder.Editor;
 using TemplateBuilder.Editor.Controllers;
 using TemplateBuilder.Editor.Models;
 
@@ -21,7 +22,8 @@ public class TemplatesControllerTests
         Mock<ITemplatePromotionService>? promo = null,
         ITemplateHealthService? health = null,
         Mock<IAuditService>? audit = null,
-        Mock<IAuditRepository>? auditRepo = null)
+        Mock<IAuditRepository>? auditRepo = null,
+        ActorResolverAccessor? actorResolver = null)
     {
         var mockRepo = repo ?? new Mock<ITemplateRepository>().Object;
         var mockDiscovery = discovery ?? new Mock<ISqlViewDiscoveryService>().Object;
@@ -32,7 +34,8 @@ public class TemplatesControllerTests
         var mockHealth = health ?? new Mock<ITemplateHealthService>().Object;
         var mockAudit = audit?.Object ?? new Mock<IAuditService>().Object;
         var mockAuditRepo = auditRepo?.Object ?? new Mock<IAuditRepository>().Object;
-        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth, mockAudit, mockAuditRepo);
+        var resolvedActorResolver = actorResolver ?? new ActorResolverAccessor(null);
+        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth, mockAudit, mockAuditRepo, resolvedActorResolver);
     }
 
     [Fact]

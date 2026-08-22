@@ -4,6 +4,7 @@ using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Editor.Models;
+using TemplateBuilder.Editor;
 
 namespace TemplateBuilder.Editor.Controllers;
 
@@ -11,14 +12,16 @@ public class SnippetsController : Controller
 {
     private readonly ISnippetRepository _snippets;
     private readonly IAuditService _auditService;
+    private readonly ActorResolverAccessor _actorResolver;
 
-    public SnippetsController(ISnippetRepository snippets, IAuditService auditService)
+    public SnippetsController(ISnippetRepository snippets, IAuditService auditService, ActorResolverAccessor actorResolver)
     {
         _snippets = snippets;
         _auditService = auditService;
+        _actorResolver = actorResolver;
     }
 
-    protected string CurrentActor => User?.Identity?.Name ?? "anonymous";
+    protected string CurrentActor => ActorResolverChain.Resolve(_actorResolver.Resolver, User?.Identity?.Name, HttpContext);
 
     [HttpGet("/Templates/Api/Snippets")]
     public async Task<IActionResult> GetAll(CancellationToken ct = default)
