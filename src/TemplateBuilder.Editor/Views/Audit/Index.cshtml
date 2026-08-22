@@ -1,0 +1,238 @@
+@model AuditIndexViewModel
+@{
+    ViewData["Title"] = "Audit Log";
+
+    var jsonOpts = new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase };
+    var initialStatsJson = System.Text.Json.JsonSerializer.Serialize(Model.Stats, jsonOpts);
+
+    string BuildQueryString(int? page = null)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Model.Search)) parts.Add($"search={Uri.EscapeDataString(Model.Search)}");
+        if (!string.IsNullOrWhiteSpace(Model.EntityType)) parts.Add($"entityType={Uri.EscapeDataString(Model.EntityType)}");
+        if (!string.IsNullOrWhiteSpace(Model.Action)) parts.Add($"action={Uri.EscapeDataString(Model.Action)}");
+        if (!string.IsNullOrWhiteSpace(Model.Actor)) parts.Add($"actor={Uri.EscapeDataString(Model.Actor)}");
+        if (!string.IsNullOrWhiteSpace(Model.From)) parts.Add($"from={Uri.EscapeDataString(Model.From)}");
+        if (!string.IsNullOrWhiteSpace(Model.To)) parts.Add($"to={Uri.EscapeDataString(Model.To)}");
+        parts.Add($"pageSize={Model.PageSize}");
+        if (page.HasValue) parts.Add($"page={page.Value}");
+        return parts.Count > 0 ? "?" + string.Join("&", parts) : "";
+    }
+
+    string ActionLabel(string action)
+    {
+        if (string.IsNullOrEmpty(action)) return action;
+        return string.Join(" ", action.Split('_').Select(w => w.Length > 0 ? char.ToUpperInvariant(w[0]) + w.Substring(1) : w));
+    }
+
+    string FormatState(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "(none)";
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            return System.Text.Json.JsonSerializer.Serialize(doc.RootElement, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return raw;
+        }
+    }
+
+    var rangeText = (Model.Stats.FirstOccurrence.HasValue && Model.Stats.LastOccurrence.HasValue)
+        ? $"{Model.Stats.FirstOccurrence.Value:dd MMM yyyy} → {Model.Stats.LastOccurrence.Value:dd MMM yyyy}"
+        : "—";
+
+    var start = Model.Total == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var end = Math.Min(Model.Page * Model.PageSize, Model.Total);
+    var hasPrev = Model.Page > 1;
+    var hasNext = (Model.Page * Model.PageSize) < Model.Total;
+}
+
+<div id="tb-editor-host" class="tb-theme-light tb-audit-page">
+<div class="tb-page-content">
+
+    <!-- Page Header -->
+    <div class="tb-page-header">
+        <div>
+            <h1 class="tb-page-title">Audit Log</h1>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:2px;">History of changes across templates and snippets</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <div id="tb-live-pill" class="tb-live-pill" hidden role="status">
+                <span id="tb-live-pill-text"></span>
+            </div>
+            <a class="btn btn-secondary" href="/Audit/Export@(BuildQueryString())">Export CSV</a>
+        </div>
+    </div>
+
+    <!-- Stat chips -->
+    <div class="tb-audit-stats">
+        <div class="tb-audit-stat-chip">
+            <span id="tb-audit-total" class="tb-audit-stat-count">@Model.Stats.Total</span>
+            <span class="tb-audit-stat-label">Total Events</span>
+        </div>
+        <div class="tb-audit-stat-chip">
+            <span id="tb-stat-templates" class="tb-audit-stat-count">@Model.Stats.TemplateCount</span>
+            <span class="tb-audit-stat-label">Templates</span>
+        </div>
+        <div class="tb-audit-stat-chip">
+            <span id="tb-stat-snippets" class="tb-audit-stat-count">@Model.Stats.SnippetCount</span>
+            <span class="tb-audit-stat-label">Snippets</span>
+        </div>
+        <div class="tb-audit-stat-chip">
+            <span id="tb-stat-actors" class="tb-audit-stat-count">@Model.Stats.UniqueActors</span>
+            <span class="tb-audit-stat-label">Unique Actors</span>
+        </div>
+        <div class="tb-audit-stat-chip tb-audit-stat-chip-range">
+            <span id="tb-stat-range" class="tb-audit-stat-range-value">@rangeText</span>
+            <span class="tb-audit-stat-label">Date Range</span>
+        </div>
+    </div>
+
+    <!-- 30-day activity chart -->
+    <div class="card tb-audit-chart-card">
+        <div class="tb-audit-chart-header">
+            <h3>Activity — last 30 days</h3>
+        </div>
+        <svg id="tb-audit-chart-svg" class="tb-audit-chart-svg" role="img" aria-label="Audit activity over the last 30 days"></svg>
+        <div id="tb-audit-chart-axis" class="tb-audit-chart-axis"></div>
+    </div>
+    <script type="application/json" id="tb-audit-initial-stats">@Html.Raw(initialStatsJson)</script>
+
+    <!-- Filter card -->
+    <div class="card tb-audit-filter-card">
+        <form method="get" action="/Audit" id="tb-audit-filter-form" class="tb-audit-filter-form">
+            <div class="tb-audit-filter-field">
+                <label for="tb-audit-search" class="visually-hidden">Search</label>
+                <input type="search" id="tb-audit-search" name="search" value="@Model.Search" placeholder="Search comment, actor…" />
+            </div>
+            <div class="tb-audit-filter-field">
+                <label for="tb-audit-entity-type" class="visually-hidden">Entity type</label>
+                <select id="tb-audit-entity-type" name="entityType">
+                    <option value="">All Types</option>
+                    <option value="Template" selected="@(Model.EntityType == "Template")">Template</option>
+                    <option value="Snippet" selected="@(Model.EntityType == "Snippet")">Snippet</option>
+                </select>
+            </div>
+            <div class="tb-audit-filter-field">
+                <label for="tb-audit-action" class="visually-hidden">Action</label>
+                <select id="tb-audit-action" name="action">
+                    <option value="">All Actions</option>
+                    @foreach (var a in Model.KnownActions)
+                    {
+                        <option value="@a" selected="@(Model.Action == a)">@ActionLabel(a)</option>
+                    }
+                </select>
+            </div>
+            <div class="tb-audit-filter-field">
+                <label for="tb-audit-actor" class="visually-hidden">Actor</label>
+                <input type="text" id="tb-audit-actor" name="actor" value="@Model.Actor" placeholder="Actor…" />
+            </div>
+            <div class="tb-audit-filter-field">
+                <label for="tb-audit-from">From</label>
+                <input type="date" id="tb-audit-from" name="from" value="@Model.From" />
+            </div>
+            <div class="tb-audit-filter-field">
+                <label for="tb-audit-to">To</label>
+                <input type="date" id="tb-audit-to" name="to" value="@Model.To" />
+            </div>
+            <div class="tb-audit-filter-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                <a href="/Audit" id="tb-audit-clear" class="btn btn-ghost btn-sm">Clear</a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results table -->
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="card tb-empty-state">
+            <p>No audit activity yet</p>
+        </div>
+    }
+    else
+    {
+        <div class="card" style="overflow:hidden;">
+            <table class="tb-list-table tb-audit-table" role="table" aria-label="Audit log">
+                <thead>
+                    <tr>
+                        <th scope="col" class="tb-audit-expand-col"></th>
+                        <th scope="col">Time</th>
+                        <th scope="col">Entity</th>
+                        <th scope="col">Action</th>
+                        <th scope="col">Actor</th>
+                        <th scope="col">Comment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr id="audit-row-@row.Id">
+                            <td class="tb-audit-expand-col">
+                                <button type="button" id="audit-expand-@row.Id" class="tb-audit-expand-btn" aria-expanded="false" aria-controls="audit-detail-@row.Id" title="Show details">
+                                    <span class="tb-audit-expand-chevron" aria-hidden="true"></span>
+                                </button>
+                            </td>
+                            <td class="tb-col-meta"><span data-audit-time="@row.OccurredAt.ToString("o")">@row.OccurredAt.ToString("dd MMM yyyy HH:mm")</span></td>
+                            <td class="tb-col-meta">@row.EntityType #@row.EntityId</td>
+                            <td><span class="tb-action-badge tb-action-badge--@row.Action">@ActionLabel(row.Action)</span></td>
+                            <td class="tb-col-meta">@row.Actor</td>
+                            <td class="tb-col-meta tb-audit-comment">@row.Comment</td>
+                        </tr>
+                        <tr id="audit-detail-@row.Id" class="tb-audit-detail-row" hidden>
+                            <td colspan="6">
+                                <div id="audit-state-@row.Id" class="tb-audit-state" data-before="@(row.BeforeState ?? "")" data-after="@(row.AfterState ?? "")">
+                                    <div class="tb-audit-state-col">
+                                        <div class="tb-audit-state-label">Before</div>
+                                        <pre class="tb-audit-state-before">@FormatState(row.BeforeState)</pre>
+                                    </div>
+                                    <div class="tb-audit-state-col">
+                                        <div class="tb-audit-state-label">After</div>
+                                        <pre class="tb-audit-state-after">@FormatState(row.AfterState)</pre>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="tb-audit-pagination">
+            <span class="tb-audit-pagination-summary">Showing @start&ndash;@end of @Model.Total</span>
+            <div class="tb-audit-pagination-links">
+                @if (hasPrev)
+                {
+                    <a class="btn btn-sm btn-secondary" href="/Audit@(BuildQueryString(Model.Page - 1))">&larr; Previous</a>
+                }
+                else
+                {
+                    <span class="btn btn-sm btn-secondary" aria-disabled="true" style="opacity:.5;pointer-events:none;">&larr; Previous</span>
+                }
+                @if (hasNext)
+                {
+                    <a class="btn btn-sm btn-secondary" href="/Audit@(BuildQueryString(Model.Page + 1))">Next &rarr;</a>
+                }
+                else
+                {
+                    <span class="btn btn-sm btn-secondary" aria-disabled="true" style="opacity:.5;pointer-events:none;">Next &rarr;</span>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+</div>@* /tb-editor-host *@
+
+@section Styles {
+<link rel="stylesheet" href="/_content/TemplateBuilder.Editor/css/template-editor.css">
+<style>
+    .visually-hidden { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+</style>
+}
+
+@section Scripts {
+<script src="/_content/TemplateBuilder.Editor/js/template-editor.js"></script>
+}

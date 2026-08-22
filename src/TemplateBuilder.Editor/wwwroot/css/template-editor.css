@@ -1568,3 +1568,242 @@
 #tb-editor-host .tb-health-chip-warning .tb-health-chip-count { color: var(--warning); }
 #tb-editor-host .tb-health-chip-critical .tb-health-chip-count { color: var(--danger); }
 #tb-editor-host .tb-health-chip-unbound .tb-health-chip-count { color: var(--text-muted); }
+
+/* ── Section: Audit Log Page ─────────────────────────────────────────────── */
+
+/* Live "new events" pill in the page header */
+#tb-editor-host .tb-live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--accent);
+    background: var(--accent-subtle);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    animation: tb-audit-pill-in var(--transition-md);
+}
+#tb-editor-host .tb-live-pill[hidden] { display: none; }
+@keyframes tb-audit-pill-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Stat chips row */
+#tb-editor-host .tb-audit-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.6fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+#tb-editor-host .tb-audit-stat-chip {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+}
+#tb-editor-host .tb-audit-stat-count { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+#tb-editor-host .tb-audit-stat-range-value { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+#tb-editor-host .tb-audit-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Chart card */
+#tb-editor-host .tb-audit-chart-card { padding: 16px 18px 10px; margin-bottom: 20px; }
+#tb-editor-host .tb-audit-chart-header { margin-bottom: 8px; }
+#tb-editor-host .tb-audit-chart-header h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+#tb-editor-host .tb-audit-chart-svg {
+    display: block;
+    width: 100%;
+    height: 120px;
+}
+#tb-editor-host .tb-audit-chart-bar {
+    fill: var(--accent);
+    opacity: 0.85;
+    transition: opacity var(--transition);
+}
+#tb-editor-host .tb-audit-chart-bar:hover { opacity: 1; }
+#tb-editor-host .tb-audit-chart-axis {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 2px 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Filter card */
+#tb-editor-host .tb-audit-filter-card { padding: 14px 16px; margin-bottom: 16px; }
+#tb-editor-host .tb-audit-filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 10px;
+}
+#tb-editor-host .tb-audit-filter-field { display: flex; flex-direction: column; gap: 4px; }
+#tb-editor-host .tb-audit-filter-field label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+#tb-editor-host .tb-audit-filter-field input,
+#tb-editor-host .tb-audit-filter-field select {
+    min-width: 140px;
+}
+#tb-editor-host #tb-audit-search { min-width: 220px; }
+#tb-editor-host .tb-audit-filter-actions { display: flex; gap: 8px; margin-left: auto; }
+
+/* Table cells specific to the audit table */
+#tb-editor-host .tb-audit-expand-col { width: 32px; }
+#tb-editor-host .tb-audit-comment {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Expand button */
+#tb-editor-host .tb-audit-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    transition: background var(--transition), border-color var(--transition);
+}
+#tb-editor-host .tb-audit-expand-btn:hover { background: var(--accent-subtle); border-color: var(--accent); }
+#tb-editor-host .tb-audit-expand-chevron {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform var(--transition);
+}
+#tb-editor-host .tb-audit-expand-btn[aria-expanded="true"] .tb-audit-expand-chevron { transform: rotate(45deg); }
+
+/* Action badges — one variant per AuditActions value */
+#tb-editor-host .tb-action-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: var(--radius-xl);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+#tb-editor-host .tb-action-badge--published,
+#tb-editor-host .tb-action-badge--created,
+#tb-editor-host .tb-action-badge--snippet_created {
+    background: var(--success-bg);
+    color: var(--success);
+    border-color: var(--success-border);
+}
+#tb-editor-host .tb-action-badge--deleted,
+#tb-editor-host .tb-action-badge--snippet_deleted {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: var(--danger-border);
+}
+#tb-editor-host .tb-action-badge--restored,
+#tb-editor-host .tb-action-badge--duplicated,
+#tb-editor-host .tb-action-badge--toggled_active,
+#tb-editor-host .tb-action-badge--imported {
+    background: var(--warning-bg);
+    color: var(--warning);
+    border-color: var(--warning-border);
+}
+#tb-editor-host .tb-action-badge--draft_saved {
+    background: var(--accent-subtle);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Detail row — before/after state diff */
+#tb-editor-host .tb-audit-detail-row td { background: var(--surface2); padding: 0; }
+#tb-editor-host .tb-audit-detail-row[hidden] { display: none; }
+#tb-editor-host .tb-audit-state {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+}
+#tb-editor-host .tb-audit-state-col { min-width: 0; }
+#tb-editor-host .tb-audit-state-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+#tb-editor-host .tb-audit-state pre {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 260px;
+    overflow: auto;
+}
+#tb-editor-host .tb-audit-diff-line { padding: 1px 0; }
+#tb-editor-host .tb-audit-diff-line.chg {
+    background: var(--warning-bg);
+    color: var(--warning);
+    border-radius: 3px;
+    padding-left: 4px;
+    margin-left: -4px;
+}
+#tb-editor-host .tb-audit-state-after.chg,
+#tb-editor-host pre.chg {
+    border-color: var(--warning-border);
+}
+
+/* Pagination */
+#tb-editor-host .tb-audit-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+#tb-editor-host .tb-audit-pagination-links { display: flex; gap: 8px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+    #tb-editor-host .tb-audit-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #tb-editor-host .tb-audit-state { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    #tb-editor-host .tb-audit-stats { grid-template-columns: 1fr; }
+    #tb-editor-host .tb-audit-filter-actions { margin-left: 0; width: 100%; }
+    #tb-editor-host .tb-audit-comment { max-width: 160px; }
+}

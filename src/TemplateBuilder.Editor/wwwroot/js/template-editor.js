@@ -2431,3 +2431,236 @@ setTimeout(updateWordCount, 400);
     });
 })();
 
+// ── Shared date/action helpers (audit page + activity drawer) ──────────────
+// Defined once here; reused verbatim by Task 5's Edit-page activity drawer.
+
+function fmtRelative(isoOrDate) {
+    const d = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 5) return 'just now';
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric'
+    });
+}
+
+function fmtDayLabel(isoOrDate) {
+    const d = isoOrDate instanceof Date ? isoOrDate : new Date(isoOrDate);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const startOfDay = dt => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+    const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function actionKind(action) {
+    if (action === 'published' || action === 'approved') return 'success';
+    if (action === 'deleted' || action === 'rejected') return 'danger';
+    if (['restored', 'duplicated', 'toggled_active', 'imported'].includes(action)) return 'warning';
+    return 'info';
+}
+
+// ── Audit Log page ───────────────────────────────────────────────────────
+(function initAuditPage() {
+    const page = document.querySelector('#tb-editor-host.tb-audit-page');
+    if (!page) return;
+
+    const AUDIT_FILTER_KEYS = ['search', 'entityType', 'action', 'actor', 'from', 'to'];
+
+    // ── Relative timestamps ─────────────────────────────────────────────
+    function renderRelativeTimes() {
+        document.querySelectorAll('[data-audit-time]').forEach(el => {
+            const iso = el.getAttribute('data-audit-time');
+            if (!iso) return;
+            const label = fmtRelative(iso);
+            if (label) {
+                el.textContent = label;
+                const d = new Date(iso);
+                if (!isNaN(d.getTime())) el.title = d.toLocaleString();
+            }
+        });
+    }
+    renderRelativeTimes();
+
+    // ── Expand rows: JSON diff highlight / plain-string diff ────────────
+    function tryParseJsonObject(str) {
+        if (!str) return null;
+        try {
+            const parsed = JSON.parse(str);
+            return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : null;
+        } catch {
+            return null;
+        }
+    }
+
+    function renderStateDiff(container) {
+        if (!container || container.dataset.rendered === '1') return;
+        container.dataset.rendered = '1';
+
+        const beforeRaw = container.dataset.before || '';
+        const afterRaw = container.dataset.after || '';
+        const beforeEl = container.querySelector('.tb-audit-state-before');
+        const afterEl = container.querySelector('.tb-audit-state-after');
+        if (!beforeEl || !afterEl) return;
+
+        const beforeObj = tryParseJsonObject(beforeRaw);
+        const afterObj = tryParseJsonObject(afterRaw);
+
+        if (beforeObj && afterObj) {
+            const keys = Array.from(new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)])).sort();
+            const beforeLines = [];
+            const afterLines = [];
+
+            keys.forEach(key => {
+                const bHas = Object.prototype.hasOwnProperty.call(beforeObj, key);
+                const aHas = Object.prototype.hasOwnProperty.call(afterObj, key);
+                const bVal = bHas ? JSON.stringify(beforeObj[key]) : undefined;
+                const aVal = aHas ? JSON.stringify(afterObj[key]) : undefined;
+                const changed = bVal !== aVal;
+
+                beforeLines.push(
+                    `<div class="tb-audit-diff-line${changed && bHas ? ' chg' : ''}">${escapeHtml(key)}: ${bHas ? escapeHtml(bVal) : '—'}</div>`
+                );
+                afterLines.push(
+                    `<div class="tb-audit-diff-line${changed ? ' chg' : ''}">${escapeHtml(key)}: ${aHas ? escapeHtml(aVal) : '—'}</div>`
+                );
+            });
+
+            beforeEl.innerHTML = beforeLines.join('') || '<div class="tb-audit-diff-line">(empty)</div>';
+            afterEl.innerHTML = afterLines.join('') || '<div class="tb-audit-diff-line">(empty)</div>';
+        } else {
+            // Not both parseable JSON objects — plain-string comparison, just
+            // visually distinguish the two blocks when they differ.
+            const differs = beforeRaw !== afterRaw;
+            if (differs) afterEl.classList.add('chg');
+        }
+    }
+
+    document.querySelectorAll('[id^="audit-expand-"]').forEach(btn => {
+        const id = btn.id.slice('audit-expand-'.length);
+        const detailRow = document.getElementById(`audit-detail-${id}`);
+        const stateContainer = document.getElementById(`audit-state-${id}`);
+        if (!detailRow) return;
+
+        btn.addEventListener('click', () => {
+            const willOpen = detailRow.hidden;
+            detailRow.hidden = !willOpen;
+            btn.setAttribute('aria-expanded', String(willOpen));
+            if (willOpen) renderStateDiff(stateContainer);
+        });
+    });
+
+    // ── 30-day SVG bar chart (no chart library) ──────────────────────────
+    function renderChart(stats) {
+        const svg = document.getElementById('tb-audit-chart-svg');
+        const axis = document.getElementById('tb-audit-chart-axis');
+        if (!svg) return;
+
+        const buckets = (stats && stats.dailyBuckets) || [];
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        if (axis) axis.innerHTML = '';
+        if (!buckets.length) return;
+
+        const width = svg.clientWidth || 600;
+        const height = svg.clientHeight || 120;
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        svg.setAttribute('preserveAspectRatio', 'none');
+
+        const max = Math.max(1, ...buckets.map(b => b.count || 0));
+        const n = buckets.length;
+        const gap = 2;
+        const barWidth = Math.max(1, (width - gap * (n - 1)) / n);
+
+        buckets.forEach((b, i) => {
+            const barHeight = Math.max(1, Math.round(((b.count || 0) / max) * (height - 4)));
+            const x = i * (barWidth + gap);
+            const y = height - barHeight;
+
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', String(x));
+            rect.setAttribute('y', String(y));
+            rect.setAttribute('width', String(barWidth));
+            rect.setAttribute('height', String(barHeight));
+            rect.setAttribute('rx', '2');
+            rect.setAttribute('class', 'tb-audit-chart-bar');
+
+            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            title.textContent = `${fmtDayLabel(b.date)}: ${b.count}`;
+            rect.appendChild(title);
+
+            svg.appendChild(rect);
+        });
+
+        if (axis) {
+            const labelIdx = [0, Math.floor((n - 1) / 2), n - 1];
+            Array.from(new Set(labelIdx)).forEach(i => {
+                if (i < 0 || i >= n) return;
+                const span = document.createElement('span');
+                span.className = 'tb-audit-chart-axis-label';
+                span.textContent = fmtDayLabel(buckets[i].date);
+                axis.appendChild(span);
+            });
+        }
+    }
+
+    let initialStats = null;
+    const initialStatsEl = document.getElementById('tb-audit-initial-stats');
+    if (initialStatsEl) {
+        try { initialStats = JSON.parse(initialStatsEl.textContent); } catch { initialStats = null; }
+    }
+    if (initialStats) renderChart(initialStats);
+    window.addEventListener('resize', () => { if (initialStats) renderChart(initialStats); });
+
+    // ── Filter form: Clear resets to /Audit with no query string ─────────
+    document.getElementById('tb-audit-clear')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = '/Audit';
+    });
+
+    // ── Live poll: compare /Audit/Stats total to the total shown on load ─
+    function currentFilterQueryString() {
+        const params = new URLSearchParams(window.location.search);
+        const parts = [];
+        AUDIT_FILTER_KEYS.forEach(key => {
+            const v = params.get(key);
+            if (v) parts.push(`${key}=${encodeURIComponent(v)}`);
+        });
+        return parts.length ? `?${parts.join('&')}` : '';
+    }
+
+    const initialTotal = initialStats ? (initialStats.total || 0) : 0;
+    const livePill = document.getElementById('tb-live-pill');
+    const livePillText = document.getElementById('tb-live-pill-text');
+
+    async function pollStats() {
+        try {
+            const res = await fetch(`/Audit/Stats${currentFilterQueryString()}`);
+            if (!res.ok) return;
+            const stats = await res.json();
+            const diff = (stats.total || 0) - initialTotal;
+            if (diff > 0 && livePill) {
+                livePill.hidden = false;
+                if (livePillText) livePillText.textContent = `${diff} new — Refresh`;
+            }
+        } catch {
+            // ignore network errors on poll — try again next interval
+        }
+    }
+
+    livePill?.addEventListener('click', () => window.location.reload());
+    setInterval(pollStats, 30000);
+})();
+
