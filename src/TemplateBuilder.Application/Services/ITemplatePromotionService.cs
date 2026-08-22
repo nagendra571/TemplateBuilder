@@ -37,6 +37,7 @@ public class TemplateExportDocument
 
 public class TemplateImportEntry
 {
+    public int Id { get; set; }
     public string? Name { get; set; }
     public string? Reason { get; set; }
     public Guid ExternalKey { get; set; }

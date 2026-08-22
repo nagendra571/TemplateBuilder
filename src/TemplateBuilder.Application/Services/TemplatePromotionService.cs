@@ -150,6 +150,7 @@ public class TemplatePromotionService : ITemplatePromotionService
             var created = await _promotionRepository.AddWithVersionsAsync(template, versions, ct);
             result.Created.Add(new TemplateImportEntry
             {
+                Id = created.Id,
                 Name = created.Name,
                 ExternalKey = created.ExternalKey,
                 VersionsAppended = versions.Count
@@ -175,6 +176,7 @@ public class TemplatePromotionService : ITemplatePromotionService
             var assigned = await _promotionRepository.UpdateFromImportAsync(existing, versions, ct);
             result.Updated.Add(new TemplateImportEntry
             {
+                Id = existing.Id,
                 Name = existing.Name,
                 ExternalKey = existing.ExternalKey,
                 VersionsAppended = assigned.Count

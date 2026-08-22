@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Editor.Models;
@@ -8,8 +10,15 @@ namespace TemplateBuilder.Editor.Controllers;
 public class SnippetsController : Controller
 {
     private readonly ISnippetRepository _snippets;
+    private readonly IAuditService _auditService;
 
-    public SnippetsController(ISnippetRepository snippets) => _snippets = snippets;
+    public SnippetsController(ISnippetRepository snippets, IAuditService auditService)
+    {
+        _snippets = snippets;
+        _auditService = auditService;
+    }
+
+    protected string CurrentActor => User?.Identity?.Name ?? "anonymous";
 
     [HttpGet("/Templates/Api/Snippets")]
     public async Task<IActionResult> GetAll(CancellationToken ct = default)
@@ -38,6 +47,10 @@ public class SnippetsController : Controller
         try
         {
             var created = await _snippets.CreateAsync(snippet, ct);
+
+            await _auditService.RecordAsync("Snippet", created.Id, AuditActions.SnippetCreated, CurrentActor,
+                afterState: JsonSerializer.Serialize(new { name = created.Name }), ct: ct);
+
             return Ok(new { id = created.Id, created.Name });
         }
         catch (Microsoft.EntityFrameworkCore.DbUpdateException)
@@ -52,7 +65,12 @@ public class SnippetsController : Controller
     {
         var snippet = await _snippets.GetByIdAsync(id, ct);
         if (snippet is null) return NotFound(new ErrorResult("NOT_FOUND", "Snippet not found."));
+        var name = snippet.Name;
         await _snippets.DeleteAsync(id, ct);
+
+        await _auditService.RecordAsync("Snippet", id, AuditActions.SnippetDeleted, CurrentActor,
+            beforeState: JsonSerializer.Serialize(new { name }), ct: ct);
+
         return NoContent();
     }
 }

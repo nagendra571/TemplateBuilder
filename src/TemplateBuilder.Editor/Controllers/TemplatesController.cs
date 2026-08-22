@@ -25,8 +25,9 @@ public class TemplatesController : Controller
     private readonly ISampleDataGenerator _sampleDataGenerator;
     private readonly ITemplatePromotionService _promotion;
     private readonly ITemplateHealthService _health;
+    private readonly IAuditService _auditService;
 
-    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health)
+    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health, IAuditService auditService)
     {
         _repository = repository;
         _viewDiscovery = viewDiscovery;
@@ -35,7 +36,10 @@ public class TemplatesController : Controller
         _sampleDataGenerator = sampleDataGenerator;
         _promotion = promotion;
         _health = health;
+        _auditService = auditService;
     }
+
+    protected string CurrentActor => User?.Identity?.Name ?? "anonymous";
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, string? type, CancellationToken ct = default)
@@ -86,6 +90,9 @@ public class TemplatesController : Controller
                     ChangeComment = "Initial version"
                 }, ct);
             }
+
+            await _auditService.RecordAsync("Template", template.Id, AuditActions.Created, CurrentActor,
+                afterState: JsonSerializer.Serialize(new { name = template.Name }), ct: ct);
 
             return Ok(new { templateId = template.Id });
         }
@@ -145,6 +152,10 @@ public class TemplatesController : Controller
                 ChangeComment = request.ChangeComment,
                 IsActive = request.IsActive ?? true
             }, ct);
+
+            await _auditService.RecordAsync("Template", id, version.IsActive ? AuditActions.Published : AuditActions.DraftSaved,
+                CurrentActor, afterState: JsonSerializer.Serialize(new { versionNumber = version.VersionNumber, versionId = version.Id, isActive = version.IsActive }), ct: ct);
+
             return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber, isActive = version.IsActive });
         }
         catch (DbUpdateConcurrencyException)
@@ -191,6 +202,10 @@ public class TemplatesController : Controller
                 ChangeComment = $"Restored from v{sourceVersionNumber}",
                 IsActive = source.IsActive
             }, ct);
+
+            await _auditService.RecordAsync("Template", id, AuditActions.Restored, CurrentActor,
+                comment: $"Restored from v{sourceVersionNumber}", ct: ct);
+
             return Ok(new { versionId = version.Id, versionNumber = version.VersionNumber });
         }
         catch (DbUpdateConcurrencyException)
@@ -248,6 +263,10 @@ public class TemplatesController : Controller
         if (template is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
         template.IsActive = !template.IsActive;
         await _repository.UpdateTemplateAsync(template, ct);
+
+        await _auditService.RecordAsync("Template", id, AuditActions.ToggledActive, CurrentActor,
+            afterState: JsonSerializer.Serialize(new { isActive = template.IsActive }), ct: ct);
+
         return Ok(new { isActive = template.IsActive });
     }
 
@@ -315,6 +334,9 @@ public class TemplatesController : Controller
                 IsActive = isActive
             }, ct);
 
+            await _auditService.RecordAsync("Template", newTemplate.Id, AuditActions.Duplicated, CurrentActor,
+                comment: $"Duplicated from template {id}", ct: ct);
+
             return Ok(new { id = newTemplate.Id });
         }
         catch (DbUpdateException)
@@ -341,6 +363,16 @@ public class TemplatesController : Controller
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
         var result = await _promotion.ImportAsync(ms.ToArray(), User.Identity?.Name ?? "system", ct);
+
+        var entry = result.Created.Count == 1 ? result.Created[0]
+            : result.Updated.Count == 1 ? result.Updated[0]
+            : null;
+        if (entry is not null)
+        {
+            await _auditService.RecordAsync("Template", entry.Id, AuditActions.Imported, CurrentActor,
+                afterState: JsonSerializer.Serialize(new { file = file.FileName, externalKey = entry.ExternalKey, versionsImported = entry.VersionsAppended }), ct: ct);
+        }
+
         return Ok(result);
     }
 
@@ -390,7 +422,14 @@ public class TemplatesController : Controller
             {
                 var t = await _repository.GetByIdAsync(id, ct);
                 if (t is null) { failed.Add(new { id, reason = "NOT_FOUND" }); continue; }
-                if (await _repository.DeleteAsync(id, ct)) succeeded.Add(id); else failed.Add(new { id, reason = "NOT_FOUND" });
+                var name = t.Name;
+                if (await _repository.DeleteAsync(id, ct))
+                {
+                    succeeded.Add(id);
+                    await _auditService.RecordAsync("Template", id, AuditActions.Deleted, CurrentActor,
+                        beforeState: JsonSerializer.Serialize(new { name }), ct: ct);
+                }
+                else failed.Add(new { id, reason = "NOT_FOUND" });
             }
             catch (Exception) { failed.Add(new { id, reason = "ERROR" }); }
         }

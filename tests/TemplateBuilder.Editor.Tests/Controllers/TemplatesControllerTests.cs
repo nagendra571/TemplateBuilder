@@ -19,7 +19,8 @@ public class TemplatesControllerTests
         IHtmlSanitizerService? sanitizer = null,
         ISampleDataGenerator? sampleDataGenerator = null,
         Mock<ITemplatePromotionService>? promo = null,
-        ITemplateHealthService? health = null)
+        ITemplateHealthService? health = null,
+        Mock<IAuditService>? audit = null)
     {
         var mockRepo = repo ?? new Mock<ITemplateRepository>().Object;
         var mockDiscovery = discovery ?? new Mock<ISqlViewDiscoveryService>().Object;
@@ -28,7 +29,8 @@ public class TemplatesControllerTests
         var mockSampleDataGenerator = sampleDataGenerator ?? new Mock<ISampleDataGenerator>().Object;
         var mockPromo = promo?.Object ?? new Mock<ITemplatePromotionService>().Object;
         var mockHealth = health ?? new Mock<ITemplateHealthService>().Object;
-        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth);
+        var mockAudit = audit?.Object ?? new Mock<IAuditService>().Object;
+        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth, mockAudit);
     }
 
     [Fact]
@@ -550,5 +552,176 @@ public class TemplatesControllerTests
         result.Should().BeOfType<OkObjectResult>();
         var ok = (OkObjectResult)result;
         ok.Value.Should().BeEquivalentTo(new { succeeded = new[] { 1 }, failed = new[] { new { id = 2, reason = "NOT_FOUND" } } });
+    }
+
+    [Fact]
+    public async Task SaveVersion_Active_RecordsPublished()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email" });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => v);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null, IsActive: true));
+
+        audit.Verify(a => a.RecordAsync("Template", 1, AuditActions.Published, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveVersion_Draft_RecordsDraftSaved()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email" });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => v);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null, IsActive: false));
+
+        audit.Verify(a => a.RecordAsync("Template", 1, AuditActions.DraftSaved, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_RecordsCreated()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Template { Id = 5, Name = "A", TemplateType = "Email" });
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = "A", TemplateType = "Email" });
+
+        audit.Verify(a => a.RecordAsync("Template", 5, AuditActions.Created, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ToggleActive_RecordsToggledActive()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email", IsActive = true });
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.ToggleActive(1);
+
+        audit.Verify(a => a.RecordAsync("Template", 1, AuditActions.ToggledActive, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreVersion_RecordsRestored()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetVersionAsync(5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TemplateVersion { Id = 5, VersionNumber = 1, Body = "<p>old</p>", IsActive = true });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => v);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.RestoreVersion(1, 5, 1);
+
+        audit.Verify(a => a.RecordAsync("Template", 1, AuditActions.Restored, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), "Restored from v1", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Duplicate_RecordsDuplicated()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 3, Name = "Src", TemplateType = "Email",
+            CurrentVersion = new TemplateVersion { Body = "<p>x</p>", IsActive = true }
+        });
+        repo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Template { Id = 9, Name = "Copy", TemplateType = "Email" });
+        repo.Setup(r => r.PublishVersionAsync(9, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => v);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.Duplicate(3, new DuplicateRequest("Copy"));
+
+        audit.Verify(a => a.RecordAsync("Template", 9, AuditActions.Duplicated, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), "Duplicated from template 3", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task BulkDelete_RecordsDeletedForSucceededIds()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email" });
+        repo.Setup(r => r.DeleteAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        repo.Setup(r => r.GetByIdAsync(2, It.IsAny<CancellationToken>())).ReturnsAsync((Template?)null);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(repo.Object, audit: audit);
+
+        await controller.BulkDelete(new BulkIdsRequest { Ids = new List<int> { 1, 2 } });
+
+        audit.Verify(a => a.RecordAsync("Template", 1, AuditActions.Deleted, "anonymous",
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        audit.Verify(a => a.RecordAsync("Template", 2, It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Import_RecordsImportedForCreatedEntry()
+    {
+        var promo = new Mock<ITemplatePromotionService>();
+        var result = new TemplateImportResult();
+        result.Created.Add(new TemplateImportEntry { Id = 7, Name = "Imported", ExternalKey = Guid.NewGuid(), VersionsAppended = 2 });
+        promo.Setup(p => p.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(promo: promo, audit: audit);
+        controller.ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() };
+
+        var fileMock = new Mock<Microsoft.AspNetCore.Http.IFormFile>();
+        var content = "{}"u8.ToArray();
+        var stream = new MemoryStream(content);
+        fileMock.Setup(f => f.Length).Returns(content.Length);
+        fileMock.Setup(f => f.OpenReadStream()).Returns(stream);
+        fileMock.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .Returns<Stream, CancellationToken>((s, ct) => stream.CopyToAsync(s, ct));
+
+        await controller.Import(fileMock.Object);
+
+        audit.Verify(a => a.RecordAsync("Template", 7, AuditActions.Imported, It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Import_NoEntryImported_DoesNotRecordAudit()
+    {
+        var promo = new Mock<ITemplatePromotionService>();
+        var result = new TemplateImportResult();
+        result.Errors.Add(new TemplateImportEntry { Reason = "bad" });
+        promo.Setup(p => p.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        var audit = new Mock<IAuditService>();
+        var controller = CreateController(promo: promo, audit: audit);
+        controller.ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() };
+
+        var fileMock = new Mock<Microsoft.AspNetCore.Http.IFormFile>();
+        var content = "{}"u8.ToArray();
+        var stream = new MemoryStream(content);
+        fileMock.Setup(f => f.Length).Returns(content.Length);
+        fileMock.Setup(f => f.OpenReadStream()).Returns(stream);
+        fileMock.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+            .Returns<Stream, CancellationToken>((s, ct) => stream.CopyToAsync(s, ct));
+
+        await controller.Import(fileMock.Object);
+
+        audit.Verify(a => a.RecordAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
