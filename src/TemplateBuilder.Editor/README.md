@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 2.2.1
+dotnet add package TemplateBuilder.Editor --version 2.3.0
 ```
 
 ### 2. Add a connection string
