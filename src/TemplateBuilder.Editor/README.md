@@ -201,6 +201,39 @@ The authorization convention is applied at the assembly level — every editor r
 
 ---
 
+## Author Identity (CreatedBy)
+
+Every TemplateBuilder table that records an author (`TemplateVersion.CreatedBy` and the
+audit log `Actor`) is stamped with the current user, resolved in this order:
+
+1. **`options.ActorResolver`** (your custom resolver, if set)
+2. `User.Identity.Name`
+3. `"anonymous"`
+
+Without configuration the editor stores `User.Identity.Name` (or `"anonymous"` when the
+request is unauthenticated or the name is empty). Existing records are never backfilled —
+legacy rows display `"anonymous"` in the UI.
+
+Supply your own identity from your existing `AddTemplateBuilderEditor` call — e.g. a
+claims value:
+
+```csharp
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = connectionString;
+    // Store the "sub" claim (or any claim / custom user lookup) as the author
+    options.ActorResolver = ctx => ctx.User?.FindFirst("sub")?.Value;
+});
+```
+
+The resolver receives the request's `HttpContext`, so it can read claims, session, or any
+of your own services captured in the closure. It runs once per request; a `null` or blank
+result falls back to the chain below it. Values are stored as returned — trim inside the
+resolver if your source may carry stray whitespace. The stored value is truncated to 200
+characters (the column limit). Exceptions thrown by your resolver propagate.
+
+---
+
 ## Setup Diagnostic Page
 
 After installation, navigate to **`/Templates/_setup`** in Development to verify every integration requirement at once:
@@ -221,6 +254,14 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v2.3.0
+
+- New `TemplateBuilderEditorOptions.ActorResolver` — supply your own author identity
+  (claims, user id, username) stored as `CreatedBy` / audit `Actor`. Falls back to
+  `User.Identity.Name`, then `"anonymous"` when unset.
+- Template version history now stamps `CreatedBy` on every save (previously never
+  populated); existing versions are not backfilled.
 
 ### v2.2.1
 - **Fix**: `AuditController`'s filter parameter was literally named `action`, which collides with ASP.NET Core MVC's reserved `action` route value (the executing action method's own name). Every request to `/Audit`, `/Audit/Stats`, and `/Audit/Export` silently returned zero rows, filtered or not — the entire audit page was non-functional over real HTTP despite passing unit tests (which call the controller directly in C#, bypassing routing). Renamed the parameter to `actionName` with `[FromQuery(Name = "action")]` so the query-string contract (`?action=published`) is unchanged.

@@ -12,6 +12,14 @@ var connectionString = builder.Configuration.GetConnectionString("TemplateDb")
 builder.Services.AddTemplateBuilderEditor(options =>
 {
     options.ConnectionString = connectionString;
+    // Demo of ActorResolver: any custom identity logic. Reads an optional X-TB-Actor header
+    // so the flow is verifiable end-to-end (curl -H "X-TB-Actor: alice" ...). In a real app
+    // resolve from claims/session instead — a raw header is spoofable and is demo-only here.
+    options.ActorResolver = ctx =>
+    {
+        var header = ctx?.Request.Headers["X-TB-Actor"].ToString();
+        return string.IsNullOrWhiteSpace(header) ? null : header.Trim();
+    };
 });
 
 var app = builder.Build();
