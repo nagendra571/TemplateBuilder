@@ -19,9 +19,9 @@ public class AuditController : Controller
     }
 
     [HttpGet("Audit")]
-    public async Task<IActionResult> Index(string? entityType, string? action, string? actor, string? from, string? to, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
+    public async Task<IActionResult> Index(string? entityType, [FromQuery(Name = "action")] string? actionName, string? actor, string? from, string? to, string? search, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
-        var query = BuildQuery(entityType, action, actor, from, to, search, page, pageSize);
+        var query = BuildQuery(entityType, actionName, actor, from, to, search, page, pageSize);
         var rows = await _auditRepository.QueryAsync(query, ct);
         var total = await _auditRepository.CountAsync(query, ct);
         var stats = await _statsRepository.GetStatsAsync(query, ct);
@@ -34,7 +34,7 @@ public class AuditController : Controller
             PageSize = pageSize,
             Search = search,
             EntityType = entityType,
-            Action = action,
+            Action = actionName,
             Actor = actor,
             From = from,
             To = to,
@@ -44,17 +44,17 @@ public class AuditController : Controller
     }
 
     [HttpGet("Audit/Stats")]
-    public async Task<IActionResult> Stats(string? entityType, string? action, string? actor, string? from, string? to, string? search, CancellationToken ct = default)
+    public async Task<IActionResult> Stats(string? entityType, [FromQuery(Name = "action")] string? actionName, string? actor, string? from, string? to, string? search, CancellationToken ct = default)
     {
-        var query = BuildQuery(entityType, action, actor, from, to, search);
+        var query = BuildQuery(entityType, actionName, actor, from, to, search);
         var stats = await _statsRepository.GetStatsAsync(query, ct);
         return Ok(stats);
     }
 
     [HttpGet("Audit/Export")]
-    public async Task<IActionResult> Export(string? entityType, string? action, string? actor, string? from, string? to, string? search, CancellationToken ct = default)
+    public async Task<IActionResult> Export(string? entityType, [FromQuery(Name = "action")] string? actionName, string? actor, string? from, string? to, string? search, CancellationToken ct = default)
     {
-        var query = BuildQuery(entityType, action, actor, from, to, search, page: 1, pageSize: int.MaxValue);
+        var query = BuildQuery(entityType, actionName, actor, from, to, search, page: 1, pageSize: int.MaxValue);
         var rows = await _auditRepository.QueryAsync(query, ct);
 
         var sb = new StringBuilder();
