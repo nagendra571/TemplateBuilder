@@ -20,7 +20,8 @@ public class TemplatesControllerTests
         ISampleDataGenerator? sampleDataGenerator = null,
         Mock<ITemplatePromotionService>? promo = null,
         ITemplateHealthService? health = null,
-        Mock<IAuditService>? audit = null)
+        Mock<IAuditService>? audit = null,
+        Mock<IAuditRepository>? auditRepo = null)
     {
         var mockRepo = repo ?? new Mock<ITemplateRepository>().Object;
         var mockDiscovery = discovery ?? new Mock<ISqlViewDiscoveryService>().Object;
@@ -30,7 +31,8 @@ public class TemplatesControllerTests
         var mockPromo = promo?.Object ?? new Mock<ITemplatePromotionService>().Object;
         var mockHealth = health ?? new Mock<ITemplateHealthService>().Object;
         var mockAudit = audit?.Object ?? new Mock<IAuditService>().Object;
-        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth, mockAudit);
+        var mockAuditRepo = auditRepo?.Object ?? new Mock<IAuditRepository>().Object;
+        return new TemplatesController(mockRepo, mockDiscovery, mockEngine, mockSanitizer, mockSampleDataGenerator, mockPromo, mockHealth, mockAudit, mockAuditRepo);
     }
 
     [Fact]
@@ -742,5 +744,26 @@ public class TemplatesControllerTests
 
         audit.Verify(a => a.RecordAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
             It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetAuditTimeline_ReturnsShapedRows()
+    {
+        var audit = new Mock<IAuditRepository>();
+        audit.Setup(r => r.QueryAsync(It.IsAny<AuditQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<AuditLog>
+            {
+                new() { Id = 9, EntityType = "Template", EntityId = 1, Action = "published", Actor = "bob", OccurredAt = new DateTime(2026, 8, 1, 12, 0, 0, DateTimeKind.Utc), Comment = "c" }
+            });
+        var controller = CreateController(auditRepo: audit);
+
+        var result = await controller.GetAuditTimeline(1);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new[]
+        {
+            new { id = 9, action = "published", actor = "bob", occurredAt = "2026-08-01T12:00:00.0000000Z", comment = "c" }
+        });
     }
 }

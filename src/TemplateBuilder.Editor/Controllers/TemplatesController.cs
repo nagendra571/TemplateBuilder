@@ -26,8 +26,9 @@ public class TemplatesController : Controller
     private readonly ITemplatePromotionService _promotion;
     private readonly ITemplateHealthService _health;
     private readonly IAuditService _auditService;
+    private readonly IAuditRepository _auditRepository;
 
-    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health, IAuditService auditService)
+    public TemplatesController(ITemplateRepository repository, ISqlViewDiscoveryService viewDiscovery, ITemplateEngine engine, IHtmlSanitizerService sanitizer, ISampleDataGenerator sampleDataGenerator, ITemplatePromotionService promotion, ITemplateHealthService health, IAuditService auditService, IAuditRepository auditRepository)
     {
         _repository = repository;
         _viewDiscovery = viewDiscovery;
@@ -37,6 +38,7 @@ public class TemplatesController : Controller
         _promotion = promotion;
         _health = health;
         _auditService = auditService;
+        _auditRepository = auditRepository;
     }
 
     protected string CurrentActor => User?.Identity?.Name ?? "anonymous";
@@ -184,6 +186,13 @@ public class TemplatesController : Controller
         if (body is null)
             return NotFound(new ErrorResult("VERSION_NOT_FOUND", $"Version {versionId} not found."));
         return Ok(new { body });
+    }
+
+    [HttpGet("Templates/{id:int}/Audit")]
+    public async Task<IActionResult> GetAuditTimeline(int id, CancellationToken ct = default)
+    {
+        var rows = await _auditRepository.QueryAsync(new AuditQuery { EntityType = "Template", EntityId = id, PageSize = 100 }, ct);
+        return Ok(rows.Select(a => new { id = a.Id, action = a.Action, actor = a.Actor, occurredAt = a.OccurredAt.ToString("o"), comment = a.Comment }));
     }
 
     [HttpPost("Templates/{id:int}/Restore/{versionId:int}/{sourceVersionNumber:int}"), ValidateAntiForgeryToken]
