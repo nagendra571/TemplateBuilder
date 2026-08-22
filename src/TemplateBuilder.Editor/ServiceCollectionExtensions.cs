@@ -47,6 +47,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITemplatePromotionService, TemplatePromotionService>();
         services.AddScoped<ITemplateHealthService, TemplateHealthService>();
 
+        services.AddScoped<IAuditRepository, AuditRepository>();
+        services.AddScoped<IAuditStatsRepository, AuditStatsRepository>();
+        services.AddScoped<IAuditService, AuditService>();
+
         services.AddScoped<ISqlViewDiscoveryService>(sp =>
             new SqlViewDiscoveryService(
                 connectionString,
