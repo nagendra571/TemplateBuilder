@@ -2664,3 +2664,139 @@ function actionKind(action) {
     setInterval(pollStats, 30000);
 })();
 
+// ── Activity Drawer (Edit page) ─────────────────────────────────────────
+(function initActivityDrawer() {
+    const tab = document.getElementById('tb-activity-tab');
+    if (!tab || templateId === null) return;
+
+    const drawer = document.getElementById('tb-activity-drawer');
+    const closeBtn = document.getElementById('btn-activity-close');
+    const countBadge = document.getElementById('tb-activity-count');
+    const timeline = document.getElementById('tb-timeline');
+    if (!drawer || !closeBtn || !countBadge || !timeline) return;
+
+    let _cachedRows = null;
+    let _closeTimer = null;
+
+    function humanizeAction(action) {
+        if (!action) return action;
+        return action.split('_')
+            .map(w => w.length ? w[0].toUpperCase() + w.slice(1) : w)
+            .join(' ');
+    }
+
+    function renderTimeline(rows) {
+        countBadge.textContent = String(rows.length);
+
+        if (!rows.length) {
+            timeline.innerHTML = '<div class="tb-activity-empty">No activity yet</div>';
+            return;
+        }
+
+        let html = '';
+        let currentDayLabel = null;
+        rows.forEach(row => {
+            const dayLabel = fmtDayLabel(row.occurredAt);
+            if (dayLabel !== currentDayLabel) {
+                if (currentDayLabel !== null) html += '</div>';
+                html += `<div class="tb-activity-day-group"><div class="tb-activity-day-label">${escapeHtml(dayLabel)}</div>`;
+                currentDayLabel = dayLabel;
+            }
+            const kind = actionKind(row.action);
+            const comment = row.comment ? `<div class="tb-activity-comment">${escapeHtml(row.comment)}</div>` : '';
+            const actor = row.actor ? `<div class="tb-activity-actor">${escapeHtml(row.actor)}</div>` : '';
+            html += `
+                <div class="tb-activity-item">
+                    <span class="tb-activity-dot tb-activity-dot--${kind}"></span>
+                    <div class="tb-activity-item-body">
+                        <div class="tb-activity-item-main">
+                            <span class="tb-activity-action">${escapeHtml(humanizeAction(row.action))}</span>
+                            <span class="tb-activity-time">${escapeHtml(fmtRelative(row.occurredAt))}</span>
+                        </div>
+                        ${actor}
+                        ${comment}
+                    </div>
+                </div>`;
+        });
+        if (currentDayLabel !== null) html += '</div>';
+        timeline.innerHTML = html;
+    }
+
+    // Refreshes the timeline from the server. Reveals the tab (once data has
+    // successfully loaded at least once) and updates the count badge. Called
+    // eagerly on page load and again on every drawer open, so the drawer
+    // always reflects activity that happened while it was closed.
+    async function refreshTimeline() {
+        try {
+            const res = await fetch(`/Templates/${templateId}/Audit`);
+            if (!res.ok) throw new Error('bad response');
+            const rows = await res.json();
+            _cachedRows = Array.isArray(rows) ? rows : [];
+            renderTimeline(_cachedRows);
+            tab.hidden = false;
+        } catch {
+            if (_cachedRows === null) {
+                timeline.innerHTML = '<div class="tb-activity-empty">Failed to load activity.</div>';
+            }
+        }
+    }
+
+    function getFocusable() {
+        return [closeBtn, drawer];
+    }
+
+    function trapTab(e) {
+        if (e.key !== 'Tab') return;
+        const focusable = getFocusable();
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function onKeydown(e) {
+        if (e.key === 'Escape') {
+            closeDrawer();
+        } else {
+            trapTab(e);
+        }
+    }
+
+    function openDrawer() {
+        if (_closeTimer) { clearTimeout(_closeTimer); _closeTimer = null; }
+        drawer.hidden = false;
+        tab.setAttribute('aria-expanded', 'true');
+        requestAnimationFrame(() => drawer.classList.add('tb-activity-drawer--open'));
+        document.addEventListener('keydown', onKeydown);
+        closeBtn.focus();
+
+        // Paint instantly from cache (if any) so the drawer isn't empty
+        // while the network refresh below is in flight.
+        if (_cachedRows) renderTimeline(_cachedRows);
+        refreshTimeline();
+    }
+
+    function closeDrawer() {
+        drawer.classList.remove('tb-activity-drawer--open');
+        tab.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('keydown', onKeydown);
+        _closeTimer = setTimeout(() => { drawer.hidden = true; _closeTimer = null; }, 220);
+        tab.focus();
+    }
+
+    tab.addEventListener('click', () => {
+        const isOpen = drawer.classList.contains('tb-activity-drawer--open');
+        if (isOpen) closeDrawer(); else openDrawer();
+    });
+    closeBtn.addEventListener('click', closeDrawer);
+
+    // Eager background load: reveals the tab once we know there's history,
+    // and seeds the cache used for instant paint on first open.
+    refreshTimeline();
+})();
+

@@ -158,6 +158,22 @@
                 <div id="health-meta" class="tb-health-meta"></div>
             </div>
         </div>
+
+        @if (!isNew)
+        {
+            <button type="button" id="tb-activity-tab" class="tb-activity-tab"
+                    aria-expanded="false" aria-controls="tb-activity-drawer" hidden>
+                Activity <span id="tb-activity-count" class="tb-activity-count">0</span>
+            </button>
+            <aside id="tb-activity-drawer" class="tb-activity-drawer" hidden tabindex="-1"
+                   role="dialog" aria-modal="false" aria-label="Activity timeline">
+                <div class="tb-activity-header">
+                    <span>Activity</span>
+                    <button type="button" id="btn-activity-close" class="tb-activity-close" aria-label="Close">&#x2715;</button>
+                </div>
+                <div id="tb-timeline" class="tb-timeline"></div>
+            </aside>
+        }
     </div>
 </form>
 
