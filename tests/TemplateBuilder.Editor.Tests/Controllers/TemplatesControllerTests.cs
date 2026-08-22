@@ -863,4 +863,23 @@ public class TemplatesControllerTests
         repo.Verify(r => r.PublishVersionAsync(9,
             It.Is<TemplateVersion>(v => v.CreatedBy == "alice"), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task SaveVersion_stamps_CreatedBy_with_custom_resolver_value()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Template { Id = 1, Name = "T", TemplateType = "Email" });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        repo.Setup(r => r.PublishVersionAsync(It.IsAny<int>(), It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => { v.Id = 99; return v; });
+
+        var controller = CreateController(repo.Object, actorResolver: new ActorResolverAccessor(_ => "svc-account"));
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+
+        await controller.SaveVersion(1, new SaveVersionRequest("T", "Email", null, "<p>hi</p>", null, true));
+
+        repo.Verify(r => r.PublishVersionAsync(1,
+            It.Is<TemplateVersion>(v => v.CreatedBy == "svc-account"), It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
