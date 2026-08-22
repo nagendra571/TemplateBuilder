@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 2.2.1**
+**Current version: 2.3.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
