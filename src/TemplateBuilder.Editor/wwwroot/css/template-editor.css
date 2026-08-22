@@ -1643,7 +1643,7 @@
     display: grid;
     grid-template-columns: 1.45fr 1fr;
     gap: 12px;
-    align-items: start;
+    align-items: stretch;
     margin-bottom: 20px;
 }
 #tb-editor-host .tb-audit-top .tb-audit-chart-card,
@@ -1698,7 +1698,7 @@
     flex: 1 1 120px;
     min-width: 0;
 }
-#tb-editor-host .tb-audit-filter-row .tb-audit-search { flex: 1 1 100%; }
+#tb-editor-host .tb-audit-filter-row .tb-audit-search { flex: 1 1 140px; }
 #tb-editor-host .tb-audit-filter-row label:not(.visually-hidden) {
     font-size: 11px;
     color: var(--text-muted);
@@ -1706,7 +1706,7 @@
     letter-spacing: 0.4px;
     flex: 0 0 auto;
 }
-#tb-editor-host .tb-audit-filter-actions { justify-content: flex-end; }
+#tb-editor-host .tb-audit-clear-link { margin-left: auto; flex: 0 0 auto; }
 
 /* Entity target cell — matches the fork's uppercase micro-label + link pattern */
 #tb-editor-host .tb-audit-target { color: var(--text); font-weight: 500; }
@@ -1889,7 +1889,7 @@
 }
 @media (max-width: 640px) {
     #tb-editor-host .tb-audit-stats { grid-template-columns: 1fr; }
-    #tb-editor-host .tb-audit-filter-actions { margin-left: 0; width: 100%; }
+    #tb-editor-host .tb-audit-clear-link { margin-left: 0; width: 100%; text-align: center; }
     #tb-editor-host .tb-audit-comment { max-width: 160px; }
 }
 
