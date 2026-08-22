@@ -676,6 +676,25 @@ public class TemplatesControllerTests
     }
 
     [Fact]
+    public async Task BulkDelete_AuditWriteFailure_StillReportsIdAsSucceededOnly()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(new Template { Id = 1, Name = "A", TemplateType = "Email" });
+        repo.Setup(r => r.DeleteAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var audit = new Mock<IAuditService>();
+        audit.Setup(a => a.RecordAsync("Template", 1, AuditActions.Deleted, It.IsAny<string>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("audit write failed"));
+        var controller = CreateController(repo.Object, audit: audit);
+
+        var result = await controller.BulkDelete(new BulkIdsRequest { Ids = new List<int> { 1 } });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var ok = (OkObjectResult)result;
+        ok.Value.Should().BeEquivalentTo(new { succeeded = new[] { 1 }, failed = new object[0] });
+    }
+
+    [Fact]
     public async Task Import_RecordsImportedForCreatedEntry()
     {
         var promo = new Mock<ITemplatePromotionService>();

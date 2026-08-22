@@ -426,8 +426,12 @@ public class TemplatesController : Controller
                 if (await _repository.DeleteAsync(id, ct))
                 {
                     succeeded.Add(id);
-                    await _auditService.RecordAsync("Template", id, AuditActions.Deleted, CurrentActor,
-                        beforeState: JsonSerializer.Serialize(new { name }), ct: ct);
+                    try
+                    {
+                        await _auditService.RecordAsync("Template", id, AuditActions.Deleted, CurrentActor,
+                            beforeState: JsonSerializer.Serialize(new { name }), ct: ct);
+                    }
+                    catch (Exception) { /* delete already succeeded; an audit-write failure must not re-route it into failed */ }
                 }
                 else failed.Add(new { id, reason = "NOT_FOUND" });
             }
