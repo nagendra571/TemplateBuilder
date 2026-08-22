@@ -15,7 +15,11 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(a => a.BeforeState).HasMaxLength(4000);
         builder.Property(a => a.AfterState).HasMaxLength(4000);
         builder.Property(a => a.Comment).HasMaxLength(1000);
-        builder.Property(a => a.OccurredAt).HasColumnType("datetime2");
+        builder.Property(a => a.OccurredAt)
+            .HasColumnType("datetime2")
+            .HasConversion(
+                v => v,
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
         builder.HasIndex(a => new { a.EntityType, a.EntityId, a.OccurredAt });
         builder.HasIndex(a => a.OccurredAt);
     }
