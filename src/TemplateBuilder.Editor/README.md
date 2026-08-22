@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 2.2.0**
+**Current version: 2.2.1**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 2.2.0
+dotnet add package TemplateBuilder.Editor --version 2.2.1
 ```
 
 ### 2. Add a connection string
@@ -221,6 +221,14 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v2.2.1
+- **Fix**: `AuditController`'s filter parameter was literally named `action`, which collides with ASP.NET Core MVC's reserved `action` route value (the executing action method's own name). Every request to `/Audit`, `/Audit/Stats`, and `/Audit/Export` silently returned zero rows, filtered or not — the entire audit page was non-functional over real HTTP despite passing unit tests (which call the controller directly in C#, bypassing routing). Renamed the parameter to `actionName` with `[FromQuery(Name = "action")]` so the query-string contract (`?action=published`) is unchanged.
+- **Fix**: `AuditLog.OccurredAt` round-tripped from SQL Server as `DateTimeKind.Unspecified`, dropping the `Z` from ISO timestamps and skewing every relative-time display ("2m ago") by the local UTC offset. Forced to UTC via an EF Core value converter.
+- **Fix**: three unrelated top-level statements in the shared `template-editor.js` bundle assumed globals/elements that only exist on the Templates Create/Edit page (the `SUNEDITOR` CDN global, a `field-palette` element, and the `templateId` variable Edit.cshtml declares inline) — none guarded. An uncaught exception at the top level of a script aborts every later top-level statement in that same script, so the very first of these silently killed the Audit page's entire client-side behavior (chart, relative timestamps, filters, live poll) while the server-rendered HTML still looked complete. Guarded all three.
+- **Fix**: opening the Edit page's Activity drawer caused a jarring full-page scroll jump. The drawer focused its close button before its slide-in animation had actually made it visible, and browsers auto-scroll to reveal a newly focused off-screen element. Fixed with `{ preventScroll: true }` on the drawer's focus calls.
+- **Polish**: audit page — chart and filter cards now sit side by side and match height; numbered pagination (page pills) replaces plain Previous/Next; Template entity cells link to that template's Edit page; the live pill is now an always-visible pulsing indicator that turns actionable ("N new — Refresh") instead of being invisible until there's news; filter card's search input shares a row with its Filter button, and Clear moved beside the To date field.
+- **Polish**: activity drawer — the vertical tab now travels with the drawer as it opens and sits above it in the stacking order (previously it vanished behind the opened drawer); timeline items now show a connecting line between ring-style dots instead of a flat bulleted list; added `prefers-reduced-motion` support, previously missing entirely from this stylesheet.
 
 ### v2.2.0
 - **Audit log** — every meaningful template and snippet mutation is now recorded as an append-only `AuditLog` row: `created`, `draft_saved` (Save Draft), `published` (Save Version), `restored`, `duplicated`, `toggled_active`, `imported`, `deleted` for templates; `snippet_created`, `snippet_deleted` for snippets. Rows are never updated or deleted, and the entity id is stored without a foreign key so history survives hard deletes. Only mutations are audited — reads, renders, and health checks are not.
