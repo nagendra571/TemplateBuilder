@@ -229,7 +229,7 @@ builder.Services.AddTemplateBuilderEditor(options =>
 The resolver receives the request's `HttpContext`, so it can read claims, session, or any
 of your own services captured in the closure. It runs once per request; a `null` or blank
 result falls back to the chain below it. Values are stored as returned — trim inside the
-resolver if your source may carry stray whitespace. The stored value is truncated to 200
+resolver if your source may carry stray whitespace. The stored value is truncated to 100
 characters (the column limit). Exceptions thrown by your resolver propagate.
 
 ---

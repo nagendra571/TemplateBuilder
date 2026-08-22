@@ -61,16 +61,16 @@ public class ActorResolverChainTests
     }
 
     [Fact]
-    public void Resolve_truncates_result_to_200_characters()
+    public void Resolve_truncates_result_to_100_characters()
     {
-        var longValue = new string('x', 250);
-        ActorResolverChain.Resolve(null, longValue, Http()).Should().Be(new string('x', 200));
+        var longValue = new string('x', 150);
+        ActorResolverChain.Resolve(null, longValue, Http()).Should().Be(new string('x', 100));
     }
 
     [Fact]
-    public void Resolve_keeps_exactly_200_characters()
+    public void Resolve_keeps_exactly_100_characters()
     {
-        var value = new string('x', 200);
+        var value = new string('x', 100);
         ActorResolverChain.Resolve(null, value, Http()).Should().Be(value);
     }
 

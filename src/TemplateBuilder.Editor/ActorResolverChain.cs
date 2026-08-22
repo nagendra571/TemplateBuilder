@@ -5,7 +5,7 @@ namespace TemplateBuilder.Editor;
 
 internal static class ActorResolverChain
 {
-    private const int MaxActorLength = 200;
+    private const int MaxActorLength = 100;
     private const string CacheKey = "TemplateBuilder.Editor.Actor";
 
     public static string Resolve(Func<HttpContext, string?>? resolver, string? identityName, HttpContext? httpContext)
