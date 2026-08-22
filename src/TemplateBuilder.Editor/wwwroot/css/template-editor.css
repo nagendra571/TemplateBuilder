@@ -1896,14 +1896,16 @@
 /* ── Section: Activity Drawer (Edit page) ─────────────────────────────────── */
 
 /* Vertical tab, docked to the right edge of the editor grid. Travels with the
-   drawer as it opens (right: 0 -> right: <drawer width>) and sits above it in
+   drawer as it opens (translateX by the drawer's width) and sits above it in
    the stacking order, so the two read as one continuous panel with a handle —
-   rather than the tab vanishing under the opened drawer. */
+   rather than the tab vanishing under the opened drawer. Animated via
+   transform (not `right`) so it stays on the compositor thread alongside the
+   drawer's own transform-based slide, for the same smoothness in both. */
 #tb-editor-host .tb-activity-tab {
     position: absolute;
     top: 50%;
     right: 0;
-    transform: translateY(-50%);
+    transform: translateY(-50%) translateX(0);
     writing-mode: vertical-rl;
     display: flex;
     align-items: center;
@@ -1921,12 +1923,12 @@
     cursor: pointer;
     box-shadow: var(--shadow-xs);
     z-index: 46;
-    transition: right var(--transition-md), background var(--transition), color var(--transition), border-color var(--transition);
+    transition: transform var(--transition-md), background var(--transition), color var(--transition), border-color var(--transition);
 }
 #tb-editor-host .tb-activity-tab[hidden] { display: none; }
 #tb-editor-host .tb-activity-tab:hover { background: var(--accent-subtle); color: var(--accent); }
 #tb-editor-host .tb-activity-tab[aria-expanded="true"] {
-    right: min(340px, 88vw);
+    transform: translateY(-50%) translateX(calc(-1 * min(340px, 88vw)));
     background: var(--accent-subtle);
     color: var(--accent);
     border-color: var(--accent);

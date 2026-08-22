@@ -2763,7 +2763,7 @@ function actionKind(action) {
     function trapTab(e) {
         if (e.key !== 'Tab') return;
         e.preventDefault();
-        closeBtn.focus();
+        closeBtn.focus({ preventScroll: true });
     }
 
     function onKeydown(e) {
@@ -2780,7 +2780,12 @@ function actionKind(action) {
         tab.setAttribute('aria-expanded', 'true');
         requestAnimationFrame(() => drawer.classList.add('tb-activity-drawer--open'));
         document.addEventListener('keydown', onKeydown);
-        closeBtn.focus();
+        // preventScroll matters here: at this exact moment the drawer is no
+        // longer `hidden` but hasn't slid into view yet (that's the rAF above),
+        // so the close button sits off-screen via transform. Focusing it
+        // without preventScroll made the browser scroll-jump the whole page
+        // to reveal it — a visible "shake" on every open.
+        closeBtn.focus({ preventScroll: true });
 
         // Paint instantly from cache (if any) so the drawer isn't empty
         // while the network refresh below is in flight.
@@ -2793,7 +2798,7 @@ function actionKind(action) {
         tab.setAttribute('aria-expanded', 'false');
         document.removeEventListener('keydown', onKeydown);
         _closeTimer = setTimeout(() => { drawer.hidden = true; _closeTimer = null; }, 220);
-        tab.focus();
+        tab.focus({ preventScroll: true });
     }
 
     tab.addEventListener('click', () => {
