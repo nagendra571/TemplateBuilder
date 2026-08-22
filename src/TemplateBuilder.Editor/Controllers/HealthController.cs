@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
 using TemplateBuilder.Application.Services;
+using TemplateBuilder.Domain.Exceptions;
 using TemplateBuilder.Domain.Interfaces;
 using TemplateBuilder.Editor.Models;
 
@@ -34,13 +35,20 @@ public class HealthController : Controller
         foreach (var raw in (ids ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries))
         {
             if (!int.TryParse(raw, out var id)) continue;
-            var report = await _health.CheckAsync(id, ct);
-            list.Add(new
+            try
             {
-                templateId = id,
-                severity = SeverityName(report.Worst),
-                findingCount = report.Findings.Count(f => f.Severity != HealthSeverity.Info)
-            });
+                var report = await _health.CheckAsync(id, ct);
+                list.Add(new
+                {
+                    templateId = id,
+                    severity = SeverityName(report.Worst),
+                    findingCount = report.Findings.Count(f => f.Severity != HealthSeverity.Info)
+                });
+            }
+            catch (TemplateNotFoundException)
+            {
+                // Skip unknown/deleted ids rather than failing the whole batch.
+            }
         }
         return Ok(list);
     }

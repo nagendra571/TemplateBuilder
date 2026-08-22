@@ -17,6 +17,8 @@ public class TemplatePromotionRepository : ITemplatePromotionRepository
     public async Task<Template> AddWithVersionsAsync(Template template, IReadOnlyList<TemplateVersion> versions, CancellationToken ct = default)
     {
         template.CreatedAt = template.UpdatedAt = DateTime.UtcNow;
+        if (template.ExternalKey == Guid.Empty)
+            template.ExternalKey = Guid.NewGuid();
         foreach (var version in versions)
         {
             if (version.CreatedAt == default)
@@ -55,6 +57,12 @@ public class TemplatePromotionRepository : ITemplatePromotionRepository
         template.UpdatedAt = DateTime.UtcNow;
         _context.Templates.Update(template);
         await _context.SaveChangesAsync(ct);
+
+        if (versions.Count > 0)
+        {
+            template.CurrentVersionId = versions[^1].Id;
+            await _context.SaveChangesAsync(ct);
+        }
 
         return assigned;
     }

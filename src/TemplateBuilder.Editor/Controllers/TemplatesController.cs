@@ -40,7 +40,7 @@ public class TemplatesController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(string? search, string? type, CancellationToken ct = default)
     {
-        var templates = await _repository.GetAllAsync(ct);
+        var templates = await _repository.GetAllIncludingInactiveAsync(ct);
         var filtered = templates.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(search))
             filtered = filtered.Where(t => t.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
@@ -400,7 +400,14 @@ public class TemplatesController : Controller
     [HttpGet("Templates/{id:int}/Health")]
     public async Task<IActionResult> GetHealth(int id, CancellationToken ct = default)
     {
-        var report = await _health.CheckAsync(id, ct);
-        return Ok(report);
+        try
+        {
+            var report = await _health.CheckAsync(id, ct);
+            return Ok(report);
+        }
+        catch (TemplateNotFoundException)
+        {
+            return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
+        }
     }
 }

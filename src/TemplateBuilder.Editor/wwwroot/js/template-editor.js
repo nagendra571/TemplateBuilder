@@ -698,6 +698,7 @@ async function saveVersion(isActive) {
                 body,
                 changeComment: document.getElementById('save-comment').value,
                 isActive,
+                sourceView: document.getElementById('prop-source-view')?.value || null,
             })
         });
         if (res.ok) {

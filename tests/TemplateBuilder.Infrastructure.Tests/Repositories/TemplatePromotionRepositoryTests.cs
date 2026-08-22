@@ -50,6 +50,19 @@ public class TemplatePromotionRepositoryTests
         var history = await context.TemplateVersions.Where(v => v.TemplateId == t.Id).OrderBy(v => v.VersionNumber).ToListAsync();
         history[1].IsActive.Should().BeFalse();
         history[2].IsActive.Should().BeTrue();
+        t.CurrentVersionId.Should().Be(history[2].Id);
+    }
+
+    [Fact]
+    public async Task AddWithVersionsAsync_AssignsExternalKeyWhenEmpty()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplatePromotionRepository(context);
+        var t = await repo.AddWithVersionsAsync(
+            new Template { Name = "P", TemplateType = "Email", ExternalKey = Guid.Empty },
+            new List<TemplateVersion> { new() { VersionNumber = 1, Body = "<p>one</p>" } });
+
+        t.ExternalKey.Should().NotBe(Guid.Empty);
     }
 
     [Fact]

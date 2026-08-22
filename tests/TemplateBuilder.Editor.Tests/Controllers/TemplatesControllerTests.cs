@@ -35,7 +35,7 @@ public class TemplatesControllerTests
     public async Task Index_ReturnsViewWithTemplates()
     {
         var mockRepo = new Mock<ITemplateRepository>();
-        mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetAllIncludingInactiveAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Template>
             {
                 new() { Id = 1, Name = "A", TemplateType = "Email" }
@@ -45,6 +45,26 @@ public class TemplatesControllerTests
         var result = await controller.Index(null, null);
 
         result.Should().BeOfType<ViewResult>();
+    }
+
+    [Fact]
+    public async Task Index_IncludesInactiveTemplates_ForBulkActivateReachability()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.GetAllIncludingInactiveAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Template>
+            {
+                new() { Id = 1, Name = "A", TemplateType = "Email", IsActive = true },
+                new() { Id = 2, Name = "B", TemplateType = "Email", IsActive = false }
+            });
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.Index(null, null);
+
+        var view = result.Should().BeOfType<ViewResult>().Subject;
+        var model = view.Model.Should().BeOfType<TemplateListViewModel>().Subject;
+        model.Templates.Should().Contain(t => t.Id == 2 && !t.IsActive);
+        mockRepo.Verify(r => r.GetAllAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -386,6 +406,46 @@ public class TemplatesControllerTests
         var ok = (OkObjectResult)result;
         ok.Value.Should().BeEquivalentTo(new { versionId = 0, versionNumber = 2, isActive = false });
         captured!.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task SaveVersion_SourceViewChanged_RebuildsSnapshot()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email", SourceView = "v_Old" };
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => v);
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        var health = new Mock<ITemplateHealthService>();
+        health.Setup(h => h.BuildSnapshotJsonAsync("v_New", It.IsAny<CancellationToken>())).ReturnsAsync("{\"columns\":[]}");
+        var controller = CreateController(repo.Object, health: health.Object);
+
+        var result = await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null, SourceView: "v_New"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        health.Verify(h => h.BuildSnapshotJsonAsync("v_New", It.IsAny<CancellationToken>()), Times.Once);
+        template.SourceView.Should().Be("v_New");
+        template.SourceViewSnapshot.Should().Be("{\"columns\":[]}");
+    }
+
+    [Fact]
+    public async Task SaveVersion_SourceViewUnchanged_DoesNotRebuildSnapshot()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email", SourceView = "v_Same", SourceViewSnapshot = "{\"columns\":[\"X\"]}" };
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => v);
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        var health = new Mock<ITemplateHealthService>();
+        var controller = CreateController(repo.Object, health: health.Object);
+
+        var result = await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null, SourceView: "v_Same"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        health.Verify(h => h.BuildSnapshotJsonAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        template.SourceViewSnapshot.Should().Be("{\"columns\":[\"X\"]}");
     }
 
     [Fact]

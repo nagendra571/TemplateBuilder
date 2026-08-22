@@ -81,6 +81,47 @@ public class TemplatePromotionImportTests
     }
 
     [Fact]
+    public async Task Import_RejectsNullTemplate()
+    {
+        var svc = Create();
+        var json = """{"schemaVersion":2,"template":null}""";
+        var result = await svc.ImportAsync(Encoding.UTF8.GetBytes(json), "bob");
+        result.Errors.Should().ContainSingle(e => e.Reason!.Contains("missing"));
+    }
+
+    [Fact]
+    public async Task Import_RejectsEmptyName()
+    {
+        var svc = Create();
+        var doc = new TemplateExportDocument
+        {
+            Template = new TemplateExportTemplate
+            {
+                ExternalKey = Guid.NewGuid(), Name = "   ", TemplateType = "Email",
+                Versions = { new() { VersionNumber = 1, Body = "<p>ok</p>" } }
+            }
+        };
+        var result = await svc.ImportAsync(Encoding.UTF8.GetBytes(svc.SerializeExport(doc)), "bob");
+        result.Errors.Should().ContainSingle(e => e.Reason!.Contains("missing"));
+    }
+
+    [Fact]
+    public async Task Import_RejectsZeroVersions()
+    {
+        var svc = Create();
+        var doc = new TemplateExportDocument
+        {
+            Template = new TemplateExportTemplate
+            {
+                ExternalKey = Guid.NewGuid(), Name = "X", TemplateType = "Email",
+                Versions = new()
+            }
+        };
+        var result = await svc.ImportAsync(Encoding.UTF8.GetBytes(svc.SerializeExport(doc)), "bob");
+        result.Errors.Should().ContainSingle(e => e.Reason!.Contains("missing"));
+    }
+
+    [Fact]
     public async Task Import_RejectsInvalidScribanBody()
     {
         var svc = Create();

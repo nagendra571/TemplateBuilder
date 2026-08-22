@@ -90,10 +90,19 @@ public class TemplatePromotionService : ITemplatePromotionService
         {
             result.Errors.Add(new TemplateImportEntry
             {
-                Name = doc.Template.Name,
-                ExternalKey = doc.Template.ExternalKey,
+                Name = doc.Template?.Name,
+                ExternalKey = doc.Template?.ExternalKey ?? Guid.Empty,
                 Reason = $"Unsupported schemaVersion {doc.SchemaVersion}; expected 2."
             });
+            return result;
+        }
+
+        if (doc.Template is null
+            || string.IsNullOrWhiteSpace(doc.Template.Name)
+            || string.IsNullOrWhiteSpace(doc.Template.TemplateType)
+            || doc.Template.Versions is not { Count: > 0 })
+        {
+            result.Errors.Add(new TemplateImportEntry { Reason = "Import file is missing a template name, type, or versions." });
             return result;
         }
 
