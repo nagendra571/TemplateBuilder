@@ -17,7 +17,7 @@ builder.Services.AddTemplateBuilderEditor(options =>
     // resolve from claims/session instead — a raw header is spoofable and is demo-only here.
     options.ActorResolver = ctx =>
     {
-        var header = ctx?.Request.Headers["X-TB-Actor"].ToString();
+        var header = ctx.Request.Headers["X-TB-Actor"].ToString();
         return string.IsNullOrWhiteSpace(header) ? null : header.Trim();
     };
 });

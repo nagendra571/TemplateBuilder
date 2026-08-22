@@ -212,7 +212,7 @@ audit log `Actor`) is stamped with the current user, resolved in this order:
 
 Without configuration the editor stores `User.Identity.Name` (or `"anonymous"` when the
 request is unauthenticated or the name is empty). Existing records are never backfilled —
-legacy rows display `"anonymous"` in the UI.
+legacy rows are stored with `CreatedBy = null`.
 
 Supply your own identity from your existing `AddTemplateBuilderEditor` call — e.g. a
 claims value:
