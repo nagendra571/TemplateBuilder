@@ -2652,7 +2652,7 @@ function actionKind(action) {
             const stats = await res.json();
             const diff = (stats.total || 0) - initialTotal;
             if (diff > 0 && livePill) {
-                livePill.hidden = false;
+                livePill.classList.add('tb-live-pill--updates');
                 if (livePillText) livePillText.textContent = `${diff} new — Refresh`;
             }
         } catch {

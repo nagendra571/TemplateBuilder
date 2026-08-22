@@ -47,6 +47,9 @@
     var end = Math.Min(Model.Page * Model.PageSize, Model.Total);
     var hasPrev = Model.Page > 1;
     var hasNext = (Model.Page * Model.PageSize) < Model.Total;
+    var pageCount = (int)Math.Ceiling((double)Math.Max(1, Model.Total) / Model.PageSize);
+    var pageWindowStart = Math.Max(1, Model.Page - 2);
+    var pageWindowEnd = Math.Min(pageCount, Model.Page + 2);
 }
 
 <div id="tb-editor-host" class="tb-theme-light tb-audit-page">
@@ -59,8 +62,9 @@
             <p style="color:var(--text-muted);font-size:13px;margin-top:2px;">History of changes across templates and snippets</p>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-            <div id="tb-live-pill" class="tb-live-pill" hidden role="status">
-                <span id="tb-live-pill-text"></span>
+            <div id="tb-live-pill" class="tb-live-pill" role="status">
+                <span class="tb-live-dot" aria-hidden="true"></span>
+                <span id="tb-live-pill-text">Live</span>
             </div>
             <a class="btn btn-secondary" href="/Audit/Export@(BuildQueryString())">Export CSV</a>
         </div>
@@ -90,58 +94,58 @@
         </div>
     </div>
 
-    <!-- 30-day activity chart -->
-    <div class="card tb-audit-chart-card">
-        <div class="tb-audit-chart-header">
-            <h3>Activity — last 30 days</h3>
+    <!-- Chart + filters: side by side so the page reads top-to-bottom without -->
+    <!-- burning a full row on each (dashboard density, matches the rest of the -->
+    <!-- page's information-dense layout). -->
+    <div class="tb-audit-top">
+        <div class="card tb-audit-chart-card">
+            <div class="tb-audit-chart-header">
+                <h3>Activity — last 30 days</h3>
+            </div>
+            <svg id="tb-audit-chart-svg" class="tb-audit-chart-svg" role="img" aria-label="Audit activity over the last 30 days"></svg>
+            <div id="tb-audit-chart-axis" class="tb-audit-chart-axis"></div>
         </div>
-        <svg id="tb-audit-chart-svg" class="tb-audit-chart-svg" role="img" aria-label="Audit activity over the last 30 days"></svg>
-        <div id="tb-audit-chart-axis" class="tb-audit-chart-axis"></div>
-    </div>
-    <script type="application/json" id="tb-audit-initial-stats">@Html.Raw(initialStatsJson)</script>
+        <script type="application/json" id="tb-audit-initial-stats">@Html.Raw(initialStatsJson)</script>
 
-    <!-- Filter card -->
-    <div class="card tb-audit-filter-card">
-        <form method="get" action="/Audit" id="tb-audit-filter-form" class="tb-audit-filter-form">
-            <div class="tb-audit-filter-field">
-                <label for="tb-audit-search" class="visually-hidden">Search</label>
-                <input type="search" id="tb-audit-search" name="search" value="@Model.Search" placeholder="Search comment, actor…" />
-            </div>
-            <div class="tb-audit-filter-field">
-                <label for="tb-audit-entity-type" class="visually-hidden">Entity type</label>
-                <select id="tb-audit-entity-type" name="entityType">
-                    <option value="">All Types</option>
-                    <option value="Template" selected="@(Model.EntityType == "Template")">Template</option>
-                    <option value="Snippet" selected="@(Model.EntityType == "Snippet")">Snippet</option>
-                </select>
-            </div>
-            <div class="tb-audit-filter-field">
-                <label for="tb-audit-action" class="visually-hidden">Action</label>
-                <select id="tb-audit-action" name="action">
-                    <option value="">All Actions</option>
-                    @foreach (var a in Model.KnownActions)
-                    {
-                        <option value="@a" selected="@(Model.Action == a)">@ActionLabel(a)</option>
-                    }
-                </select>
-            </div>
-            <div class="tb-audit-filter-field">
-                <label for="tb-audit-actor" class="visually-hidden">Actor</label>
-                <input type="text" id="tb-audit-actor" name="actor" value="@Model.Actor" placeholder="Actor…" />
-            </div>
-            <div class="tb-audit-filter-field">
-                <label for="tb-audit-from">From</label>
-                <input type="date" id="tb-audit-from" name="from" value="@Model.From" />
-            </div>
-            <div class="tb-audit-filter-field">
-                <label for="tb-audit-to">To</label>
-                <input type="date" id="tb-audit-to" name="to" value="@Model.To" />
-            </div>
-            <div class="tb-audit-filter-actions">
-                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-                <a href="/Audit" id="tb-audit-clear" class="btn btn-ghost btn-sm">Clear</a>
-            </div>
-        </form>
+        <div class="card tb-audit-filter-card">
+            <div class="tb-audit-chart-header"><h3>Filters</h3></div>
+            <form method="get" action="/Audit" id="tb-audit-filter-form" class="tb-audit-filter-form">
+                <div class="tb-audit-filter-row">
+                    <label for="tb-audit-search" class="visually-hidden">Search</label>
+                    <input type="search" id="tb-audit-search" name="search" value="@Model.Search" placeholder="Search comment, actor…" class="tb-audit-search" />
+                    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                </div>
+                <div class="tb-audit-filter-row">
+                    <label for="tb-audit-entity-type" class="visually-hidden">Entity type</label>
+                    <select id="tb-audit-entity-type" name="entityType">
+                        <option value="">All Types</option>
+                        <option value="Template" selected="@(Model.EntityType == "Template")">Template</option>
+                        <option value="Snippet" selected="@(Model.EntityType == "Snippet")">Snippet</option>
+                    </select>
+                    <label for="tb-audit-action" class="visually-hidden">Action</label>
+                    <select id="tb-audit-action" name="action">
+                        <option value="">All Actions</option>
+                        @foreach (var a in Model.KnownActions)
+                        {
+                            <option value="@a" selected="@(Model.Action == a)">@ActionLabel(a)</option>
+                        }
+                    </select>
+                </div>
+                <div class="tb-audit-filter-row">
+                    <label for="tb-audit-actor" class="visually-hidden">Actor</label>
+                    <input type="text" id="tb-audit-actor" name="actor" value="@Model.Actor" placeholder="Actor…" />
+                </div>
+                <div class="tb-audit-filter-row">
+                    <label for="tb-audit-from">From</label>
+                    <input type="date" id="tb-audit-from" name="from" value="@Model.From" />
+                    <label for="tb-audit-to">To</label>
+                    <input type="date" id="tb-audit-to" name="to" value="@Model.To" />
+                </div>
+                <div class="tb-audit-filter-row tb-audit-filter-actions">
+                    <a href="/Audit" id="tb-audit-clear" class="btn btn-ghost btn-sm">Clear</a>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Results table -->
@@ -175,7 +179,17 @@
                                 </button>
                             </td>
                             <td class="tb-col-meta"><span data-audit-time="@row.OccurredAt.ToString("o")">@row.OccurredAt.ToString("dd MMM yyyy HH:mm")</span></td>
-                            <td class="tb-col-meta">@row.EntityType #@row.EntityId</td>
+                            <td class="tb-col-meta tb-audit-target">
+                                <span class="tb-audit-entity-type">@row.EntityType</span>
+                                @if (row.EntityType == "Template")
+                                {
+                                    <a href="/Templates/@(row.EntityId)/Edit">#@row.EntityId</a>
+                                }
+                                else
+                                {
+                                    <text>#@row.EntityId</text>
+                                }
+                            </td>
                             <td><span class="tb-action-badge tb-action-badge--@row.Action">@ActionLabel(row.Action)</span></td>
                             <td class="tb-col-meta">@row.Actor</td>
                             <td class="tb-col-meta tb-audit-comment">@row.Comment</td>
@@ -202,23 +216,29 @@
         <!-- Pagination -->
         <div class="tb-audit-pagination">
             <span class="tb-audit-pagination-summary">Showing @start&ndash;@end of @Model.Total</span>
-            <div class="tb-audit-pagination-links">
-                @if (hasPrev)
+            <div class="tb-audit-pages">
+                <a class="tb-page-link @(hasPrev ? "" : "disabled")" href="/Audit@(BuildQueryString(Model.Page - 1))" aria-label="Previous page">&larr;</a>
+                @if (pageWindowStart > 1)
                 {
-                    <a class="btn btn-sm btn-secondary" href="/Audit@(BuildQueryString(Model.Page - 1))">&larr; Previous</a>
+                    <a class="tb-page-link" href="/Audit@(BuildQueryString(1))">1</a>
+                    if (pageWindowStart > 2)
+                    {
+                        <span class="tb-page-link disabled">&hellip;</span>
+                    }
                 }
-                else
+                @for (var p = pageWindowStart; p <= pageWindowEnd; p++)
                 {
-                    <span class="btn btn-sm btn-secondary" aria-disabled="true" style="opacity:.5;pointer-events:none;">&larr; Previous</span>
+                    <a class="tb-page-link @(p == Model.Page ? "current" : "")" href="/Audit@(BuildQueryString(p))">@p</a>
                 }
-                @if (hasNext)
+                @if (pageWindowEnd < pageCount)
                 {
-                    <a class="btn btn-sm btn-secondary" href="/Audit@(BuildQueryString(Model.Page + 1))">Next &rarr;</a>
+                    if (pageWindowEnd < pageCount - 1)
+                    {
+                        <span class="tb-page-link disabled">&hellip;</span>
+                    }
+                    <a class="tb-page-link" href="/Audit@(BuildQueryString(pageCount))">@pageCount</a>
                 }
-                else
-                {
-                    <span class="btn btn-sm btn-secondary" aria-disabled="true" style="opacity:.5;pointer-events:none;">Next &rarr;</span>
-                }
+                <a class="tb-page-link @(hasNext ? "" : "disabled")" href="/Audit@(BuildQueryString(Model.Page + 1))" aria-label="Next page">&rarr;</a>
             </div>
         </div>
     }
