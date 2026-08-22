@@ -92,7 +92,8 @@ public class TemplatesController : Controller
                     TemplateId = template.Id,
                     VersionNumber = 1,
                     Body = model.Body,
-                    ChangeComment = "Initial version"
+                    ChangeComment = "Initial version",
+                    CreatedBy = CurrentActor
                 }, ct);
             }
 
@@ -155,7 +156,8 @@ public class TemplatesController : Controller
                 VersionNumber = nextNumber,
                 Body = request.Body,
                 ChangeComment = request.ChangeComment,
-                IsActive = request.IsActive ?? true
+                IsActive = request.IsActive ?? true,
+                CreatedBy = CurrentActor
             }, ct);
 
             await _auditService.RecordAsync("Template", id, version.IsActive ? AuditActions.Published : AuditActions.DraftSaved,
@@ -212,7 +214,8 @@ public class TemplatesController : Controller
                 VersionNumber = nextNumber,
                 Body = source.Body,
                 ChangeComment = $"Restored from v{sourceVersionNumber}",
-                IsActive = source.IsActive
+                IsActive = source.IsActive,
+                CreatedBy = CurrentActor
             }, ct);
 
             await _auditService.RecordAsync("Template", id, AuditActions.Restored, CurrentActor,
@@ -343,7 +346,8 @@ public class TemplatesController : Controller
                 VersionNumber = 1,
                 Body = body,
                 ChangeComment = $"Duplicated from '{source.Name}'",
-                IsActive = isActive
+                IsActive = isActive,
+                CreatedBy = CurrentActor
             }, ct);
 
             await _auditService.RecordAsync("Template", newTemplate.Id, AuditActions.Duplicated, CurrentActor,

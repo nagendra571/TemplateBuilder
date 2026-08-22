@@ -1,7 +1,9 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Moq;
+using System.Security.Claims;
 using TemplateBuilder.Application.Services;
 using TemplateBuilder.Domain.Entities;
 using TemplateBuilder.Domain.Interfaces;
@@ -768,5 +770,97 @@ public class TemplatesControllerTests
         {
             new { id = 9, action = "published", actor = "bob", occurredAt = "2026-08-01T12:00:00.0000000Z", comment = "c" }
         });
+    }
+
+    private static void SetCurrentActor(TemplatesController controller, string name)
+    {
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, name) }))
+            }
+        };
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_StampsCreatedByWithCurrentActor()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 42; return t; });
+        var controller = CreateController(mockRepo.Object);
+        SetCurrentActor(controller, "alice");
+
+        await controller.CreateTemplateJson(new TemplateEditorViewModel
+        {
+            Name = "Welcome Email",
+            TemplateType = "Email",
+            Body = "<p>Hi</p>"
+        });
+
+        mockRepo.Verify(r => r.PublishVersionAsync(42,
+            It.Is<TemplateVersion>(v => v.CreatedBy == "alice"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveVersion_stamps_CreatedBy_with_current_actor()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Template { Id = 1, Name = "T", TemplateType = "Email" });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        repo.Setup(r => r.PublishVersionAsync(It.IsAny<int>(), It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => { v.Id = 99; return v; });
+
+        var controller = CreateController(repo.Object);
+        SetCurrentActor(controller, "alice");
+
+        await controller.SaveVersion(1, new SaveVersionRequest("T", "Email", null, "<p>hi</p>", null, true));
+
+        repo.Verify(r => r.PublishVersionAsync(1,
+            It.Is<TemplateVersion>(v => v.CreatedBy == "alice"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RestoreVersion_stamps_CreatedBy_with_current_actor()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetVersionAsync(5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TemplateVersion { Id = 5, VersionNumber = 1, Body = "<p>old</p>", IsActive = true });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => v);
+
+        var controller = CreateController(repo.Object);
+        SetCurrentActor(controller, "alice");
+
+        await controller.RestoreVersion(1, 5, 1);
+
+        repo.Verify(r => r.PublishVersionAsync(1,
+            It.Is<TemplateVersion>(v => v.CreatedBy == "alice"), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Duplicate_stamps_CreatedBy_with_current_actor()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 3, Name = "Src", TemplateType = "Email",
+            CurrentVersion = new TemplateVersion { Body = "<p>x</p>", IsActive = true }
+        });
+        repo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 9; return t; });
+        repo.Setup(r => r.PublishVersionAsync(9, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => v);
+
+        var controller = CreateController(repo.Object);
+        SetCurrentActor(controller, "alice");
+
+        await controller.Duplicate(3, new DuplicateRequest("Copy"));
+
+        repo.Verify(r => r.PublishVersionAsync(9,
+            It.Is<TemplateVersion>(v => v.CreatedBy == "alice"), It.IsAny<CancellationToken>()), Times.Once);
     }
 }
