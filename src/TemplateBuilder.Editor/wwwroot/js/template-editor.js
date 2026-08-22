@@ -183,6 +183,15 @@ const specialCharsPlugin = {
 };
 
 
+// Guarded: this file is shared by every page (Audit, Health, Templates list, ...),
+// but SunEditor's CDN script and the #template-body textarea only exist on the
+// Templates Create/Edit page. Without this guard, referencing the undefined
+// SUNEDITOR global threw an uncaught ReferenceError here on every other page —
+// which (being a top-level, unguarded statement) silently aborted ALL subsequent
+// top-level code in this file, including initAuditPage()'s invocation further
+// down. That's why the whole Audit page's client-side behavior (chart, relative
+// times, filters, live poll) never ran at all.
+if (typeof SUNEDITOR !== 'undefined' && document.getElementById('template-body')) {
 _editor = SUNEDITOR.create(document.getElementById('template-body'), {
     plugins: [
         blockquotePlugin,
@@ -251,6 +260,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         return true;
     }
 });
+}
 
 // ── Drag-and-drop into editor ─────────────────────────────────────────────────
 
@@ -614,7 +624,7 @@ document.getElementById('model-badges')?.addEventListener('click', (e) => {
 document.getElementById('preview-json')?.addEventListener('input', renderModelBadges);
 
 // Keyboard insert — event delegation on the palette container
-document.getElementById('field-palette').addEventListener('click', (e) => {
+document.getElementById('field-palette')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.palette-insert-btn');
     if (!btn || !_editor) return;
     e.stopPropagation();
@@ -2275,7 +2285,11 @@ function toggleTheme() {
 
 // ── Auto-save draft (localStorage only — no server writes) ───────────────────
 
-const DRAFT_KEY         = `tb-draft-${templateId}`;
+// templateId is declared by Edit.cshtml's own inline script and only exists on
+// the Templates Edit/Create page — guard the reference so this shared file's
+// unconditional top-level code doesn't throw (and abort every later top-level
+// statement in this script) on pages like Audit that never declare it.
+const DRAFT_KEY         = `tb-draft-${typeof templateId !== 'undefined' ? templateId : 'none'}`;
 const AUTOSAVE_PREF_KEY = 'tb-autosave-enabled';
 const AUTOSAVE_INTERVAL = 60_000;
 
@@ -2324,7 +2338,7 @@ function saveDraft() {
 }
 
 function loadDraft() {
-    if (templateId === null) return;
+    if (typeof templateId === 'undefined' || templateId === null) return;
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return;
     try {
