@@ -378,7 +378,7 @@ public class TemplatesController : Controller
             return BadRequest(new ErrorResult("NO_FILE", "No file selected."));
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
-        var result = await _promotion.ImportAsync(ms.ToArray(), User.Identity?.Name ?? "system", ct);
+        var result = await _promotion.ImportAsync(ms.ToArray(), CurrentActor, ct);
 
         var entry = result.Created.Count == 1 ? result.Created[0]
             : result.Updated.Count == 1 ? result.Updated[0]
@@ -430,6 +430,7 @@ public class TemplatesController : Controller
     [HttpPost("Templates/BulkDelete"), ValidateAntiForgeryToken]
     public async Task<IActionResult> BulkDelete([FromBody] BulkIdsRequest request, CancellationToken ct = default)
     {
+        var actor = CurrentActor; // resolve/cache once; let a throwing resolver propagate, not get swallowed by the per-item audit-failure catch below
         var succeeded = new List<int>();
         var failed = new List<object>();
         foreach (var id in request.Ids)
@@ -444,7 +445,7 @@ public class TemplatesController : Controller
                     succeeded.Add(id);
                     try
                     {
-                        await _auditService.RecordAsync("Template", id, AuditActions.Deleted, CurrentActor,
+                        await _auditService.RecordAsync("Template", id, AuditActions.Deleted, actor,
                             beforeState: JsonSerializer.Serialize(new { name }), ct: ct);
                     }
                     catch (Exception) { /* delete already succeeded; an audit-write failure must not re-route it into failed */ }
