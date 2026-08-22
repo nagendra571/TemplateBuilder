@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 2.1.0**
+**Current version: 2.2.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 2.1.0
+dotnet add package TemplateBuilder.Editor --version 2.2.0
 ```
 
 ### 2. Add a connection string
@@ -222,6 +222,12 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
+### v2.2.0
+- **Audit log** — every meaningful template and snippet mutation is now recorded as an append-only `AuditLog` row: `created`, `draft_saved` (Save Draft), `published` (Save Version), `restored`, `duplicated`, `toggled_active`, `imported`, `deleted` for templates; `snippet_created`, `snippet_deleted` for snippets. Rows are never updated or deleted, and the entity id is stored without a foreign key so history survives hard deletes. Only mutations are audited — reads, renders, and health checks are not.
+- **Supersedes the 2.1.0 "no audit trail" decision for two actions**: importing a template (`POST /Templates/Import`) now records `imported`, and bulk delete (`POST /Templates/BulkDelete`) records `deleted` per template. Bulk activate/deactivate remain unaudited.
+- **Global audit page** — `GET /Audit` lists every audit row with filters (search, entity type, action, actor, date range), five stat chips (total / templates / snippets / actors / date range), a 30-day activity chart, color-coded action badges, expandable before/after state per row, windowed pagination, and a 30-second live-poll pill that flags new activity without an auto-refresh. `GET /Audit/Stats` (JSON) powers the chips/chart/poll; `GET /Audit/Export` downloads a CSV (`OccurredAt,EntityType,EntityId,Action,Actor,Comment,BeforeState,AfterState`, UTF-8 with BOM, quoted fields).
+- **Activity drawer on the Edit page** — a right-edge slide-in drawer (open via the vertical "Activity" tab, which shows a live count badge) lists the selected template's own timeline, day-grouped with action-colored dots, fed by `GET /Templates/{id}/Audit` (last 100 events, newest first).
+
 ### v2.1.0
 - **Export / Import (promotion)** — Export any template to a versioned JSON file (`GET /Templates/Export/{id}`) and import it into another environment (`POST /Templates/Import`, multipart file upload). Each template carries a stable `ExternalKey` (a `Guid`, unique, backfilled on migration) that survives renames — import matches on that key: a match updates the existing template in place and appends the imported versions starting at `max + 1` (preserving each version's Draft/Active flag and the template's own active flag exactly); no match creates a new template with its original version numbers and flags intact. There is no skip/collapse behavior — every import either updates or creates. The exported JSON also includes `sampleData` (nullable string) so a template's saved preview data round-trips with it on both the create and update-by-key-match paths.
 - **Template health check** — `TemplateHealthService` parses a template's body via the Scriban AST (not regex) to extract every `model.*` field it references, then compares those fields against the live schema of the SQL view configured as the template's **Source View** (new Properties-panel field, saved via Save Draft/Save Version). Findings: **Critical** — `view_missing` (the configured view no longer exists) or `column_missing` (a referenced field has no matching column); **Warning** — `column_type_changed`, `column_length_changed`, `column_nullability_changed` (the column changed shape since the last snapshot), or `unbound_tokens` (fields referenced with no Source View configured at all). A snapshot of the view's columns is taken and stored with the template whenever the Source View changes, so drift is measured against what was true when it was last bound, not just what's true now. Nested/dotted paths (e.g. `model.Order.Total`) are extracted as tokens but excluded from column-level drift comparison (only top-level fields are checked against columns). `GET /Templates/{id}/Health` returns the full report as JSON; the editor's footer Health button renders it inline.
@@ -352,6 +358,10 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 | Health overview page | `GET /Health` |
 | Health summaries | `GET /Health/Summaries?ids=1,2,3` |
 | Setup check | `GET /Templates/_setup` *(Development only)* |
+| Audit log page | `GET /Audit` |
+| Audit stats (chips/chart/poll) | `GET /Audit/Stats` |
+| Audit CSV export | `GET /Audit/Export` |
+| Template audit timeline (Activity drawer) | `GET /Templates/{id}/Audit` |
 
 ---
 
@@ -454,7 +464,32 @@ The template list has a checkbox column and a selection toolbar:
 | Export | `POST /Templates/BulkExport` | Downloads a ZIP (see Export / Import above) |
 | Delete | `POST /Templates/BulkDelete` | **Permanent** — removes all versions, then the template itself. There is no single-template delete UI; delete is bulk-only |
 
-All four return `{ succeeded: [...], failed: [{ id, reason }] }`. None of the lifecycle-and-ops actions (import, bulk activate/deactivate/delete) write an audit log entry — this is a deliberate scope decision.
+All four return `{ succeeded: [...], failed: [{ id, reason }] }`. As of `2.2.0`, **import and bulk delete write an audit log entry** (see Audit & Activity below); bulk activate/deactivate remain unaudited.
+
+---
+
+## Audit & Activity
+
+Every meaningful template and snippet mutation is recorded as an append-only audit log entry — rows are never updated or deleted, so history survives even a hard delete of the template or snippet itself.
+
+**Audited actions** — Template: `created`, `draft_saved` (Save Draft), `published` (Save Version), `restored`, `duplicated`, `toggled_active`, `imported`, `deleted` (bulk delete). Snippet: `snippet_created`, `snippet_deleted`. Reads, renders, and health checks are never audited — only mutations.
+
+### Global audit page
+
+`GET /Audit` shows every audit row across all templates and snippets:
+
+- **Filters** — free-text search (matches action, actor, comment), entity type, action, actor, and a from/to date range.
+- **Stat chips** — total events, template events, snippet events, unique actors, and the covered date range.
+- **30-day activity chart** — a bar chart of daily event counts, rendered client-side with no external chart library.
+- **Action badges** — each row is color-coded by action.
+- **Before/after state** — expand any row to see the JSON state captured before and/or after the mutation.
+- **Live-poll pill** — checks for new activity every 30 seconds and offers a one-click refresh without reloading the page.
+- **CSV export** — `GET /Audit/Export` downloads `OccurredAt,EntityType,EntityId,Action,Actor,Comment,BeforeState,AfterState` (UTF-8 with a BOM, fields quoted when they contain a comma/quote/newline).
+- `GET /Audit/Stats` (JSON) is the same filtered data that powers the chips, chart, and live-poll pill — useful if you want to build your own dashboard.
+
+### Activity drawer (Edit page)
+
+A vertical "Activity" tab on the right edge of the editor grid — with a live count badge — opens a slide-in drawer showing the selected template's own timeline: `GET /Templates/{id}/Audit` returns its last 100 events (newest first), rendered day-grouped with action-colored dots. The drawer never affects the editor grid's layout; it's absolutely positioned and opens/closes without disturbing the panels underneath.
 
 ---
 
