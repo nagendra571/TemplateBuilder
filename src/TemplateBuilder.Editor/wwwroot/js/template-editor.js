@@ -2741,22 +2741,15 @@ function actionKind(action) {
         }
     }
 
-    function getFocusable() {
-        return [closeBtn, drawer];
-    }
-
+    // closeBtn is the only genuinely tabbable control inside the drawer
+    // (the rendered timeline has no interactive elements) — drawer itself
+    // is a tabindex="-1" trap anchor, not a natural forward tab-stop. So
+    // both directions pin focus back onto closeBtn rather than trying to
+    // cycle between two "real" stops.
     function trapTab(e) {
         if (e.key !== 'Tab') return;
-        const focusable = getFocusable();
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-        }
+        e.preventDefault();
+        closeBtn.focus();
     }
 
     function onKeydown(e) {
