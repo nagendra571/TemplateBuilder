@@ -51,6 +51,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditStatsRepository, AuditStatsRepository>();
         services.AddScoped<IAuditService, AuditService>();
 
+        services.AddSingleton(new ActorResolverAccessor(options.ActorResolver));
+
         services.AddScoped<ISqlViewDiscoveryService>(sp =>
             new SqlViewDiscoveryService(
                 connectionString,
