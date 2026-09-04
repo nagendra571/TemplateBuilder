@@ -252,6 +252,43 @@ public class TemplateRepositoryTests
     }
 
     [Fact]
+    public async Task GetVersionAsync_ReturnsSubject()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "Subject Test", TemplateType = "Email" });
+        var v = await repo.PublishVersionAsync(template.Id, new TemplateVersion
+        {
+            TemplateId = template.Id,
+            VersionNumber = 1,
+            Body = "<p>hi</p>",
+            Subject = "Welcome, {{ model.Name }}!"
+        });
+
+        var result = await repo.GetVersionAsync(v.Id);
+
+        result!.Subject.Should().Be("Welcome, {{ model.Name }}!");
+    }
+
+    [Fact]
+    public async Task GetVersionAsync_ReturnsNullSubject_WhenNotSet()
+    {
+        await using var context = CreateContext();
+        var repo = new TemplateRepository(context);
+        var template = await repo.CreateAsync(new Template { Name = "No Subject Test", TemplateType = "Report" });
+        var v = await repo.PublishVersionAsync(template.Id, new TemplateVersion
+        {
+            TemplateId = template.Id,
+            VersionNumber = 1,
+            Body = "<p>report</p>"
+        });
+
+        var result = await repo.GetVersionAsync(v.Id);
+
+        result!.Subject.Should().BeNull();
+    }
+
+    [Fact]
     public async Task CreateAsync_AssignsNonEmptyExternalKey()
     {
         await using var context = CreateContext();
