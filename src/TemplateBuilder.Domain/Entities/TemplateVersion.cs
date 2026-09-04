@@ -6,6 +6,7 @@ public class TemplateVersion
     public int TemplateId { get; set; }
     public int VersionNumber { get; set; }
     public string Body { get; set; } = string.Empty;
+    public string? Subject { get; set; }
     public string? ChangeComment { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
