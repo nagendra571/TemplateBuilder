@@ -272,8 +272,8 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
   alongside `width`.
 - **Refined activity timeline** — each event now shows the actor as an initials avatar and
   the action as a color-coded chip (published = green, deleted/rejected = red,
-  restore/toggle/duplicate = amber, everything else = indigo), replacing the previous
-  plain-text action label and status dot.
+  restored/toggled/duplicated/imported = amber, everything else = indigo), replacing the
+  previous plain-text action label and status dot.
 - **DBA-managed databases** — new `TemplateBuilderEditorOptions.ApplyMigrations` (default
   `true`). Set it to `false` and the package never registers its migration hosted service
   and never attempts DDL — for SQL logins with DML-only rights. The package now ships a
