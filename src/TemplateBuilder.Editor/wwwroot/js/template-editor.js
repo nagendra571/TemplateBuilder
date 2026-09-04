@@ -315,8 +315,12 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         }
 
         if (fieldName) {
+            // notCleaningData=true — same fix as the palette/toolbar field-insert paths
+            // (see the comment there): SunEditor's default cleaner otherwise strips the
+            // contenteditable="false" wrapper despite it being in attributesWhitelist.
             _editor.insertHTML(
-                `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`
+                `<span class="tb-field" contenteditable="false">{{ model.${fieldName} }}</span>&nbsp;`,
+                true
             );
         } else if (blockType === 'loop') {
             const view = document.getElementById('view-selector').value || 'Items';
