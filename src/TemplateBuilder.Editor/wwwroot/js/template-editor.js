@@ -219,6 +219,7 @@ _editor = SUNEDITOR.create(document.getElementById('template-body'), {
         specialCharsPlugin,
     ],
     height: '100%',
+    width: '100%',
     theme: _theme === 'dark' ? 'dark' : undefined,
     buttonList: [
         ['undo', 'redo'],
@@ -2770,6 +2771,11 @@ function actionKind(action) {
             .join(' ');
     }
 
+    function avatarInitials(name) {
+        const parts = String(name || '?').trim().split(/\s+/).filter(Boolean);
+        return parts.length ? parts.slice(0, 2).map(p => p[0]).join('').toUpperCase() : '?';
+    }
+
     function renderTimeline(rows) {
         countBadge.textContent = String(rows.length);
 
@@ -2789,16 +2795,16 @@ function actionKind(action) {
             }
             const kind = actionKind(row.action);
             const comment = row.comment ? `<div class="tb-activity-comment">${escapeHtml(row.comment)}</div>` : '';
-            const actor = row.actor ? `<div class="tb-activity-actor">${escapeHtml(row.actor)}</div>` : '';
+            const actor = row.actor ? `<span class="tb-activity-actor">${escapeHtml(row.actor)}</span>` : '';
             html += `
-                <div class="tb-activity-item">
-                    <span class="tb-activity-dot tb-activity-dot--${kind}"></span>
+                <div class="tb-activity-item" data-kind="${kind}">
+                    <span class="tb-activity-avatar" aria-hidden="true">${avatarInitials(row.actor)}</span>
                     <div class="tb-activity-item-body">
-                        <div class="tb-activity-item-main">
-                            <span class="tb-activity-action">${escapeHtml(humanizeAction(row.action))}</span>
-                            <span class="tb-activity-time">${escapeHtml(fmtRelative(row.occurredAt))}</span>
+                        <span class="tb-activity-chip">${escapeHtml(humanizeAction(row.action))}</span>
+                        <div class="tb-activity-meta">
+                            ${actor}
+                            <span class="tb-activity-time" title="${escapeHtml(new Date(row.occurredAt).toLocaleString())}">${escapeHtml(fmtRelative(row.occurredAt))}</span>
                         </div>
-                        ${actor}
                         ${comment}
                     </div>
                 </div>`;
