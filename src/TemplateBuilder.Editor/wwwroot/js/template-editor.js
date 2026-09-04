@@ -15,6 +15,16 @@ let _isDirty = false;
 function markDirty() { _isDirty = true; }
 function markClean() { _isDirty = false; }
 
+// ── Field-insertion target tracking ─────────────────────────────────────────
+// The field palette's Insert button can target either the body editor or the
+// Subject input — track whichever was focused last so Insert knows where to
+// put the token.
+let _lastFocusInsertTarget = 'body';
+document.getElementById('prop-subject')?.addEventListener('focus', () => { _lastFocusInsertTarget = 'subject'; });
+document.addEventListener('focusin', (e) => {
+    if (e.target.closest?.('.sun-editor-editable')) _lastFocusInsertTarget = 'body';
+});
+
 let _currentColumns = [];
 
 
@@ -458,7 +468,8 @@ async function loadViewColumns(viewName) {
             palette.innerHTML = '<div class="tb-palette-msg">No columns found</div>';
             return;
         }
-        const used = _tbUsedFields(_editor ? _editor.getContents() : '');
+        const subjectValue = document.getElementById('prop-subject')?.value ?? '';
+        const used = _tbUsedFields((_editor ? _editor.getContents() : '') + ' ' + subjectValue);
         palette.innerHTML = columns.map(c => `
             <div class="palette-field${used.has(c.name) ? ' palette-field--used' : ''}" draggable="true" data-field="${escapeHtml(c.name)}">
                 <span class="palette-field-label">${escapeHtml(c.name)}
@@ -529,7 +540,8 @@ async function generateSampleData(mode) {
     const ta = document.getElementById('preview-json');
     if (!ta) return;
     const viewName = document.getElementById('view-selector')?.value || null;
-    const body = _editor ? _editor.getContents() : null;
+    const subjectValue = document.getElementById('prop-subject')?.value ?? '';
+    const body = _editor ? _editor.getContents() + ' ' + subjectValue : null;
     try {
         const res = await fetch('/Templates/Api/SampleData/Generate', {
             method: 'POST',
@@ -626,10 +638,25 @@ document.getElementById('preview-json')?.addEventListener('input', renderModelBa
 // Keyboard insert — event delegation on the palette container
 document.getElementById('field-palette')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.palette-insert-btn');
-    if (!btn || !_editor) return;
+    if (!btn) return;
     e.stopPropagation();
+    const field = btn.dataset.field;
+    if (_lastFocusInsertTarget === 'subject') {
+        const input = document.getElementById('prop-subject');
+        if (!input) return;
+        const token = `{{ model.${field} }}`;
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? input.value.length;
+        input.value = input.value.slice(0, start) + token + input.value.slice(end);
+        input.selectionStart = input.selectionEnd = start + token.length;
+        input.focus();
+        markDirty();
+        refreshUsedMarks();
+        return;
+    }
+    if (!_editor) return;
     _editor.insertHTML(
-        `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(btn.dataset.field)} }}</span>&nbsp;`
+        `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(field)} }}</span>&nbsp;`
     );
     document.querySelector('.sun-editor-editable')?.focus();
     markDirty();
@@ -660,6 +687,7 @@ async function createTemplate() {
                 name: document.getElementById('prop-name').value,
                 templateType: document.getElementById('prop-type').value,
                 description: document.getElementById('prop-desc').value,
+                subject: document.getElementById('prop-subject')?.value ?? null,
                 body
             })
         });
@@ -706,6 +734,7 @@ async function saveVersion(isActive) {
                 templateType: document.getElementById('prop-type').value,
                 description: document.getElementById('prop-desc').value,
                 body,
+                subject: document.getElementById('prop-subject')?.value ?? null,
                 changeComment: document.getElementById('save-comment').value,
                 isActive,
                 sourceView: document.getElementById('prop-source-view')?.value || null,
@@ -833,25 +862,39 @@ async function openCompareView(btn) {
 async function _renderComparePanel(side, body, versionId) {
     const loadingEl = document.getElementById(`compare-loading-${side}`);
     const iframeEl  = document.getElementById(`compare-iframe-${side}`);
+    const subjectEl = document.getElementById(`compare-subject-${side}`);
     try {
+        let subject = side === 'current' ? (document.getElementById('prop-subject')?.value ?? '') : null;
         if (body === null) {
             const res = await fetch(`/Templates/${templateId}/Versions/${versionId}/Body`);
             if (!res.ok) { loadingEl.textContent = 'Failed to load version.'; return; }
-            body = (await res.json()).body;
+            const versionData = await res.json();
+            body = versionData.body;
+            subject = versionData.subject;
         }
         if (body == null) { loadingEl.textContent = 'Version body unavailable.'; return; }
-        const modelJson = _tbGenerateSampleFromHtml(body);
+        const modelJson = _tbGenerateSampleFromHtml(body + ' ' + (subject ?? ''));
         const previewRes = await fetch(`/Templates/${templateId}/Preview`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': _csrf },
-            body: JSON.stringify({ body, modelJson })
+            body: JSON.stringify({ body, subject, modelJson })
         });
         if (!previewRes.ok) {
             const err = await previewRes.json().catch(() => null);
             loadingEl.textContent = `Preview failed: ${err?.message ?? previewRes.status}`;
             return;
         }
-        iframeEl.srcdoc = (await previewRes.json()).html;
+        const previewData = await previewRes.json();
+        if (subjectEl) {
+            const isEmail = document.getElementById('prop-type')?.value === 'Email';
+            if (isEmail && previewData.subject) {
+                subjectEl.textContent = `Subject: ${previewData.subject}`;
+                subjectEl.style.display = '';
+            } else {
+                subjectEl.style.display = 'none';
+            }
+        }
+        iframeEl.srcdoc = previewData.html;
         loadingEl.style.display = 'none';
     } catch {
         loadingEl.textContent = 'Network error loading preview.';
@@ -914,6 +957,7 @@ async function renderPreview() {
         return;
     }
     const body = _editor.getContents();
+    const subject = document.getElementById('prop-subject')?.value ?? '';
     const modelJson = document.getElementById('preview-json').value;
     try {
         const res = await fetch(`/Templates/${templateId ?? 0}/Preview`, {
@@ -922,10 +966,21 @@ async function renderPreview() {
                 'Content-Type': 'application/json',
                 'RequestVerificationToken': _csrf
             },
-            body: JSON.stringify({ body, modelJson })
+            body: JSON.stringify({ body, subject, modelJson })
         });
         if (res.ok) {
-            const { html } = await res.json();
+            const { subject: renderedSubject, html } = await res.json();
+            const subjectRow = document.getElementById('preview-subject-row');
+            const subjectText = document.getElementById('preview-subject-text');
+            const isEmail = document.getElementById('prop-type')?.value === 'Email';
+            if (subjectRow && subjectText) {
+                if (isEmail && renderedSubject) {
+                    subjectText.textContent = renderedSubject;
+                    subjectRow.style.display = '';
+                } else {
+                    subjectRow.style.display = 'none';
+                }
+            }
             document.getElementById('preview-frame').srcdoc = html;
             frameWrap.style.display = 'block';
         } else {
@@ -1649,7 +1704,8 @@ function refreshUsedMarks() {
     clearTimeout(_usedMarkTimer);
     _usedMarkTimer = setTimeout(() => {
         if (!_currentColumns.length) return;
-        const used = _tbUsedFields(_editor ? _editor.getContents() : '');
+        const subjectValue = document.getElementById('prop-subject')?.value ?? '';
+        const used = _tbUsedFields((_editor ? _editor.getContents() : '') + ' ' + subjectValue);
         document.querySelectorAll('#field-palette .palette-field').forEach(row => {
             const isUsed = used.has(row.dataset.field);
             row.classList.toggle('palette-field--used', isUsed);
@@ -1806,11 +1862,21 @@ function toggleTheme() {
 })();
 
 
-['prop-name', 'prop-type', 'prop-desc', 'save-comment'].forEach(id => {
+['prop-name', 'prop-type', 'prop-desc', 'prop-subject', 'save-comment'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', markDirty);
     el.addEventListener('change', markDirty);
+});
+
+// Typing a field token into Subject must refresh the palette's "used" checkmarks the
+// same way typing into the body does (wired via SunEditor's own onChange elsewhere) —
+// the second of the two gaps the sibling repo's plan missed on its first pass.
+document.getElementById('prop-subject')?.addEventListener('input', refreshUsedMarks);
+
+document.getElementById('prop-type')?.addEventListener('change', (e) => {
+    const row = document.getElementById('prop-subject-row');
+    if (row) row.style.display = e.target.value === 'Email' ? '' : 'none';
 });
 
 // ── Snippets ──────────────────────────────────────────────────────────────────
