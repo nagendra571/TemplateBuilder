@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="Scripts\TemplateBuilder.schema.2.3.0.sql" Pack="true" PackagePath="Scripts\" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

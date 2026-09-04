@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\TemplateBuilder.Editor\TemplateBuilder.Editor.csproj" />
     <ProjectReference Include="..\..\src\TemplateBuilder.Application\TemplateBuilder.Application.csproj" />
     <ProjectReference Include="..\..\src\TemplateBuilder.Domain\TemplateBuilder.Domain.csproj" />
+    <ProjectReference Include="..\..\src\TemplateBuilder.Infrastructure\TemplateBuilder.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

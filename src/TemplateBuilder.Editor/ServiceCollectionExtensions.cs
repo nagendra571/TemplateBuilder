@@ -60,7 +60,13 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<ISampleDataGenerator, SampleDataGenerator>();
 
-        services.AddHostedService<MigrationHostedService>();
+        // options.ApplyMigrations=false: DBA-managed database — the schema is provisioned by the
+        // shipped script (Scripts/TemplateBuilder.schema.<version>.sql), so the migration hosted
+        // service is never registered and the app never attempts DDL at startup.
+        if (options.ApplyMigrations)
+        {
+            services.AddHostedService<MigrationHostedService>();
+        }
 
         // ── Authorization ──────────────────────────────────────────────────
         var auth = options.Authorization;
