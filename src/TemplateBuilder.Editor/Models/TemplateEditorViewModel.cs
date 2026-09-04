@@ -16,6 +16,8 @@ public class TemplateEditorViewModel
     public string? Description { get; set; }
 
     public string? Body { get; set; }
+    [StringLength(500)]
+    public string? Subject { get; set; }
     public int? CurrentVersionId { get; set; }
     public int CurrentVersionNumber { get; set; }
     public bool LatestVersionIsActive { get; set; } = true;

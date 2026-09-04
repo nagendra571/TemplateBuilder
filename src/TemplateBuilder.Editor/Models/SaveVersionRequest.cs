@@ -7,4 +7,5 @@ public record SaveVersionRequest(
     string Body,
     string? ChangeComment,
     bool? IsActive = null,
-    string? SourceView = null);
+    string? SourceView = null,
+    string? Subject = null);
