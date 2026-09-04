@@ -689,11 +689,13 @@ async function createTemplate() {
                 templateType: document.getElementById('prop-type').value,
                 description: document.getElementById('prop-desc').value,
                 subject: document.getElementById('prop-subject')?.value ?? null,
+                sourceView: document.getElementById('prop-source-view')?.value || null,
                 body
             })
         });
         if (res.ok) {
             const data = await res.json();
+            markClean();
             window.location.href = `/Templates/${data.templateId}/Edit`;
         } else {
             const err = await res.json().catch(() => null);

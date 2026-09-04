@@ -128,6 +128,41 @@ public class TemplatesControllerTests
     }
 
     [Fact]
+    public async Task CreateTemplateJson_WithSourceView_SetsSourceViewAndBuildsSnapshot()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        Template? captured = null;
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 1; captured = t; return t; });
+        var health = new Mock<ITemplateHealthService>();
+        health.Setup(h => h.BuildSnapshotJsonAsync("v_New", It.IsAny<CancellationToken>())).ReturnsAsync("{\"columns\":[]}");
+        var controller = CreateController(mockRepo.Object, health: health.Object);
+
+        await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = "A", TemplateType = "Email", SourceView = "v_New" });
+
+        health.Verify(h => h.BuildSnapshotJsonAsync("v_New", It.IsAny<CancellationToken>()), Times.Once);
+        captured!.SourceView.Should().Be("v_New");
+        captured.SourceViewSnapshot.Should().Be("{\"columns\":[]}");
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_NoSourceView_DoesNotBuildSnapshot()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        Template? captured = null;
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 1; captured = t; return t; });
+        var health = new Mock<ITemplateHealthService>();
+        var controller = CreateController(mockRepo.Object, health: health.Object);
+
+        await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = "A", TemplateType = "Email" });
+
+        health.Verify(h => h.BuildSnapshotJsonAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        captured!.SourceView.Should().BeNull();
+        captured.SourceViewSnapshot.Should().BeNull();
+    }
+
+    [Fact]
     public async Task CreateTemplateJson_MissingName_ReturnsBadRequest()
     {
         var controller = CreateController();

@@ -78,11 +78,14 @@ public class TemplatesController : Controller
             return BadRequest(new ErrorResult("VALIDATION_ERROR", "Template name is required."));
         try
         {
+            var sourceView = string.IsNullOrWhiteSpace(model.SourceView) ? null : model.SourceView.Trim();
             var template = await _repository.CreateAsync(new Template
             {
                 Name = model.Name.Trim(),
                 TemplateType = model.TemplateType,
-                Description = model.Description
+                Description = model.Description,
+                SourceView = sourceView,
+                SourceViewSnapshot = sourceView is null ? null : await _health.BuildSnapshotJsonAsync(sourceView, ct)
             }, ct);
 
             if (!string.IsNullOrWhiteSpace(model.Body))
