@@ -353,31 +353,128 @@ public class TemplatesControllerTests
     }
 
     [Fact]
-    public async Task GetVersionBody_ExistingVersion_ReturnsBodyJson()
+    public async Task GetVersionBody_ExistingVersion_ReturnsSubjectAndBodyJson()
     {
         var mockRepo = new Mock<ITemplateRepository>();
-        mockRepo.Setup(r => r.GetVersionBodyAsync(42, It.IsAny<CancellationToken>()))
-            .ReturnsAsync("<p>Hello {{ model.Name }}</p>");
+        mockRepo.Setup(r => r.GetVersionAsync(42, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TemplateVersion { Id = 42, Subject = "Hi {{ model.Name }}", Body = "<p>Hello {{ model.Name }}</p>" });
         var controller = CreateController(mockRepo.Object);
 
         var result = await controller.GetVersionBody(1, 42);
 
         result.Should().BeOfType<OkObjectResult>();
         var ok = (OkObjectResult)result;
-        ok.Value.Should().BeEquivalentTo(new { body = "<p>Hello {{ model.Name }}</p>" });
+        ok.Value.Should().BeEquivalentTo(new { subject = "Hi {{ model.Name }}", body = "<p>Hello {{ model.Name }}</p>" });
     }
 
     [Fact]
     public async Task GetVersionBody_NonExistentVersion_ReturnsNotFound()
     {
         var mockRepo = new Mock<ITemplateRepository>();
-        mockRepo.Setup(r => r.GetVersionBodyAsync(99, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
+        mockRepo.Setup(r => r.GetVersionAsync(99, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TemplateVersion?)null);
         var controller = CreateController(mockRepo.Object);
 
         var result = await controller.GetVersionBody(1, 99);
 
         result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task CreateTemplateJson_PublishesSubject()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 5; return t; });
+        var controller = CreateController(mockRepo.Object);
+
+        await controller.CreateTemplateJson(new TemplateEditorViewModel
+        {
+            Name = "Welcome Email",
+            TemplateType = "Email",
+            Body = "<p>Hi</p>",
+            Subject = "Welcome, {{ model.Name }}!"
+        });
+
+        mockRepo.Verify(r => r.PublishVersionAsync(5,
+            It.Is<TemplateVersion>(v => v.Subject == "Welcome, {{ model.Name }}!"),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SaveVersion_PublishesSubject()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var template = new Template { Id = 1, Name = "A", TemplateType = "Email" };
+        repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(template);
+        TemplateVersion? captured = null;
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(2);
+        var controller = CreateController(repo.Object);
+
+        await controller.SaveVersion(1, new SaveVersionRequest("A", "Email", null, "<p>x</p>", null, Subject: "New subject"));
+
+        captured!.Subject.Should().Be("New subject");
+    }
+
+    [Fact]
+    public async Task RestoreVersion_CarriesSubjectForward()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetVersionAsync(5, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TemplateVersion { Id = 5, VersionNumber = 1, Body = "<p>old</p>", Subject = "Old subject", IsActive = true });
+        repo.Setup(r => r.GetNextVersionNumberAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(3);
+        TemplateVersion? captured = null;
+        repo.Setup(r => r.PublishVersionAsync(1, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        var controller = CreateController(repo.Object);
+
+        await controller.RestoreVersion(1, 5, 1);
+
+        captured!.Subject.Should().Be("Old subject");
+    }
+
+    [Fact]
+    public async Task Duplicate_CarriesSubjectForward()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        var source = new Template
+        {
+            Id = 1, Name = "Invoice Email", TemplateType = "Email",
+            CurrentVersion = new TemplateVersion { Id = 10, Body = "<p>Hello</p>", Subject = "Your invoice", VersionNumber = 1 },
+            CurrentVersionId = 10
+        };
+        mockRepo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(source);
+        mockRepo.Setup(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, CancellationToken _) => { t.Id = 99; return t; });
+        TemplateVersion? captured = null;
+        mockRepo.Setup(r => r.PublishVersionAsync(99, It.IsAny<TemplateVersion>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int _, TemplateVersion v, CancellationToken _) => { captured = v; return v; });
+        var controller = CreateController(mockRepo.Object);
+
+        await controller.Duplicate(1, new DuplicateRequest("Copy of Invoice Email"));
+
+        captured!.Subject.Should().Be("Your invoice");
+    }
+
+    [Fact]
+    public async Task Preview_RendersSubjectSeparatelyFromBody_WithoutSanitizing()
+    {
+        var mockEngine = new Mock<ITemplateEngine>();
+        mockEngine.Setup(e => e.RenderBodyAsync("Hi {{ model.Name }}", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("Hi Bob");
+        mockEngine.Setup(e => e.RenderBodyAsync("<p>body</p>", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("<p>body</p>");
+        var mockSanitizer = new Mock<IHtmlSanitizerService>();
+        mockSanitizer.Setup(s => s.Sanitize(It.IsAny<string>())).Returns((string s) => s);
+        var controller = CreateController(engine: mockEngine.Object, sanitizer: mockSanitizer.Object);
+
+        var result = await controller.Preview(1, new PreviewRequest("<p>body</p>", "{\"Name\":\"Bob\"}", "Hi {{ model.Name }}"));
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().BeEquivalentTo(new { subject = "Hi Bob", html = "<p>body</p>" });
+        mockSanitizer.Verify(s => s.Sanitize("Hi Bob"), Times.Never);
     }
 
     [Fact]

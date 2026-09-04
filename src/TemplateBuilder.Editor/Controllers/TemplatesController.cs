@@ -92,6 +92,7 @@ public class TemplatesController : Controller
                     TemplateId = template.Id,
                     VersionNumber = 1,
                     Body = model.Body,
+                    Subject = model.Subject,
                     ChangeComment = "Initial version",
                     CreatedBy = CurrentActor
                 }, ct);
@@ -121,6 +122,7 @@ public class TemplatesController : Controller
             TemplateType = template.TemplateType,
             Description = template.Description,
             Body = template.CurrentVersion?.Body ?? string.Empty,
+            Subject = template.CurrentVersion?.Subject,
             CurrentVersionId = template.CurrentVersionId,
             CurrentVersionNumber = template.CurrentVersion?.VersionNumber ?? 0,
             LatestVersionIsActive = template.CurrentVersion?.IsActive ?? true,
@@ -155,6 +157,7 @@ public class TemplatesController : Controller
                 TemplateId = id,
                 VersionNumber = nextNumber,
                 Body = request.Body,
+                Subject = request.Subject,
                 ChangeComment = request.ChangeComment,
                 IsActive = request.IsActive ?? true,
                 CreatedBy = CurrentActor
@@ -187,10 +190,10 @@ public class TemplatesController : Controller
     [HttpGet("Templates/{id:int}/Versions/{versionId:int}/Body")]
     public async Task<IActionResult> GetVersionBody(int id, int versionId, CancellationToken ct = default)
     {
-        var body = await _repository.GetVersionBodyAsync(versionId, ct);
-        if (body is null)
+        var version = await _repository.GetVersionAsync(versionId, ct);
+        if (version is null)
             return NotFound(new ErrorResult("VERSION_NOT_FOUND", $"Version {versionId} not found."));
-        return Ok(new { body });
+        return Ok(new { subject = version.Subject, body = version.Body });
     }
 
     [HttpGet("Templates/{id:int}/Audit")]
@@ -213,6 +216,7 @@ public class TemplatesController : Controller
                 TemplateId = id,
                 VersionNumber = nextNumber,
                 Body = source.Body,
+                Subject = source.Subject,
                 ChangeComment = $"Restored from v{sourceVersionNumber}",
                 IsActive = source.IsActive,
                 CreatedBy = CurrentActor
@@ -258,8 +262,11 @@ public class TemplatesController : Controller
         try
         {
             var model = (object?)modelDict ?? new { };
+            var subject = string.IsNullOrEmpty(request.Subject)
+                ? string.Empty
+                : await _engine.RenderBodyAsync(request.Subject, model, cts.Token);
             var html = _sanitizer.Sanitize(await _engine.RenderBodyAsync(request.Body, model, cts.Token));
-            return Ok(new { html });
+            return Ok(new { subject, html });
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -330,6 +337,7 @@ public class TemplatesController : Controller
         if (source is null) return NotFound();
 
         var body = source.CurrentVersion?.Body ?? string.Empty;
+        var subject = source.CurrentVersion?.Subject;
         var isActive = source.CurrentVersion?.IsActive ?? true;
         try
         {
@@ -345,6 +353,7 @@ public class TemplatesController : Controller
                 TemplateId = newTemplate.Id,
                 VersionNumber = 1,
                 Body = body,
+                Subject = subject,
                 ChangeComment = $"Duplicated from '{source.Name}'",
                 IsActive = isActive,
                 CreatedBy = CurrentActor
