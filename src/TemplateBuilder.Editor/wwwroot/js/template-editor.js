@@ -656,8 +656,14 @@ document.getElementById('field-palette')?.addEventListener('click', (e) => {
         return;
     }
     if (!_editor) return;
+    // notCleaningData=true: SunEditor's default HTML cleaner strips the contenteditable="false"
+    // wrapper (and the class with it) even though both are in attributesWhitelist — the
+    // whitelist governs paste-sanitization, not insertHTML's own cleaner. Skipping the cleaner
+    // is safe here: the inserted string is entirely our own construction (an escaped field name
+    // in a fixed template), never raw user/pasted HTML.
     _editor.insertHTML(
-        `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(field)} }}</span>&nbsp;`
+        `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(field)} }}</span>&nbsp;`,
+        true
     );
     document.querySelector('.sun-editor-editable')?.focus();
     markDirty();
@@ -1641,8 +1647,10 @@ function updateWordCount() {
 
     function insertFieldToken(fieldName) {
         if (!_editor) return;
+        // notCleaningData=true — see the matching comment on the field-palette insert handler above.
         _editor.insertHTML(
-            `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(fieldName)} }}</span>&nbsp;`
+            `<span class="tb-field" contenteditable="false">{{ model.${escapeHtml(fieldName)} }}</span>&nbsp;`,
+            true
         );
         document.querySelector('.sun-editor-editable')?.focus();
         markDirty();
