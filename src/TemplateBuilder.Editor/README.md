@@ -262,6 +262,25 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
   `User.Identity.Name`, then `"anonymous"` when unset.
 - Template version history now stamps `CreatedBy` on every save (previously never
   populated); existing versions are not backfilled.
+- **Fixed**: the WYSIWYG canvas rendered at a stale, permanently-too-narrow width —
+  `SUNEDITOR.create()` had no `width` option, so SunEditor froze whatever pixel width it
+  measured at creation time as a permanent inline style. Added `width: '100%'` alongside
+  the existing `height: '100%'`.
+- **Fixed**: the code view's textarea could still be capped narrow by a host page's own
+  generic `textarea { max-width: ... }` styling (a common Bootstrap/form-control pattern),
+  since `width: 100%` alone doesn't contest `max-width`. Added `max-width: 100% !important`
+  alongside `width`.
+- **Refined activity timeline** — each event now shows the actor as an initials avatar and
+  the action as a color-coded chip (published = green, deleted/rejected = red,
+  restore/toggle/duplicate = amber, everything else = indigo), replacing the previous
+  plain-text action label and status dot.
+- **DBA-managed databases** — new `TemplateBuilderEditorOptions.ApplyMigrations` (default
+  `true`). Set it to `false` and the package never registers its migration hosted service
+  and never attempts DDL — for SQL logins with DML-only rights. The package now ships a
+  generated schema script (`Scripts/TemplateBuilder.schema.<version>.sql`) that a DBA runs
+  once to provision the database (all tables, indexes, and migration-history rows;
+  generated from the migration chain so it cannot drift). Upgrades that change the schema
+  ship a new versioned script file.
 - **Subject field for Email templates** — an optional `Subject` on `TemplateVersion`, versioned
   alongside `Body`. Shown only when a template's Type is `Email`; supports the same
   `{{ model.X }}` Scriban syntax and field-palette insertion as the body. Rendered via the new
@@ -553,6 +572,25 @@ A vertical "Activity" tab on the right edge of the editor grid — with a live c
 ## Database
 
 `AddTemplateBuilderEditor()` registers a hosted service that runs EF Core migrations on startup. No manual migration steps are required.
+
+### DBA-managed database (app login is DML-only)
+
+If your SQL login has no DDL rights (no `CREATE TABLE`/`ALTER` — a common enterprise constraint), the app cannot run migrations. Instead:
+
+1. **Provision the schema once** — the package ships a generated SQL script: `Scripts/TemplateBuilder.schema.<version>.sql` (e.g. `TemplateBuilder.schema.2.3.0.sql`). Have your DBA run it against the target database. The script is generated from the package's EF Core migration chain, creates all tables and indexes, and records migration history so the app considers the database up to date.
+2. **Tell the package not to touch DDL**:
+
+```csharp
+builder.Services.AddTemplateBuilderEditor(options =>
+{
+    options.ConnectionString = connectionString;
+    options.ApplyMigrations = false;
+});
+```
+
+With `ApplyMigrations = false` the migration hosted service is never registered and the app never attempts DDL — the app login needs only DML (SELECT/INSERT/UPDATE/DELETE).
+
+3. **Upgrading a DBA-managed database** — every release that changes the schema ships a new versioned script (e.g. `TemplateBuilder.schema.2.4.0.sql`); have the DBA run the new file against the existing database. The runtime never runs migrations on its own when `ApplyMigrations` is `false`.
 
 ---
 
