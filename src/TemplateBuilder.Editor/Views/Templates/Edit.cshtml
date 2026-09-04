@@ -93,6 +93,11 @@
                     <input asp-for="Name" id="prop-name" />
                     <span asp-validation-for="Name" class="tb-field-error"></span>
                 </div>
+                <div id="prop-subject-row" style="@(Model.TemplateType == "Email" ? "" : "display:none;")">
+                    <label for="prop-subject">Subject</label>
+                    <input asp-for="Subject" id="prop-subject" maxlength="500"
+                           placeholder="e.g. Your order {{ model.OrderNumber }} has shipped" />
+                </div>
                 <div>
                     <label for="prop-type">Type</label>
                     <select asp-for="TemplateType" id="prop-type">
@@ -206,6 +211,7 @@
                     <span class="tb-version-badge">Current</span>
                     <span class="compare-panel-meta"></span>
                 </div>
+                <div id="compare-subject-current" class="tb-compare-subject" style="display:none;"></div>
                 <div class="compare-iframe-wrap">
                     <div class="compare-loading" id="compare-loading-current">Loading…</div>
                     <iframe id="compare-iframe-current" class="compare-iframe"
@@ -220,6 +226,7 @@
                     <span id="compare-old-num" class="tb-version-num"></span>
                     <span id="compare-old-meta" class="compare-panel-meta"></span>
                 </div>
+                <div id="compare-subject-old" class="tb-compare-subject" style="display:none;"></div>
                 <div class="compare-iframe-wrap">
                     <div class="compare-loading" id="compare-loading-old">Loading…</div>
                     <iframe id="compare-iframe-old" class="compare-iframe"
@@ -268,6 +275,9 @@
             </div>
             <button class="btn btn-primary btn-sm" id="btn-render">Render</button>
             <div id="preview-error" class="tb-error-msg" role="alert" style="display:none;"></div>
+            <div id="preview-subject-row" class="tb-preview-subject" style="display:none;">
+                <strong>Subject:</strong> <span id="preview-subject-text"></span>
+            </div>
             <div class="tb-preview-frame-wrap" id="preview-frame-wrap" style="display:none;">
                 <iframe id="preview-frame" class="tb-preview-frame" title="Template preview"></iframe>
             </div>
