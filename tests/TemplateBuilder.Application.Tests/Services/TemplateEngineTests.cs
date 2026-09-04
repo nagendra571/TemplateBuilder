@@ -150,6 +150,48 @@ public class TemplateEngineTests
     }
 
     [Fact]
+    public async Task RenderEmailAsync_RendersSubjectAndBody()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(11, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.Template { Id = 11, Name = "Invoice", IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(11, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion
+            {
+                Id = 20,
+                VersionNumber = 1,
+                Subject = "Invoice {{ model.InvoiceNumber }} is ready",
+                Body = "<p>Hi {{ model.CustomerName }}</p>"
+            });
+        repo.Setup(r => r.GetVersionBodyAsync(20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("<p>Hi {{ model.CustomerName }}</p>");
+        var engine = CreateEngine(repo.Object);
+
+        var result = await engine.RenderEmailAsync(11, new { InvoiceNumber = "INV-42", CustomerName = "Bob" });
+
+        result.Subject.Should().Be("Invoice INV-42 is ready");
+        result.Body.Should().Be("<p>Hi Bob</p>");
+    }
+
+    [Fact]
+    public async Task RenderEmailAsync_ReturnsEmptySubject_WhenNoneSet()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        repo.Setup(r => r.GetByIdAsync(12, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.Template { Id = 12, Name = "Report", IsActive = true });
+        repo.Setup(r => r.GetLastActiveVersionAsync(12, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Domain.Entities.TemplateVersion { Id = 21, VersionNumber = 1, Body = "<p>no subject</p>" });
+        repo.Setup(r => r.GetVersionBodyAsync(21, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("<p>no subject</p>");
+        var engine = CreateEngine(repo.Object);
+
+        var result = await engine.RenderEmailAsync(12, new { });
+
+        result.Subject.Should().BeEmpty();
+        result.Body.Should().Be("<p>no subject</p>");
+    }
+
+    [Fact]
     public async Task RenderAsync_InactiveTemplate_ThrowsTemplateInactiveException()
     {
         var repo = new Mock<ITemplateRepository>();

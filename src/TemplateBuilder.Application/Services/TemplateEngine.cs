@@ -54,6 +54,25 @@ public class TemplateEngine : ITemplateEngine
         return await RenderBodyAsync(body, model, ct);
     }
 
+    public async Task<RenderedEmail> RenderEmailAsync(int templateId, object model, CancellationToken ct = default)
+    {
+        var template = await _repository.GetByIdAsync(templateId, ct);
+        if (template is null)
+            throw new TemplateNotFoundException(templateId);
+        if (!template.IsActive)
+            throw new TemplateInactiveException(templateId);
+
+        var activeVersion = await _repository.GetLastActiveVersionAsync(templateId, ct)
+            ?? throw new NoActiveVersionException(templateId);
+
+        var body = await GetBodyAsync(templateId, activeVersion.Id, ct);
+        return new RenderedEmail
+        {
+            Subject = await RenderBodyAsync(activeVersion.Subject ?? string.Empty, model, ct),
+            Body = await RenderBodyAsync(body, model, ct)
+        };
+    }
+
     public async Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = default)
     {
         var parsed = Template.Parse(body);
