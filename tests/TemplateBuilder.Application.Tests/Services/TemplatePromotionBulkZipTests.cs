@@ -28,7 +28,7 @@ public class TemplatePromotionBulkZipTests
         archive.Entries.Select(e => e.Name).Should().Contain("_summary.json");
         using var sr = new StreamReader(archive.GetEntry("_summary.json")!.Open());
         var summary = sr.ReadToEnd();
-        summary.Should().Contain("\"schemaVersion\": 2");
+        summary.Should().Contain("\"schemaVersion\": 3");
         summary.Should().Contain("not found");
     }
 }

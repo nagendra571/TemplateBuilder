@@ -36,7 +36,7 @@ public class TemplatePromotionService : ITemplatePromotionService
 
         return new TemplateExportDocument
         {
-            SchemaVersion = 2,
+            SchemaVersion = 3,
             Exporter = new ExporterInfo(),
             ExportedAt = DateTime.UtcNow,
             Template = new TemplateExportTemplate
@@ -51,6 +51,7 @@ public class TemplatePromotionService : ITemplatePromotionService
                 {
                     VersionNumber = v.VersionNumber,
                     Body = v.Body,
+                    Subject = v.Subject,
                     ChangeComment = v.ChangeComment,
                     CreatedAt = v.CreatedAt,
                     CreatedBy = v.CreatedBy,
@@ -86,13 +87,13 @@ public class TemplatePromotionService : ITemplatePromotionService
             return result;
         }
 
-        if (doc.SchemaVersion != 2)
+        if (doc.SchemaVersion != 3)
         {
             result.Errors.Add(new TemplateImportEntry
             {
                 Name = doc.Template?.Name,
                 ExternalKey = doc.Template?.ExternalKey ?? Guid.Empty,
-                Reason = $"Unsupported schemaVersion {doc.SchemaVersion}; expected 2."
+                Reason = $"Unsupported schemaVersion {doc.SchemaVersion}; expected 3."
             });
             return result;
         }
@@ -141,6 +142,7 @@ public class TemplatePromotionService : ITemplatePromotionService
             {
                 VersionNumber = v.VersionNumber,
                 Body = v.Body,
+                Subject = v.Subject,
                 ChangeComment = v.ChangeComment,
                 CreatedAt = v.CreatedAt,
                 CreatedBy = v.CreatedBy ?? actor,
@@ -167,6 +169,7 @@ public class TemplatePromotionService : ITemplatePromotionService
             var versions = templateDto.Versions.Select(v => new TemplateVersion
             {
                 Body = v.Body,
+                Subject = v.Subject,
                 ChangeComment = v.ChangeComment,
                 CreatedAt = v.CreatedAt,
                 CreatedBy = v.CreatedBy ?? actor,
@@ -215,7 +218,7 @@ public class TemplatePromotionService : ITemplatePromotionService
 
             var summary = new
             {
-                schemaVersion = 2,
+                schemaVersion = 3,
                 exportedAt = DateTime.UtcNow,
                 files = summaryFiles
             };

@@ -4,6 +4,7 @@ public class TemplateExportVersion
 {
     public int VersionNumber { get; set; }
     public string Body { get; set; } = string.Empty;
+    public string? Subject { get; set; }
     public string? ChangeComment { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
@@ -29,7 +30,7 @@ public class ExporterInfo
 
 public class TemplateExportDocument
 {
-    public int SchemaVersion { get; set; } = 2;
+    public int SchemaVersion { get; set; } = 3;
     public ExporterInfo Exporter { get; set; } = new();
     public DateTime ExportedAt { get; set; } = DateTime.UtcNow;
     public TemplateExportTemplate Template { get; set; } = new();

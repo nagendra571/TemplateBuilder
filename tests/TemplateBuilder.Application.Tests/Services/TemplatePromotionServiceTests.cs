@@ -29,7 +29,7 @@ public class TemplatePromotionServiceTests
         var doc = await svc.BuildExportAsync(7);
 
         doc.Should().NotBeNull();
-        doc!.SchemaVersion.Should().Be(2);
+        doc!.SchemaVersion.Should().Be(3);
         doc.Exporter.Name.Should().Be("TemplateBuilder.Editor");
         doc.Template.Versions.Select(v => v.VersionNumber).Should().Equal(1, 2);
         doc.Template.Versions.Select(v => v.IsActive).Should().Equal(true, false);
@@ -38,6 +38,26 @@ public class TemplatePromotionServiceTests
         json.Should().Contain("\"schemaVersion\"");
         json.Should().Contain("\"externalKey\"");
         json.Should().Contain("\"sampleData\"");
+    }
+
+    [Fact]
+    public async Task BuildExportAsync_IncludesSubjectPerVersion()
+    {
+        var repo = new Mock<ITemplateRepository>();
+        var promo = new Mock<ITemplatePromotionRepository>();
+        repo.Setup(r => r.GetByIdAsync(8, It.IsAny<CancellationToken>())).ReturnsAsync(new Template
+        {
+            Id = 8, Name = "Welcome", TemplateType = "Email", IsActive = true
+        });
+        repo.Setup(r => r.GetVersionHistoryAsync(8, It.IsAny<CancellationToken>())).ReturnsAsync(new List<TemplateVersion>
+        {
+            new() { VersionNumber = 1, Body = "<p>hi</p>", Subject = "Welcome aboard", IsActive = true }
+        });
+        var svc = new TemplatePromotionService(repo.Object, promo.Object);
+
+        var doc = await svc.BuildExportAsync(8);
+
+        doc!.Template.Versions.Single().Subject.Should().Be("Welcome aboard");
     }
 
     [Theory]

@@ -81,10 +81,34 @@ public class TemplatePromotionImportTests
     }
 
     [Fact]
+    public async Task Import_RoundTripsSubject()
+    {
+        var promo = new Mock<ITemplatePromotionRepository>();
+        var key = Guid.NewGuid();
+        promo.Setup(p => p.GetByExternalKeyAsync(key, It.IsAny<CancellationToken>())).ReturnsAsync((Template?)null);
+        IReadOnlyList<TemplateVersion>? captured = null;
+        promo.Setup(p => p.AddWithVersionsAsync(It.IsAny<Template>(), It.IsAny<IReadOnlyList<TemplateVersion>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Template t, IReadOnlyList<TemplateVersion> vs, CancellationToken _) => { captured = vs; return t; });
+        var svc = Create(promo: promo);
+        var doc = new TemplateExportDocument
+        {
+            Template = new TemplateExportTemplate
+            {
+                ExternalKey = key, Name = "X", TemplateType = "Email", IsActive = true,
+                Versions = { new() { VersionNumber = 1, Body = "<p>ok</p>", Subject = "Hi there", IsActive = true } }
+            }
+        };
+
+        await svc.ImportAsync(Encoding.UTF8.GetBytes(svc.SerializeExport(doc)), "bob");
+
+        captured!.Single().Subject.Should().Be("Hi there");
+    }
+
+    [Fact]
     public async Task Import_RejectsNullTemplate()
     {
         var svc = Create();
-        var json = """{"schemaVersion":2,"template":null}""";
+        var json = """{"schemaVersion":3,"template":null}""";
         var result = await svc.ImportAsync(Encoding.UTF8.GetBytes(json), "bob");
         result.Errors.Should().ContainSingle(e => e.Reason!.Contains("missing"));
     }
