@@ -262,6 +262,14 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
   `User.Identity.Name`, then `"anonymous"` when unset.
 - Template version history now stamps `CreatedBy` on every save (previously never
   populated); existing versions are not backfilled.
+- **Subject field for Email templates** — an optional `Subject` on `TemplateVersion`, versioned
+  alongside `Body`. Shown only when a template's Type is `Email`; supports the same
+  `{{ model.X }}` Scriban syntax and field-palette insertion as the body. Rendered via the new
+  `ITemplateEngine.RenderEmailAsync(templateId, model)` (returns `RenderedEmail { Subject, Body }`);
+  never passed through the HTML sanitizer (it's plain text). Carried through Preview, Restore,
+  Duplicate, Compare, and Template Promotion export/import (`TemplateExportDocument.SchemaVersion`
+  bumped `2 → 3` — **promotion files exported before this release are now rejected on import**,
+  matching this package's existing precedent for schema-version changes, not silently upgraded).
 
 ### v2.2.1
 - **Fix**: `AuditController`'s filter parameter was literally named `action`, which collides with ASP.NET Core MVC's reserved `action` route value (the executing action method's own name). Every request to `/Audit`, `/Audit/Stats`, and `/Audit/Export` silently returned zero rows, filtered or not — the entire audit page was non-functional over real HTTP despite passing unit tests (which call the controller directly in C#, bypassing routing). Renamed the parameter to `actionName` with `[FromQuery(Name = "action")]` so the query-string contract (`?action=published`) is unchanged.
