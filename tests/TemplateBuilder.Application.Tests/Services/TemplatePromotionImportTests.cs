@@ -15,12 +15,21 @@ public class TemplatePromotionImportTests
                promo?.Object ?? new Mock<ITemplatePromotionRepository>().Object);
 
     [Fact]
-    public async Task Import_RejectsNonSchema2File()
+    public async Task Import_RejectsSchemaVersion1File()
     {
         var svc = Create();
         var json = """{"schemaVersion":1,"template":{"name":"X"}}""";
         var result = await svc.ImportAsync(Encoding.UTF8.GetBytes(json), "bob");
         result.Errors.Should().ContainSingle(e => e.Reason!.Contains("schemaVersion"));
+    }
+
+    [Fact]
+    public async Task Import_RejectsSchemaVersion2File()
+    {
+        var svc = Create();
+        var json = """{"schemaVersion":2,"template":{"name":"X"}}""";
+        var result = await svc.ImportAsync(Encoding.UTF8.GetBytes(json), "bob");
+        result.Errors.Should().ContainSingle(e => e.Reason!.Contains("expected 3"));
     }
 
     [Fact]

@@ -89,6 +89,9 @@ Task<string> RenderByNameAsync(string templateName, object model, CancellationTo
 
 // Render an arbitrary Scriban body string directly (no DB lookup)
 Task<string> RenderBodyAsync(string body, object model, CancellationToken ct = default);
+
+// Render an Email-type template's Subject and Body together
+Task<RenderedEmail> RenderEmailAsync(int templateId, object model, CancellationToken ct = default);
 ```
 
 `RenderAsync` / `RenderByNameAsync` serve the **last Active version** of the template — its highest-numbered version with `IsActive = true` — skipping any newer Draft version saved via the Editor's **Save Draft** button. As of `2.0.0`, three typed exceptions (`TemplateBuilder.Domain.Exceptions`) can be thrown:
@@ -168,6 +171,9 @@ Both packages share the same database schema — point them at the same connecti
 ---
 
 ## What's New
+
+### v2.3.0
+- **New `ITemplateEngine.RenderEmailAsync(templateId, model)`** — returns `RenderedEmail { Subject, Body }`, rendering an Email-type template's new optional `Subject` field alongside `Body` through the same Scriban pipeline. Adding this member to `ITemplateEngine` is source-breaking for any external implementation or mock of that interface.
 
 ### v2.0.0
 - **Two-state save model** — templates managed via `TemplateBuilder.Editor` now save each version as either **Draft** or **Active**. This package's render API is unaffected in shape but is now Active-version-aware — see below.

@@ -462,7 +462,7 @@ public class WelcomeEmailService(ITemplateEngine engine)
 }
 ```
 
-`RenderAsync` / `RenderByNameAsync` serve the **last Active version** — the highest-numbered version with `IsActive = true` — not simply the newest version. A version saved via **Save Draft** is skipped until it is promoted with **Save Version**. As of `2.0.0`, three typed exceptions (`TemplateBuilder.Domain.Exceptions`) can surface from either method:
+`RenderAsync` / `RenderByNameAsync` serve the **last Active version** — the highest-numbered version with `IsActive = true` — not simply the newest version. A version saved via **Save Draft** is skipped until it is promoted with **Save Version**. For Email-type templates, `RenderEmailAsync(templateId, model)` renders both `Subject` and `Body` together, returning `RenderedEmail { Subject, Body }`. As of `2.0.0`, three typed exceptions (`TemplateBuilder.Domain.Exceptions`) can surface from either method:
 
 | Exception | Thrown when |
 |---|---|
@@ -482,7 +482,7 @@ Export/import, health checks, and bulk operations, added in `2.1.0` for moving t
 
 Every template has a stable `ExternalKey` (`Guid`, unique) that identifies it across environments — it's assigned on creation and **survives renames**, so it's what promotion matches on, not the template name.
 
-- **Export** — `GET /Templates/Export/{id}` downloads a `schemaVersion: 2` JSON file: the template's metadata (`externalKey`, `name`, `templateType`, `description`, `sampleData`, `isActive`) plus every version (`versionNumber`, `body`, `changeComment`, `createdAt`, `createdBy`, `isActive`).
+- **Export** — `GET /Templates/Export/{id}` downloads a `schemaVersion: 3` JSON file: the template's metadata (`externalKey`, `name`, `templateType`, `description`, `sampleData`, `isActive`) plus every version (`versionNumber`, `body`, `subject`, `changeComment`, `createdAt`, `createdBy`, `isActive`). **Breaking in `2.3.0`:** files exported at `schemaVersion: 2` (before the `subject` field existed) are now rejected on import, not silently upgraded — re-export from a current instance if you need to re-import an older file.
 - **`sampleData` is included in the exported/imported JSON** — it's a nullable string, preserved on both the create and update-by-key-match import paths, so a template's saved preview data travels with it during promotion.
 - **Import** — `POST /Templates/Import` takes a multipart file upload of an exported JSON file:
   - **Key match** (an existing template has the same `ExternalKey`) → updates that template's metadata and `IsActive` in place, then **appends** the imported versions starting at `max version number + 1`, preserving each version's `IsActive` flag exactly as exported.

@@ -2396,6 +2396,7 @@ function saveDraft() {
     try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({
             body: _editor.getContents(),
+            subject: document.getElementById('prop-subject')?.value ?? '',
             timestamp: Date.now(),
             versionNumber: currentVersionNumber
         }));
@@ -2420,6 +2421,10 @@ function loadDraft() {
         banner.hidden = false;
         document.getElementById('btn-draft-restore')?.addEventListener('click', () => {
             _editor.setContents(draft.body);
+            if (draft.subject !== undefined) {
+                const subjectInput = document.getElementById('prop-subject');
+                if (subjectInput) subjectInput.value = draft.subject;
+            }
             markDirty();
             updateWordCount();
             clearDraft();
