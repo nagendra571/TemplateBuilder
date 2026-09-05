@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 2.3.0**
+**Current version: 3.0.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 2.3.0
+dotnet add package TemplateBuilder.Editor --version 3.0.0
 ```
 
 ### 2. Add a connection string
@@ -255,13 +255,38 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 
 ## What's New
 
-### v2.3.0
+### v3.0.0
 
-- New `TemplateBuilderEditorOptions.ActorResolver` — supply your own author identity
-  (claims, user id, username) stored as `CreatedBy` / audit `Actor`. Falls back to
-  `User.Identity.Name`, then `"anonymous"` when unset.
-- Template version history now stamps `CreatedBy` on every save (previously never
-  populated); existing versions are not backfilled.
+- **Breaking: `ITemplateEngine` gains a new member, `RenderEmailAsync(templateId, model)`**,
+  returning `RenderedEmail { Subject, Body }`. Source-breaking for any external
+  implementation or mock of `ITemplateEngine` — add the method to compile against this
+  version. Calling through the interface (the common case) is unaffected.
+- **Breaking: Template Promotion schema bumped `2 → 3`.** Promotion files exported before
+  this release (`schemaVersion: 2`, no `Subject` field) are now **rejected on import**, not
+  silently upgraded — matching this package's existing precedent for schema-version changes.
+  Re-export from a current instance if you need to re-import an older file.
+- **Subject field for Email templates** — an optional `Subject` on `TemplateVersion`, versioned
+  alongside `Body`. Shown only when a template's Type is `Email`; supports the same
+  `{{ model.X }}` Scriban syntax and field-palette insertion as the body. Rendered via
+  `RenderEmailAsync` (above); never passed through the HTML sanitizer (it's plain text).
+  Carried through Preview, Restore, Duplicate, Compare, and Template Promotion export/import.
+- **DBA-managed databases** — new `TemplateBuilderEditorOptions.ApplyMigrations` (default
+  `true`). Set it to `false` and the package never registers its migration hosted service
+  and never attempts DDL — for SQL logins with DML-only rights. The package now ships a
+  generated schema script (`Scripts/TemplateBuilder.schema.<version>.sql`) that a DBA runs
+  once to provision the database (all tables, indexes, and migration-history rows;
+  generated from the migration chain so it cannot drift). Upgrades that change the schema
+  ship a new versioned script file.
+- **Refined activity timeline** — each event now shows the actor as an initials avatar and
+  the action as a color-coded chip (published = green, deleted/rejected = red,
+  restored/toggled/duplicated/imported = amber, everything else = indigo), replacing the
+  previous plain-text action label and status dot.
+- **Fixed**: `TemplateVersion.CreatedBy` was truncated to 200 characters in code but the
+  column is only 100 — a resolver returning a longer value threw a SQL truncation error
+  on save instead of a clean truncation. Now truncated to the actual 100-char limit.
+- **Fixed**: `Import` and `BulkDelete` bypassed the configured `ActorResolver` chain (or
+  silently swallowed a resolver's exception) instead of honoring it like every other
+  write path.
 - **Fixed**: the WYSIWYG canvas rendered at a stale, permanently-too-narrow width —
   `SUNEDITOR.create()` had no `width` option, so SunEditor froze whatever pixel width it
   measured at creation time as a permanent inline style. Added `width: '100%'` alongside
@@ -270,25 +295,25 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
   generic `textarea { max-width: ... }` styling (a common Bootstrap/form-control pattern),
   since `width: 100%` alone doesn't contest `max-width`. Added `max-width: 100% !important`
   alongside `width`.
-- **Refined activity timeline** — each event now shows the actor as an initials avatar and
-  the action as a color-coded chip (published = green, deleted/rejected = red,
-  restored/toggled/duplicated/imported = amber, everything else = indigo), replacing the
-  previous plain-text action label and status dot.
-- **DBA-managed databases** — new `TemplateBuilderEditorOptions.ApplyMigrations` (default
-  `true`). Set it to `false` and the package never registers its migration hosted service
-  and never attempts DDL — for SQL logins with DML-only rights. The package now ships a
-  generated schema script (`Scripts/TemplateBuilder.schema.<version>.sql`) that a DBA runs
-  once to provision the database (all tables, indexes, and migration-history rows;
-  generated from the migration chain so it cannot drift). Upgrades that change the schema
-  ship a new versioned script file.
-- **Subject field for Email templates** — an optional `Subject` on `TemplateVersion`, versioned
-  alongside `Body`. Shown only when a template's Type is `Email`; supports the same
-  `{{ model.X }}` Scriban syntax and field-palette insertion as the body. Rendered via the new
-  `ITemplateEngine.RenderEmailAsync(templateId, model)` (returns `RenderedEmail { Subject, Body }`);
-  never passed through the HTML sanitizer (it's plain text). Carried through Preview, Restore,
-  Duplicate, Compare, and Template Promotion export/import (`TemplateExportDocument.SchemaVersion`
-  bumped `2 → 3` — **promotion files exported before this release are now rejected on import**,
-  matching this package's existing precedent for schema-version changes, not silently upgraded).
+- **Fixed**: clicking **Create Template** after typing anything into the form triggered a
+  native "Leave this page?" browser prompt immediately after a successful save — the
+  post-save redirect never cleared the page's dirty flag, so its own unsaved-changes guard
+  blocked its own navigation.
+- **Fixed**: inserting a field token (via the field palette, the toolbar's "Insert Field"
+  dropdown, or drag-and-drop) never wrapped it in its intended `tb-field` chip span — it
+  landed as plain, unstyled text. The token still worked correctly as a Scriban placeholder;
+  only the editor's visual distinction between literal text and dynamic fields was affected.
+- **Fixed**: selecting a Source SQL View on the Create form was silently dropped — the new
+  template always landed on its Edit page with "— None —" selected, and the field palette
+  had to be manually reselected.
+
+### v2.3.0
+
+- New `TemplateBuilderEditorOptions.ActorResolver` — supply your own author identity
+  (claims, user id, username) stored as `CreatedBy` / audit `Actor`. Falls back to
+  `User.Identity.Name`, then `"anonymous"` when unset.
+- Template version history now stamps `CreatedBy` on every save (previously never
+  populated); existing versions are not backfilled.
 
 ### v2.2.1
 - **Fix**: `AuditController`'s filter parameter was literally named `action`, which collides with ASP.NET Core MVC's reserved `action` route value (the executing action method's own name). Every request to `/Audit`, `/Audit/Stats`, and `/Audit/Export` silently returned zero rows, filtered or not — the entire audit page was non-functional over real HTTP despite passing unit tests (which call the controller directly in C#, bypassing routing). Renamed the parameter to `actionName` with `[FromQuery(Name = "action")]` so the query-string contract (`?action=published`) is unchanged.
@@ -577,7 +602,7 @@ A vertical "Activity" tab on the right edge of the editor grid — with a live c
 
 If your SQL login has no DDL rights (no `CREATE TABLE`/`ALTER` — a common enterprise constraint), the app cannot run migrations. Instead:
 
-1. **Provision the schema once** — the package ships a generated SQL script: `Scripts/TemplateBuilder.schema.<version>.sql` (e.g. `TemplateBuilder.schema.2.3.0.sql`). Have your DBA run it against the target database. The script is generated from the package's EF Core migration chain, creates all tables and indexes, and records migration history so the app considers the database up to date.
+1. **Provision the schema once** — the package ships a generated SQL script: `Scripts/TemplateBuilder.schema.<version>.sql` (e.g. `TemplateBuilder.schema.3.0.0.sql`). Have your DBA run it against the target database. The script is generated from the package's EF Core migration chain, creates all tables and indexes, and records migration history so the app considers the database up to date.
 2. **Tell the package not to touch DDL**:
 
 ```csharp
@@ -590,7 +615,7 @@ builder.Services.AddTemplateBuilderEditor(options =>
 
 With `ApplyMigrations = false` the migration hosted service is never registered and the app never attempts DDL — the app login needs only DML (SELECT/INSERT/UPDATE/DELETE).
 
-3. **Upgrading a DBA-managed database** — every release that changes the schema ships a new versioned script (e.g. `TemplateBuilder.schema.2.4.0.sql`); have the DBA run the new file against the existing database. The runtime never runs migrations on its own when `ApplyMigrations` is `false`.
+3. **Upgrading a DBA-managed database** — every release that changes the schema ships a new versioned script (e.g. `TemplateBuilder.schema.3.1.0.sql`); have the DBA run the new file against the existing database. The runtime never runs migrations on its own when `ApplyMigrations` is `false`.
 
 ---
 

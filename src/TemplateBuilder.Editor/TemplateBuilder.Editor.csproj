@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>TemplateBuilder.Editor</PackageId>
-    <Version>2.3.0</Version>
+    <Version>3.0.0</Version>
     <Authors>TemplateBuilder</Authors>
     <Description>Full template management UI (create, edit, version history) as an embeddable Razor Class Library. Call AddTemplateBuilderEditor() then navigate to /Templates.</Description>
     <Tags>template;scriban;html;editor;razor</Tags>
@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="Scripts\TemplateBuilder.schema.2.3.0.sql" Pack="true" PackagePath="Scripts\" Visible="false" />
+    <None Include="Scripts\TemplateBuilder.schema.3.0.0.sql" Pack="true" PackagePath="Scripts\" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>

@@ -35,7 +35,7 @@ public class SchemaScriptGenerationTests
 {
     private static readonly string ScriptPath = Path.Combine(
         FindRepoRoot(),
-        "src", "TemplateBuilder.Editor", "Scripts", "TemplateBuilder.schema.2.3.0.sql");
+        "src", "TemplateBuilder.Editor", "Scripts", "TemplateBuilder.schema.3.0.0.sql");
 
     private static string Generate()
     {
