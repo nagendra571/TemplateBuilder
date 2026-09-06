@@ -686,6 +686,12 @@ async function createTemplate() {
         btn.disabled = false;
         return;
     }
+    if (!document.getElementById('prop-name').value.trim()) {
+        errorEl.textContent = 'Template name is required.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        return;
+    }
     const body = _editor.getContents();
     try {
         const res = await fetch('/Templates/Create', {
@@ -709,7 +715,7 @@ async function createTemplate() {
             window.location.href = `/Templates/${data.templateId}/Edit`;
         } else {
             const err = await res.json().catch(() => null);
-            errorEl.textContent = errMessage(err, 'Failed to create template.');
+            errorEl.textContent = err?.message ?? 'Failed to create template.';
             errorEl.style.display = 'block';
         }
     } catch {
@@ -1167,7 +1173,7 @@ function showToast(msg) {
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => toast.remove(), 300);
-    }, 2500);
+    }, 4000);
 }
 
 // ── Word / character count ────────────────────────────────────────────────────

@@ -101,7 +101,8 @@
                                             <a class="btn btn-sm btn-secondary" asp-action="Edit" asp-route-id="@t.Id">Edit</a>
                                             <a class="btn btn-sm btn-secondary" href="@Url.Action("ExportTemplate", "Templates", new { id = t.Id })">Export</a>
                                             <button class="btn btn-sm btn-secondary"
-                                                    onclick="openDuplicateModal(@t.Id, '@Html.Raw(t.Name.Replace("'", "\\'"))')">Duplicate</button>
+                                                    data-duplicate-id="@t.Id" data-duplicate-name="@t.Name"
+                                                    onclick="openDuplicateModal(this.dataset.duplicateId, this.dataset.duplicateName)">Duplicate</button>
                                             <button class="btn btn-sm btn-secondary"
                                                     id="toggle-btn-@t.Id"
                                                     onclick="toggleActive(@t.Id, this)">
@@ -193,6 +194,23 @@
 @section Scripts {
 <script>
     const _csrf = document.querySelector('input[name=__RequestVerificationToken]')?.value ?? '';
+
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.setAttribute('role', 'status');
+        toast.textContent = msg;
+        Object.assign(toast.style, {
+            position: 'fixed', bottom: '24px', right: '24px',
+            background: 'var(--accent)', color: 'white',
+            padding: '10px 16px', borderRadius: 'var(--radius)',
+            fontSize: '14px', zIndex: '999', transition: 'opacity .3s'
+        });
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
 
     async function toggleActive(id, btn) {
         btn.disabled = true;
@@ -347,6 +365,7 @@
                 a.click();
                 a.remove();
                 URL.revokeObjectURL(blobUrl);
+                showToast(ids.length === 1 ? 'Template exported' : `${ids.length} templates exported`);
             } catch {
                 alert('Network error — could not export templates.');
             }
