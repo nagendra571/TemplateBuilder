@@ -8,7 +8,7 @@
 
 This repo ships two related NuGet packages: `TemplateBuilder.Editor` (ASP.NET Core, this repo) and a sibling `TemplateBuilder.Editor.Mvc5` (.NET Framework 4.8, a separate repo — not part of this test pass). Several fixes and one large feature were ported from the newer MVC5 fork back into this repo's `TemplateBuilder.Editor` this session. You're testing that port.
 
-Seven items, tracked in `status.md` at the repo root (read it for full technical detail per item — this document is the testing guide, `status.md` is the engineering record):
+Seven items, tracked in `docs/status.md` (read it for full technical detail per item — this document is the testing guide, `docs/status.md` is the engineering record):
 
 | # | Item | Type | Visible in UI? |
 |---|------|------|-----------------|
@@ -30,7 +30,7 @@ The session that made these changes could not get real browser automation workin
 
 - Current branch: `main`. Local `main` is 11 commits ahead of `origin/main` (all for item 7 — items 1–6 are **uncommitted working-tree changes**, not commits).
 - This means: the code on disk right now already has all 7 items applied, regardless of commit status. Just run the app as-is — no checkout, no branch switch, no `git pull` needed.
-- Do not commit, stash, or run any destructive git command. If you need to see exactly what changed per item, `status.md` links each item to its rationale; `git log --oneline -12` shows item 7's 11 commits; `git diff` shows items 1–6 (still uncommitted).
+- Do not commit, stash, or run any destructive git command. If you need to see exactly what changed per item, `docs/status.md` links each item to its rationale; `git log --oneline -12` shows item 7's 11 commits; `git diff` shows items 1–6 (still uncommitted).
 
 ## 4. Environment setup
 
@@ -130,7 +130,7 @@ Work through these in order — each builds on the last:
 
 ## 7. Reference material
 
-- `status.md` (repo root) — the engineering tracker for all 7 items, with implementation notes and links to source commits in the sibling fork.
+- `docs/status.md` — the engineering tracker for all 7 items, with implementation notes and links to source commits in the sibling fork.
 - `docs/superpowers/plans/2026-09-04-email-subject-field.md` — the full implementation plan for item 7, if you need to understand *why* something behaves a certain way (e.g. why Subject is versioned with Body, why old promotion files are rejected).
 - `src/TemplateBuilder.Editor/README.md` — the package's own user-facing docs, including a `### v2.3.0` "What's New" section describing every one of these 7 items from a consumer's point of view.
 

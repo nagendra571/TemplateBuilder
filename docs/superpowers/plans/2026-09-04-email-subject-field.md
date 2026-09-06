@@ -32,7 +32,7 @@
 - `Subject` is nullable everywhere (optional field).
 - No `TemplateType` validation inside `TemplateEngine.RenderEmailAsync` — it renders whatever `Subject` is stored, empty string if none, regardless of type. Type-gating (show/hide the input) is UI-only.
 - Subject is never passed through `IHtmlSanitizerService` — it's plain text, not HTML.
-- Every build/test claim in this plan must be verified by actually running the command and reading its output (per this session's own established convention — see `status.md`'s verification notes on prior items).
+- Every build/test claim in this plan must be verified by actually running the command and reading its output (per this session's own established convention — see `docs/status.md`'s verification notes on prior items).
 - `dotnet build TemplateBuilder.slnx` / `dotnet test TemplateBuilder.slnx` for full-solution checks; scope to a single project with `--project`/direct `.csproj` path for faster per-task iteration.
 - Kill any running `dotnet run` dev server before building/testing — a live process locks `TemplateBuilder.Editor.dll` and fails the build with `MSB3027`/`MSB3021` (hit and resolved earlier this session).
 
@@ -214,7 +214,7 @@ Expected: all pass.
 
 - [ ] **Step 6: Regenerate the DBA-managed-database schema script (golden-file gate)**
 
-The new migration changes the migration chain, so `src/TemplateBuilder.Editor/Scripts/TemplateBuilder.schema.2.3.0.sql` — committed for the DBA-managed-databases feature (see `status.md` item 6) — is now stale, and its golden-file test (`SchemaScriptGenerationTests`, net10.0-only) will fail. Regenerate it in place (same filename — no version bump in this plan):
+The new migration changes the migration chain, so `src/TemplateBuilder.Editor/Scripts/TemplateBuilder.schema.2.3.0.sql` — committed for the DBA-managed-databases feature (see `docs/status.md` item 6) — is now stale, and its golden-file test (`SchemaScriptGenerationTests`, net10.0-only) will fail. Regenerate it in place (same filename — no version bump in this plan):
 ```bash
 TB_REGEN_SCHEMA=1 dotnet test tests/TemplateBuilder.Editor.Tests/TemplateBuilder.Editor.Tests.csproj --nologo -v minimal -f net10.0 --filter "FullyQualifiedName~SchemaScriptGenerationTests"
 ```
@@ -1429,7 +1429,7 @@ git commit -m "feat: style the Subject rows in Preview and Compare"
 
 **Files:**
 - Modify: `src/TemplateBuilder.Editor/README.md` (changelog entry)
-- Modify: `status.md` (mark item 7 done)
+- Modify: `docs/status.md` (mark item 7 done)
 
 - [ ] **Step 1: Run every test suite in the solution**
 ```bash
@@ -1483,7 +1483,7 @@ If browser automation is available and can reach `http://localhost:5299` (it cou
 
 - [ ] **Step 7: Add a `What's New` entry to the README**
 
-In `src/TemplateBuilder.Editor/README.md`, under the still-unreleased `### v2.3.0` entry (the same one items 1, 4, 5, and 6 from `status.md` were added to earlier this session), add:
+In `src/TemplateBuilder.Editor/README.md`, under the still-unreleased `### v2.3.0` entry (the same one items 1, 4, 5, and 6 from `docs/status.md` were added to earlier this session), add:
 ```markdown
 - **Subject field for Email templates** — an optional `Subject` on `TemplateVersion`, versioned
   alongside `Body`. Shown only when a template's Type is `Email`; supports the same
@@ -1495,13 +1495,13 @@ In `src/TemplateBuilder.Editor/README.md`, under the still-unreleased `### v2.3.
   matching this package's existing precedent for schema-version changes, not silently upgraded).
 ```
 
-- [ ] **Step 8: Update `status.md`**
+- [ ] **Step 8: Update `docs/status.md`**
 
 Mark item 7 `done` with a summary note (implementation complete per this plan; version bump/packaging/publish are a separate follow-up decision, matching how items 1/4/5/6 were left un-bumped at `v2.3.0` pending the user's call on when to release).
 
 - [ ] **Step 9: Commit**
 ```bash
-git add src/TemplateBuilder.Editor/README.md status.md
+git add src/TemplateBuilder.Editor/README.md docs/status.md
 git commit -m "docs: Subject field changelog entry, mark backport item 7 done"
 ```
 
