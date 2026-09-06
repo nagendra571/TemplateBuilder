@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 3.0.0**
+**Current version: 3.0.1**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 3.0.0
+dotnet add package TemplateBuilder.Editor --version 3.0.1
 ```
 
 ### 2. Add a connection string
@@ -254,6 +254,22 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v3.0.1
+
+- **Fixed (security)**: the template list's **Duplicate** button built its click handler by
+  splicing the Template Name directly into an inline `onclick` attribute, escaping only single
+  quotes. A name containing a double quote broke out of the attribute, allowing stored HTML/JS
+  injection via the Name field. The id/name are now passed through `data-*` attributes instead,
+  which are HTML-encoded like any other Razor output.
+- **Fixed**: creating a template with an empty or duplicate name (or any other rejected `Create`
+  request) always showed a generic "Network error — please try again." instead of the server's
+  actual validation message. The error branch called a helper function, `errMessage()`, that
+  didn't exist in the codebase — the resulting `ReferenceError` was silently swallowed and masked
+  every real error behind the generic fallback. A required-name check now also short-circuits
+  before the request is even sent.
+- Export and version-save confirmations now stay visible for 4 seconds instead of 2.5, and
+  exporting templates from the list page shows a confirmation toast.
 
 ### v3.0.0
 
