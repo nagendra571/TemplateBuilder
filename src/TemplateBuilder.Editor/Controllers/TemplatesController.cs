@@ -18,6 +18,7 @@ public class TemplatesController : Controller
 {
     private const int MaxPreviewJsonBytes = 64 * 1024;
     private const int PreviewTimeoutSeconds = 5;
+    private const long MaxImportFileBytes = 5 * 1024 * 1024;
 
     private readonly ITemplateRepository _repository;
     private readonly ISqlViewDiscoveryService _viewDiscovery;
@@ -45,6 +46,22 @@ public class TemplatesController : Controller
     }
 
     protected string CurrentActor => ActorResolverChain.Resolve(_actorResolver.Resolver, User?.Identity?.Name, HttpContext);
+
+    // Matches TemplateEditorViewModel.Name's [StringLength(200)] and the Template.Name column
+    // width. Enforced here (not just via DataAnnotations) because these actions bind from JSON
+    // and never check ModelState — without this, an over-length name reaches the DB, throws a
+    // generic DbUpdateException, and gets misreported by the catch blocks below as "already
+    // exists" instead of the real problem.
+    private const int MaxNameLength = 200;
+
+    private IActionResult? ValidateTemplateName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", "Template name is required."));
+        if (name.Trim().Length > MaxNameLength)
+            return BadRequest(new ErrorResult("VALIDATION_ERROR", $"Template name cannot exceed {MaxNameLength} characters."));
+        return null;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Index(string? search, string? type, CancellationToken ct = default)
@@ -74,8 +91,7 @@ public class TemplatesController : Controller
     [HttpPost, ValidateAntiForgeryToken, ActionName("Create")]
     public async Task<IActionResult> CreateTemplateJson([FromBody] TemplateEditorViewModel model, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(model.Name))
-            return BadRequest(new ErrorResult("VALIDATION_ERROR", "Template name is required."));
+        if (ValidateTemplateName(model.Name) is { } invalidName) return invalidName;
         try
         {
             var sourceView = string.IsNullOrWhiteSpace(model.SourceView) ? null : model.SourceView.Trim();
@@ -138,8 +154,7 @@ public class TemplatesController : Controller
     [HttpPost("Templates/{id:int}/SaveVersion"), ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveVersion(int id, [FromBody] SaveVersionRequest request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new ErrorResult("VALIDATION_ERROR", "Template name is required."));
+        if (ValidateTemplateName(request.Name) is { } invalidName) return invalidName;
         var template = await _repository.GetByIdAsync(id, ct);
         if (template is null) return NotFound(new ErrorResult("TEMPLATE_NOT_FOUND", $"Template {id} not found."));
         try
@@ -336,6 +351,7 @@ public class TemplatesController : Controller
     [HttpPost("Templates/{id:int}/Duplicate"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Duplicate(int id, [FromBody] DuplicateRequest request, CancellationToken ct = default)
     {
+        if (ValidateTemplateName(request.NewName) is { } invalidName) return invalidName;
         var source = await _repository.GetByIdAsync(id, ct);
         if (source is null) return NotFound();
 
@@ -388,6 +404,10 @@ public class TemplatesController : Controller
     {
         if (file is null || file.Length == 0)
             return BadRequest(new ErrorResult("NO_FILE", "No file selected."));
+        if (file.Length > MaxImportFileBytes)
+            return BadRequest(new ErrorResult("FILE_TOO_LARGE", $"Import file exceeds the {MaxImportFileBytes / (1024 * 1024)} MB limit."));
+        if (!string.Equals(Path.GetExtension(file.FileName ?? string.Empty), ".json", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new ErrorResult("INVALID_FILE_TYPE", "Only .template.json export files can be imported."));
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms, ct);
         var result = await _promotion.ImportAsync(ms.ToArray(), CurrentActor, ct);

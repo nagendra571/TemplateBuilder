@@ -283,6 +283,13 @@
 #tb-editor-host .tb-code-textarea { font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; }
 #tb-editor-host .tb-radio-group { display: flex; gap: 12px; font-size: 13px; }
 #tb-editor-host .tb-radio-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-secondary); font-weight: 400; margin-bottom: 0; }
+#tb-editor-host .tb-dropzone {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 14px; border: 2px dashed var(--border); border-radius: var(--radius);
+    transition: border-color .15s, background-color .15s;
+}
+#tb-editor-host .tb-dropzone.tb-dropzone-active { border-color: var(--accent); background: var(--accent-bg, rgba(59,130,246,0.08)); }
+#tb-editor-host .tb-dropzone-hint { font-size: 11px; color: var(--text-muted); }
 
 /* ── 8. 3-Panel Editor Layout ────────────────────────────────── */
 
@@ -691,6 +698,10 @@
     border: none;
     background: white;
     display: block;
+}
+#tb-editor-host .tb-preview-toolbar {
+    display: flex; justify-content: flex-end;
+    padding: 6px 8px; border-bottom: 1px solid var(--border);
 }
 
 /* ── 16. State Banners ───────────────────────────────────────── */

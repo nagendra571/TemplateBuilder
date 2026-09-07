@@ -173,6 +173,25 @@ public class TemplatesControllerTests
     }
 
     [Fact]
+    public async Task CreateTemplateJson_NameOver200Chars_ReturnsBadRequestWithoutHittingRepository()
+    {
+        // Name has [StringLength(200)] matching the nvarchar(200) column, but the action never
+        // checks ModelState (it binds from JSON) — without an explicit length check, an
+        // over-length name used to reach the DB, throw a generic DbUpdateException, and get
+        // mislabeled by the catch block as "already exists" instead of the real problem.
+        var mockRepo = new Mock<ITemplateRepository>();
+        var controller = CreateController(mockRepo.Object);
+        var tooLong = new string('a', 201);
+
+        var result = await controller.CreateTemplateJson(new TemplateEditorViewModel { Name = tooLong, TemplateType = "Email" });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result;
+        bad.Value.Should().BeEquivalentTo(new ErrorResult("VALIDATION_ERROR", "Template name cannot exceed 200 characters."));
+        mockRepo.Verify(r => r.CreateAsync(It.IsAny<Template>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreateTemplateJson_DuplicateName_ReturnsBadRequestWithMessage()
     {
         var mockRepo = new Mock<ITemplateRepository>();
@@ -239,6 +258,37 @@ public class TemplatesControllerTests
     }
 
     [Fact]
+    public async Task Duplicate_MissingNewName_ReturnsBadRequestWithoutHittingRepository()
+    {
+        // DuplicateRequest.NewName is non-nullable, but JSON deserialization doesn't enforce
+        // that at runtime — a request missing the field binds it to null. Before this
+        // controller validated the name itself, request.NewName.Trim() threw an unhandled
+        // NullReferenceException instead of a clean 400.
+        var mockRepo = new Mock<ITemplateRepository>();
+        var controller = CreateController(mockRepo.Object);
+
+        var result = await controller.Duplicate(1, new DuplicateRequest(null!));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Duplicate_NewNameOver200Chars_ReturnsBadRequestWithoutHittingRepository()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        var controller = CreateController(mockRepo.Object);
+        var tooLong = new string('a', 201);
+
+        var result = await controller.Duplicate(1, new DuplicateRequest(tooLong));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result;
+        bad.Value.Should().BeEquivalentTo(new ErrorResult("VALIDATION_ERROR", "Template name cannot exceed 200 characters."));
+        mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Duplicate_NonExistentSource_ReturnsNotFound()
     {
         var mockRepo = new Mock<ITemplateRepository>();
@@ -278,6 +328,21 @@ public class TemplatesControllerTests
         var result = await controller.SaveVersion(1, new SaveVersionRequest(null!, "Email", null, "body", null));
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task SaveVersion_NameOver200Chars_ReturnsBadRequestWithoutHittingRepository()
+    {
+        var mockRepo = new Mock<ITemplateRepository>();
+        var controller = CreateController(mockRepo.Object);
+        var tooLong = new string('a', 201);
+
+        var result = await controller.SaveVersion(1, new SaveVersionRequest(tooLong, "Email", null, "body", null));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result;
+        bad.Value.Should().BeEquivalentTo(new ErrorResult("VALIDATION_ERROR", "Template name cannot exceed 200 characters."));
+        mockRepo.Verify(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -834,6 +899,40 @@ public class TemplatesControllerTests
     }
 
     [Fact]
+    public async Task Import_FileOverSizeLimit_ReturnsBadRequestWithoutCallingPromotionService()
+    {
+        var promo = new Mock<ITemplatePromotionService>();
+        var controller = CreateController(promo: promo);
+        var fileMock = new Mock<Microsoft.AspNetCore.Http.IFormFile>();
+        fileMock.Setup(f => f.Length).Returns(6 * 1024 * 1024); // > 5 MB limit
+        fileMock.Setup(f => f.FileName).Returns("huge.template.json");
+
+        var result = await controller.Import(fileMock.Object);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result;
+        bad.Value.Should().BeEquivalentTo(new ErrorResult("FILE_TOO_LARGE", "Import file exceeds the 5 MB limit."));
+        promo.Verify(p => p.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Import_NonJsonExtension_ReturnsBadRequestWithoutCallingPromotionService()
+    {
+        var promo = new Mock<ITemplatePromotionService>();
+        var controller = CreateController(promo: promo);
+        var fileMock = new Mock<Microsoft.AspNetCore.Http.IFormFile>();
+        fileMock.Setup(f => f.Length).Returns(2);
+        fileMock.Setup(f => f.FileName).Returns("not-a-template.txt");
+
+        var result = await controller.Import(fileMock.Object);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        var bad = (BadRequestObjectResult)result;
+        bad.Value.Should().BeEquivalentTo(new ErrorResult("INVALID_FILE_TYPE", "Only .template.json export files can be imported."));
+        promo.Verify(p => p.ImportAsync(It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Import_RecordsImportedForCreatedEntry()
     {
         var promo = new Mock<ITemplatePromotionService>();
@@ -848,6 +947,7 @@ public class TemplatesControllerTests
         var content = "{}"u8.ToArray();
         var stream = new MemoryStream(content);
         fileMock.Setup(f => f.Length).Returns(content.Length);
+        fileMock.Setup(f => f.FileName).Returns("test.template.json");
         fileMock.Setup(f => f.OpenReadStream()).Returns(stream);
         fileMock.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .Returns<Stream, CancellationToken>((s, ct) => stream.CopyToAsync(s, ct));
@@ -873,6 +973,7 @@ public class TemplatesControllerTests
         var content = "{}"u8.ToArray();
         var stream = new MemoryStream(content);
         fileMock.Setup(f => f.Length).Returns(content.Length);
+        fileMock.Setup(f => f.FileName).Returns("test.template.json");
         fileMock.Setup(f => f.OpenReadStream()).Returns(stream);
         fileMock.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .Returns<Stream, CancellationToken>((s, ct) => stream.CopyToAsync(s, ct));

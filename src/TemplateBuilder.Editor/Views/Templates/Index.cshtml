@@ -172,7 +172,10 @@
             </p>
             <div class="tb-form-row">
                 <label for="import-file">Template file</label>
-                <input type="file" id="import-file" accept=".json" />
+                <div id="import-dropzone" class="tb-dropzone">
+                    <input type="file" id="import-file" accept=".json" />
+                    <span class="tb-dropzone-hint">or drag a .template.json file here</span>
+                </div>
             </div>
             <div id="import-result" aria-live="polite"></div>
             <div class="tb-modal-actions">
@@ -441,6 +444,26 @@
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape' && modal.classList.contains('open')) closeImportModal();
         });
+
+        const dropzone = document.getElementById('import-dropzone');
+        if (dropzone && fileInput) {
+            ['dragenter', 'dragover'].forEach(evt =>
+                dropzone.addEventListener(evt, e => {
+                    e.preventDefault();
+                    dropzone.classList.add('tb-dropzone-active');
+                }));
+            ['dragleave', 'dragend'].forEach(evt =>
+                dropzone.addEventListener(evt, () => dropzone.classList.remove('tb-dropzone-active')));
+            dropzone.addEventListener('drop', e => {
+                e.preventDefault();
+                dropzone.classList.remove('tb-dropzone-active');
+                const dropped = e.dataTransfer?.files;
+                if (dropped?.length) {
+                    fileInput.files = dropped;
+                    if (resultEl) resultEl.textContent = '';
+                }
+            });
+        }
 
         function appendResultEntry(entry, kind, label) {
             const div = document.createElement('div');

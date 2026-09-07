@@ -822,6 +822,7 @@ async function restoreVersion(btn, versionId, sourceVersionNumber) {
         });
         if (res.ok) {
             clearDraft();
+            queueToastAcrossReload(`Restored to v${sourceVersionNumber}`);
             window.location.reload();
         } else {
             const err = await res.json().catch(() => null);
@@ -931,6 +932,7 @@ async function restoreFromCompare(btn, versionId, sourceVersionNumber) {
         });
         if (res.ok) {
             clearDraft();
+            queueToastAcrossReload(`Restored to v${sourceVersionNumber}`);
             window.location.reload();
         } else {
             const err = await res.json().catch(() => null);
@@ -1175,6 +1177,21 @@ function showToast(msg) {
         setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
+
+// A toast queued right before a same-page reload (e.g. after Restore) would otherwise vanish
+// instantly — stash it across the reload and show it once the new page's script runs.
+function queueToastAcrossReload(msg) {
+    try { sessionStorage.setItem('tb-pending-toast', msg); } catch { /* storage unavailable */ }
+}
+
+(function showQueuedToast() {
+    let msg;
+    try {
+        msg = sessionStorage.getItem('tb-pending-toast');
+        if (msg) sessionStorage.removeItem('tb-pending-toast');
+    } catch { /* storage unavailable */ }
+    if (msg) showToast(msg);
+})();
 
 // ── Word / character count ────────────────────────────────────────────────────
 
@@ -1741,6 +1758,9 @@ document.getElementById('btn-save')?.addEventListener('click', () => saveVersion
 document.getElementById('btn-save-draft')?.addEventListener('click', () => saveVersion(false));
 document.getElementById('btn-create')?.addEventListener('click', createTemplate);
 document.getElementById('btn-render')?.addEventListener('click', renderPreview);
+document.getElementById('btn-print-preview')?.addEventListener('click', () => {
+    document.getElementById('preview-frame')?.contentWindow?.print();
+});
 document.getElementById('btn-gen-sample')?.addEventListener('click', () => {
     const ta = document.getElementById('preview-json');
     ta.value = _tbGenerateSampleFromTemplate();
