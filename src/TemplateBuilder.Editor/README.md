@@ -1,6 +1,6 @@
 # TemplateBuilder.Editor
 
-**Current version: 3.0.1**
+**Current version: 3.1.0**
 
 Embed a full Scriban-powered HTML template management UI into any ASP.NET Core web application. Install the package, call two methods, and your users can create, edit, version, preview, and restore templates — all wrapped in your own site layout.
 
@@ -19,7 +19,7 @@ Embed a full Scriban-powered HTML template management UI into any ASP.NET Core w
 ### 1. Install
 
 ```bash
-dotnet add package TemplateBuilder.Editor --version 3.0.1
+dotnet add package TemplateBuilder.Editor --version 3.1.0
 ```
 
 ### 2. Add a connection string
@@ -254,6 +254,26 @@ Every failing check shows a one-line fix. The page returns 404 in non-Developmen
 ---
 
 ## What's New
+
+### v3.1.0
+
+- **Drag-and-drop import** — the Import dialog's file picker is now also a dropzone; drag a
+  `.template.json` file onto it instead of clicking through the file browser.
+- **Print button in Preview** — the rendered preview now has a print button that prints just
+  the rendered template (via the preview iframe's own `contentWindow.print()`), not the host
+  page.
+- **Restore now shows a confirmation** — restoring a previous version used to reload the page
+  with no feedback; it now shows a "Restored to vN" toast.
+- **Fixed**: `Create`, `SaveVersion`, and `Duplicate` never validated Template Name length
+  against the `nvarchar(200)` column limit — an over-200-character name reached the database,
+  threw a generic `DbUpdateException`, and got mislabeled as "A template named '...' already
+  exists." All three now return a clear "Template name cannot exceed 200 characters." before
+  touching the database. `Duplicate` additionally had no empty-name check at all (a request
+  missing the field would throw an unhandled `NullReferenceException`); it's now validated like
+  the other two.
+- **Fixed (hardening)**: `Import` had no file-size or file-type check before reading the entire
+  upload into memory. It now rejects files over 5 MB and non-`.json` files with a clear message
+  before parsing.
 
 ### v3.0.1
 
